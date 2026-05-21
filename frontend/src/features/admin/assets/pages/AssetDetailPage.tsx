@@ -8,7 +8,7 @@ import { signTypeService } from '@/services/signTypeService';
 import { fileService } from '@/services/fileService';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
 import { getFullLocationPath, resolveLocationLevels } from '@/shared/helpers/locationHelper';
-import { Asset, Location, MaintenanceTicket, SignType } from '@/shared/types';
+import { Asset, Location, SignType } from '@/shared/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
