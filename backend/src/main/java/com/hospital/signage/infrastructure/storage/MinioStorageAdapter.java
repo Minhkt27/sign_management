@@ -2,7 +2,6 @@ package com.hospital.signage.infrastructure.storage;
 
 import com.hospital.signage.application.port.out.FileStoragePort;
 import io.minio.*;
-import io.minio.errors.MinioException;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
