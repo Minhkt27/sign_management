@@ -25,7 +25,7 @@ describe('LoginPage', () => {
 
   it('renders username input, password input and login button', () => {
     renderPage();
-    expect(screen.getByPlaceholderText(/nhập admin hoặc tech/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/nhập tên đăng nhập/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText('••••••••')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /đăng nhập/i })).toBeInTheDocument();
   });
@@ -38,7 +38,7 @@ describe('LoginPage', () => {
     });
 
     renderPage();
-    await userEvent.type(screen.getByPlaceholderText(/nhập admin hoặc tech/i), 'admin');
+    await userEvent.type(screen.getByPlaceholderText(/nhập tên đăng nhập/i), 'admin');
     await userEvent.type(screen.getByPlaceholderText('••••••••'), 'password');
     await userEvent.click(screen.getByRole('button', { name: /đăng nhập/i }));
 
@@ -53,7 +53,7 @@ describe('LoginPage', () => {
     });
 
     renderPage();
-    await userEvent.type(screen.getByPlaceholderText(/nhập admin hoặc tech/i), 'tech');
+    await userEvent.type(screen.getByPlaceholderText(/nhập tên đăng nhập/i), 'tech');
     await userEvent.type(screen.getByPlaceholderText('••••••••'), 'password');
     await userEvent.click(screen.getByRole('button', { name: /đăng nhập/i }));
 
@@ -66,7 +66,7 @@ describe('LoginPage', () => {
     });
 
     renderPage();
-    await userEvent.type(screen.getByPlaceholderText(/nhập admin hoặc tech/i), 'admin');
+    await userEvent.type(screen.getByPlaceholderText(/nhập tên đăng nhập/i), 'admin');
     await userEvent.type(screen.getByPlaceholderText('••••••••'), 'wrongpass');
     await userEvent.click(screen.getByRole('button', { name: /đăng nhập/i }));
 
@@ -77,7 +77,7 @@ describe('LoginPage', () => {
     vi.mocked(authServiceModule.authService.login).mockRejectedValueOnce(new Error('Network error'));
 
     renderPage();
-    await userEvent.type(screen.getByPlaceholderText(/nhập admin hoặc tech/i), 'admin');
+    await userEvent.type(screen.getByPlaceholderText(/nhập tên đăng nhập/i), 'admin');
     await userEvent.type(screen.getByPlaceholderText('••••••••'), 'wrongpass');
     await userEvent.click(screen.getByRole('button', { name: /đăng nhập/i }));
 
