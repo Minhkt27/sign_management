@@ -187,13 +187,13 @@ export default function AssetDetailPage() {
   const renderStatusBadge = (status: Asset['status']) => {
     switch (status) {
       case 'ACTIVE':
-        return <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border border-emerald-250 flex items-center space-x-1 w-fit"><CheckCircle2 size={12} /> <span>Hoạt động</span></Badge>;
+        return <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border border-emerald-200 flex items-center space-x-1 w-fit text-xs px-2 py-0.5"><CheckCircle2 size={12} /> <span>Hoạt động</span></Badge>;
       case 'DAMAGED':
-        return <Badge className="bg-rose-50 text-rose-700 hover:bg-rose-50 border border-rose-250 flex items-center space-x-1 w-fit"><AlertCircle size={12} /> <span>Gặp sự cố (Báo hỏng)</span></Badge>;
+        return <Badge className="bg-rose-50 text-rose-700 hover:bg-rose-50 border border-rose-200 flex items-center space-x-1 w-fit text-xs px-2 py-0.5"><AlertCircle size={12} /> <span>Gặp sự cố (Báo hỏng)</span></Badge>;
       case 'REPAIRING':
-        return <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-50 border border-amber-250 flex items-center space-x-1 w-fit"><Wrench size={12} /> <span>Đang sửa chữa</span></Badge>;
+        return <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-50 border border-amber-200 flex items-center space-x-1 w-fit text-xs px-2 py-0.5"><Wrench size={12} /> <span>Đang sửa chữa</span></Badge>;
       case 'SCRAPPED':
-        return <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border border-slate-200 flex items-center space-x-1 w-fit"><HardDrive size={12} /> <span>Đã thanh lý</span></Badge>;
+        return <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border border-slate-200 flex items-center space-x-1 w-fit text-xs px-2 py-0.5"><HardDrive size={12} /> <span>Đã thanh lý</span></Badge>;
       default:
         return <Badge>{status}</Badge>;
     }
@@ -204,7 +204,7 @@ export default function AssetDetailPage() {
       {/* Back Button */}
       <button 
         onClick={() => navigate('/admin/assets')}
-        className="flex items-center space-x-2 text-slate-500 hover:text-slate-800 transition-colors font-semibold"
+        className="flex items-center space-x-2 text-slate-500 hover:text-slate-800 transition-colors font-semibold text-sm"
       >
         <ArrowLeft size={18} />
         <span>Quay lại Quản lý Biển báo</span>
@@ -226,7 +226,7 @@ export default function AssetDetailPage() {
             <p className="text-xs text-slate-400 max-w-[200px]">Quét mã trên để truy cập nhanh bằng điện thoại.</p>
             
             <div className="space-y-2 text-left pt-2 border-t border-slate-100 w-full">
-              <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center space-x-1">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center space-x-1">
                 <ImageIcon size={12} />
                 <span>Hình ảnh thực tế</span>
               </h3>
@@ -274,7 +274,7 @@ export default function AssetDetailPage() {
                   <div className="px-6 py-5 space-y-4 text-left max-h-[480px] overflow-y-auto">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-bold text-slate-655 mb-1.5">Mã biển hiệu</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Mã biển hiệu</label>
                         <Input
                           id="edit-asset-code"
                           required
@@ -284,7 +284,7 @@ export default function AssetDetailPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-655 mb-1.5">Trạng thái</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Trạng thái</label>
                         <select
                           id="edit-asset-status"
                           value={status}
@@ -300,7 +300,7 @@ export default function AssetDetailPage() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-655 mb-1.5 flex items-center space-x-1">
+                      <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
                         <FileText size={13} className="text-slate-400" />
                         <span>Mô tả biển báo *</span>
                       </label>
@@ -323,7 +323,7 @@ export default function AssetDetailPage() {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           {/* Level 1: Building */}
                           <div>
-                            <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Tòa nhà / Khu vực chính</span>
+                            <span className="block text-xs font-bold text-slate-400 uppercase mb-1">Tòa nhà / Khu vực chính</span>
                             <select
                               id="edit-asset-building"
                               value={selectedBuildingId}
@@ -344,7 +344,7 @@ export default function AssetDetailPage() {
 
                           {/* Level 2: Floor */}
                           <div>
-                            <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Tầng / Phân khu</span>
+                            <span className="block text-xs font-bold text-slate-400 uppercase mb-1">Tầng / Phân khu</span>
                             <select
                               id="edit-asset-floor"
                               disabled={!selectedBuildingId}
@@ -365,7 +365,7 @@ export default function AssetDetailPage() {
 
                           {/* Level 3: Room / Department */}
                           <div>
-                            <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Khoa / Phòng / Vị trí cụ thể</span>
+                            <span className="block text-xs font-bold text-slate-400 uppercase mb-1">Khoa / Phòng / Vị trí cụ thể</span>
                             <select
                               id="edit-asset-room"
                               disabled={!selectedFloorId}
@@ -383,7 +383,7 @@ export default function AssetDetailPage() {
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-slate-655 mb-1.5 flex items-center space-x-1">
+                        <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
                           <Building size={13} className="text-slate-400" />
                           <span>Nhà cung cấp</span>
                         </label>
@@ -398,7 +398,7 @@ export default function AssetDetailPage() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-655 mb-1.5 flex items-center space-x-1">
+                      <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
                         <ImageIcon size={13} className="text-slate-400" />
                         <span>Hình ảnh biển báo mới</span>
                       </label>
@@ -412,7 +412,7 @@ export default function AssetDetailPage() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-655 mb-1.5 flex items-center space-x-1">
+                      <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
                         <MapPin size={13} className="text-slate-400" />
                         <span>Mô tả cụ thể vị trí lắp đặt *</span>
                       </label>
@@ -429,7 +429,7 @@ export default function AssetDetailPage() {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-bold text-slate-655 mb-1.5 flex items-center space-x-1">
+                        <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
                           <Layers size={13} className="text-slate-400" />
                           <span>Chất liệu</span>
                         </label>
@@ -446,7 +446,7 @@ export default function AssetDetailPage() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-655 mb-1.5 flex items-center space-x-1">
+                        <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
                           <Maximize2 size={13} className="text-slate-400" />
                           <span>Kích thước</span>
                         </label>
@@ -527,7 +527,7 @@ export default function AssetDetailPage() {
         <div className="bg-white p-8 rounded-2xl border border-slate-200/80 shadow-sm md:col-span-2 space-y-6">
           <div className="flex items-start justify-between border-b border-slate-100 pb-4">
             <div className="space-y-1">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mã QR / Định danh</span>
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Mã QR / Định danh</span>
               <h2 className="text-2xl font-bold text-slate-800">{asset.assetCode}</h2>
               {asset.name && (
                 <p className="text-base font-semibold text-slate-705 mt-1">{asset.name}</p>
@@ -549,7 +549,7 @@ export default function AssetDetailPage() {
 
           <div className="grid grid-cols-2 gap-y-5 gap-x-6">
             <div className="space-y-1 col-span-2 bg-slate-50/50 p-4 rounded-xl border border-slate-100/80">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center space-x-1">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center space-x-1">
                 <MapPin size={12} className="text-blue-500" />
                 <span>Vị trí chi tiết lắp đặt</span>
               </span>
@@ -562,19 +562,19 @@ export default function AssetDetailPage() {
             </div>
             
             <div className="space-y-1">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Chất liệu</span>
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Chất liệu</span>
               <p className="text-sm font-semibold text-slate-700">{asset.material}</p>
             </div>
             <div className="space-y-1">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Kích thước</span>
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Kích thước</span>
               <p className="text-sm font-semibold text-slate-700">{asset.size}</p>
             </div>
             <div className="space-y-1">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nhà cung cấp</span>
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Nhà cung cấp</span>
               <p className="text-sm font-semibold text-slate-700">{asset.supplier || 'Không xác định'}</p>
             </div>
             <div className="space-y-1">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center space-x-1">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center space-x-1">
                 <Calendar size={12} /> <span>Ngày lắp đặt</span>
               </span>
               <p className="text-sm font-semibold text-slate-700">

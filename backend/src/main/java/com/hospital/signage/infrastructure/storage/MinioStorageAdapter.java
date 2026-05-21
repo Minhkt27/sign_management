@@ -2,6 +2,7 @@ package com.hospital.signage.infrastructure.storage;
 
 import com.hospital.signage.application.port.out.FileStoragePort;
 import io.minio.*;
+import io.minio.errors.MinioException;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -62,6 +63,18 @@ public class MinioStorageAdapter implements FileStoragePort {
             return publicUrl + "/" + bucketName + "/" + filename;
         } catch (Exception e) {
             throw new RuntimeException("File upload failed: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public void delete(String objectName) {
+        try {
+            minioClient.removeObject(RemoveObjectArgs.builder()
+                    .bucket(bucketName)
+                    .object(objectName)
+                    .build());
+        } catch (Exception e) {
+            log.warn("Failed to delete object '{}' from MinIO: {}", objectName, e.getMessage());
         }
     }
 }

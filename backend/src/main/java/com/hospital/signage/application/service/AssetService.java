@@ -2,11 +2,13 @@ package com.hospital.signage.application.service;
 
 import com.hospital.signage.application.port.in.AssetUseCase;
 import com.hospital.signage.application.port.out.AssetDatabasePort;
+import com.hospital.signage.application.port.out.FileStoragePort;
 import com.hospital.signage.application.port.out.LocationDatabasePort;
 import com.hospital.signage.application.port.out.TicketDatabasePort;
 import com.hospital.signage.domain.model.Asset;
 import com.hospital.signage.domain.model.Location;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -17,6 +19,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AssetService implements AssetUseCase {
@@ -24,6 +27,7 @@ public class AssetService implements AssetUseCase {
     private final AssetDatabasePort assetDatabasePort;
     private final LocationDatabasePort locationDatabasePort;
     private final TicketDatabasePort ticketDatabasePort;
+    private final FileStoragePort fileStoragePort;
 
     @Override
     public Asset createAsset(Asset asset) {
@@ -61,8 +65,11 @@ public class AssetService implements AssetUseCase {
         existing.setStatus(updatedAsset.getStatus());
         existing.setSupplier(updatedAsset.getSupplier());
         existing.setInstalledAt(updatedAsset.getInstalledAt());
+        if (updatedAsset.getImageUrl() != null && !updatedAsset.getImageUrl().equals(existing.getImageUrl())) {
+            deleteImageQuietly(existing.getImageUrl());
+        }
         existing.setImageUrl(updatedAsset.getImageUrl());
-        
+
         if (updatedAsset.getLocation() != null && updatedAsset.getLocation().getId() != null) {
             Location location = locationDatabasePort.findById(updatedAsset.getLocation().getId())
                     .orElseThrow(() -> new IllegalArgumentException("Location not found"));
@@ -102,9 +109,23 @@ public class AssetService implements AssetUseCase {
 
     @Override
     public void deleteAsset(UUID id) {
+        Asset asset = assetDatabasePort.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Asset not found"));
         if (!ticketDatabasePort.findByAssetId(id).isEmpty()) {
             throw new IllegalArgumentException("Không thể xóa biển báo này vì đang có phiếu bảo trì liên kết.");
         }
         assetDatabasePort.deleteById(id);
+        deleteImageQuietly(asset.getImageUrl());
+    }
+
+    private void deleteImageQuietly(String imageUrl) {
+        if (imageUrl == null || imageUrl.isBlank()) return;
+        int lastSlash = imageUrl.lastIndexOf('/');
+        String objectName = lastSlash >= 0 ? imageUrl.substring(lastSlash + 1) : imageUrl;
+        try {
+            fileStoragePort.delete(objectName);
+        } catch (Exception e) {
+            log.warn("Could not delete image '{}' from MinIO: {}", objectName, e.getMessage());
+        }
     }
 }

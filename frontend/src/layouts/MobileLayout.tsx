@@ -20,14 +20,14 @@ export default function MobileLayout() {
             {user ? user.fullName.charAt(0) : 'K'}
           </div>
           <div>
-            <h1 className="text-sm font-bold tracking-wide">Kỹ thuật viên</h1>
-            <p className="text-[10px] text-blue-200 truncate max-w-[150px]">{user?.fullName || 'Nguyễn Văn Hùng'}</p>
+            <h1 className="text-base font-bold tracking-wide">Kỹ thuật viên</h1>
+            <p className="text-xs text-blue-200 truncate max-w-[160px]">{user?.fullName || 'Nguyễn Văn Hùng'}</p>
           </div>
         </div>
 
         <div className="flex items-center space-x-1.5">
           <span className="w-2 h-2 rounded-full bg-green-400"></span>
-          <span className="text-[10px] text-green-200 font-semibold uppercase">Online</span>
+          <span className="text-xs text-green-200 font-semibold">Online</span>
         </div>
       </header>
 
@@ -46,8 +46,8 @@ export default function MobileLayout() {
             }`
           }
         >
-          <ClipboardList size={20} />
-          <span className="text-[10px]">Nhiệm vụ</span>
+          <ClipboardList size={22} />
+          <span className="text-xs font-medium">Nhiệm vụ</span>
         </NavLink>
 
         <NavLink 
@@ -58,16 +58,16 @@ export default function MobileLayout() {
             }`
           }
         >
-          <QrCode size={20} />
-          <span className="text-[10px]">Tra cứu/Quét</span>
+          <QrCode size={22} />
+          <span className="text-xs font-medium">Tra cứu/Quét</span>
         </NavLink>
 
         <button 
           onClick={handleLogout}
           className="flex flex-col items-center space-y-1 py-1 text-red-400 hover:text-red-600 transition-all"
         >
-          <LogOut size={20} />
-          <span className="text-[10px]">Đăng xuất</span>
+          <LogOut size={22} />
+          <span className="text-xs font-medium">Đăng xuất</span>
         </button>
       </nav>
     </div>

@@ -36,6 +36,8 @@ export default function AssetListPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [materialFilter, setMaterialFilter] = useState('ALL');
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 15;
 
   // Form State
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -59,7 +61,7 @@ export default function AssetListPage() {
   // Fetch Data using React Query
   const { data: assetData, isLoading: isAssetsLoading } = useQuery<PagedResponse<Asset>>({
     queryKey: ['assets'],
-    queryFn: () => assetService.getAssetsPage(),
+    queryFn: () => assetService.getAssetsPage(0, 200),
   });
   const assets = assetData?.content ?? [];
 
@@ -159,13 +161,13 @@ export default function AssetListPage() {
   const renderStatusBadge = (status: Asset['status']) => {
     switch (status) {
       case 'ACTIVE':
-        return <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border border-emerald-250 flex items-center space-x-1 w-fit"><CheckCircle2 size={12} /> <span>Hoạt động</span></Badge>;
+        return <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border border-emerald-200 flex items-center space-x-1 w-fit text-xs px-2 py-0.5"><CheckCircle2 size={12} /> <span>Hoạt động</span></Badge>;
       case 'DAMAGED':
-        return <Badge className="bg-rose-50 text-rose-700 hover:bg-rose-50 border border-rose-250 flex items-center space-x-1 w-fit"><AlertCircle size={12} /> <span>Báo hỏng</span></Badge>;
+        return <Badge className="bg-rose-50 text-rose-700 hover:bg-rose-50 border border-rose-200 flex items-center space-x-1 w-fit text-xs px-2 py-0.5"><AlertCircle size={12} /> <span>Báo hỏng</span></Badge>;
       case 'REPAIRING':
-        return <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-50 border border-amber-250 flex items-center space-x-1 w-fit"><Wrench size={12} /> <span>Sửa chữa</span></Badge>;
+        return <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-50 border border-amber-200 flex items-center space-x-1 w-fit text-xs px-2 py-0.5"><Wrench size={12} /> <span>Sửa chữa</span></Badge>;
       case 'SCRAPPED':
-        return <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border border-slate-200 flex items-center space-x-1 w-fit"><ShieldAlert size={12} /> <span>Đã thanh lý</span></Badge>;
+        return <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border border-slate-200 flex items-center space-x-1 w-fit text-xs px-2 py-0.5"><ShieldAlert size={12} /> <span>Đã thanh lý</span></Badge>;
       default:
         return <Badge>{status}</Badge>;
     }
@@ -193,6 +195,8 @@ export default function AssetListPage() {
       return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
     });
 
+  const totalPages = Math.ceil(filteredAssets.length / PAGE_SIZE);
+  const pagedAssets = filteredAssets.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   return (
     <div className="space-y-8">
@@ -248,7 +252,7 @@ export default function AssetListPage() {
               <Input
                 placeholder="Tìm mã hoặc vị trí..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => { setSearch(e.target.value); setPage(0); }}
                 className="pl-10 pr-4 py-2 border-slate-200 hover:border-slate-350 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
             </div>
@@ -257,7 +261,7 @@ export default function AssetListPage() {
           <div className="flex flex-wrap items-center gap-3">
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
               className="border border-slate-200 bg-white text-slate-700 px-3.5 py-2.5 rounded-xl text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="ALL">Tất cả Trạng thái</option>
@@ -269,7 +273,7 @@ export default function AssetListPage() {
 
             <select
               value={materialFilter}
-              onChange={(e) => setMaterialFilter(e.target.value)}
+              onChange={(e) => { setMaterialFilter(e.target.value); setPage(0); }}
               className="border border-slate-200 bg-white text-slate-700 px-3.5 py-2.5 rounded-xl text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="ALL">Tất cả Chất liệu</option>
@@ -338,12 +342,12 @@ export default function AssetListPage() {
 
                     {/* Section 2: Info & Details */}
                     <div className="space-y-4">
-                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-1">
+                      <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100 pb-1.5">
                         Thông tin biển báo
                       </h4>
                       
                       <div>
-                        <label className="block text-xs font-bold text-slate-655 mb-1.5 flex items-center space-x-1">
+                        <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
                           <Tag size={13} className="text-slate-400" />
                           <span>Tên biển báo *</span>
                         </label>
@@ -359,7 +363,7 @@ export default function AssetListPage() {
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-bold text-slate-655 mb-1.5 flex items-center space-x-1">
+                          <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
                             <Layers size={13} className="text-slate-400" />
                             <span>Loại biển</span>
                           </label>
@@ -376,7 +380,7 @@ export default function AssetListPage() {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs font-bold text-slate-655 mb-1.5 flex items-center space-x-1">
+                          <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
                             <Layers size={13} className="text-slate-400" />
                             <span>Chất liệu</span>
                           </label>
@@ -395,7 +399,7 @@ export default function AssetListPage() {
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-slate-655 mb-1.5 flex items-center space-x-1">
+                        <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
                           <FileText size={13} className="text-slate-400" />
                           <span>Mô tả biển báo</span>
                         </label>
@@ -409,7 +413,7 @@ export default function AssetListPage() {
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-slate-655 mb-1.5 flex items-center space-x-1">
+                        <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
                             <Maximize2 size={13} className="text-slate-400" />
                             <span>Kích thước</span>
                           </label>
@@ -426,7 +430,7 @@ export default function AssetListPage() {
 
                     {/* Section 3: Installation location */}
                     <div className="space-y-4">
-                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-1">
+                      <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100 pb-1.5">
                         Vị trí lắp đặt chi tiết
                       </h4>
 
@@ -521,7 +525,7 @@ export default function AssetListPage() {
                       </div>
 
                         <div>
-                          <label className="block text-xs font-bold text-slate-655 mb-1.5 flex items-center space-x-1">
+                          <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
                             <Building size={13} className="text-slate-400" />
                             <span>Nhà cung cấp</span>
                           </label>
@@ -535,7 +539,7 @@ export default function AssetListPage() {
                         </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-slate-655 mb-1.5 flex items-center space-x-1">
+                        <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
                           <ImageIcon size={13} className="text-slate-400" />
                           <span>Hình ảnh biển báo</span>
                         </label>
@@ -549,7 +553,7 @@ export default function AssetListPage() {
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-slate-655 mb-1.5 flex items-center space-x-1">
+                        <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
                           <MapPin size={13} className="text-slate-400" />
                           <span>Mô tả cụ thể vị trí lắp đặt *</span>
                         </label>
@@ -585,33 +589,33 @@ export default function AssetListPage() {
           <Table>
             <TableHeader className="bg-slate-50">
               <TableRow>
-                <TableHead className="font-bold text-slate-700 text-left w-[80px]">STT</TableHead>
-                <TableHead className="font-bold text-slate-700 text-left">Mã biển</TableHead>
-                <TableHead className="font-bold text-slate-700 text-left">Tên biển</TableHead>
-                <TableHead className="font-bold text-slate-700 text-left">Loại biển</TableHead>
-                <TableHead className="font-bold text-slate-700 text-left">Chất liệu</TableHead>
-                <TableHead className="font-bold text-slate-700 text-left">Kích thước</TableHead>
-                <TableHead className="font-bold text-slate-700 text-left">Trạng thái</TableHead>
-                <TableHead className="font-bold text-slate-700 text-left">Hành động</TableHead>
+                <TableHead className="text-sm font-bold text-slate-700 text-left w-[60px]">STT</TableHead>
+                <TableHead className="text-sm font-bold text-slate-700 text-left">Mã biển</TableHead>
+                <TableHead className="text-sm font-bold text-slate-700 text-left">Tên biển</TableHead>
+                <TableHead className="text-sm font-bold text-slate-700 text-left">Loại biển</TableHead>
+                <TableHead className="text-sm font-bold text-slate-700 text-left">Chất liệu</TableHead>
+                <TableHead className="text-sm font-bold text-slate-700 text-left">Kích thước</TableHead>
+                <TableHead className="text-sm font-bold text-slate-700 text-left">Trạng thái</TableHead>
+                <TableHead className="text-sm font-bold text-slate-700 text-left">Hành động</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredAssets.length > 0 ? (
-                filteredAssets.map((asset, index) => (
+                pagedAssets.map((asset, index) => (
                   <TableRow key={asset.id} className="hover:bg-slate-50/50">
-                    <TableCell className="text-left font-medium text-slate-500">{index + 1}</TableCell>
-                    <TableCell className="font-semibold text-slate-800 text-left">{asset.assetCode}</TableCell>
-                    <TableCell className="text-slate-700 text-left font-medium max-w-[200px] truncate">{asset.name || '—'}</TableCell>
-                    <TableCell className="text-left">
+                    <TableCell className="text-sm text-left font-medium text-slate-500">{page * PAGE_SIZE + index + 1}</TableCell>
+                    <TableCell className="text-sm font-bold text-blue-700 text-left">{asset.assetCode}</TableCell>
+                    <TableCell className="text-sm text-slate-700 text-left font-medium max-w-[200px] truncate">{asset.name || '—'}</TableCell>
+                    <TableCell className="text-sm text-left">
                       {asset.signTypeId ? (
                         <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-xs font-semibold">
                           {signTypes.find(st => st.id === asset.signTypeId)?.name || '—'}
                         </Badge>
                       ) : '—'}
                     </TableCell>
-                    <TableCell className="font-medium text-slate-600 text-left">{asset.material}</TableCell>
-                    <TableCell className="text-slate-600 text-left">{asset.size}</TableCell>
-                    <TableCell className="text-left">{renderStatusBadge(asset.status)}</TableCell>
+                    <TableCell className="text-sm font-medium text-slate-600 text-left">{asset.material}</TableCell>
+                    <TableCell className="text-sm text-slate-600 text-left">{asset.size}</TableCell>
+                    <TableCell className="text-sm text-left">{renderStatusBadge(asset.status)}</TableCell>
                     <TableCell className="text-left">
                       <div className="flex items-center space-x-2">
                         <Button
@@ -636,7 +640,7 @@ export default function AssetListPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-24 text-center text-slate-400 font-medium">
+                  <TableCell colSpan={8} className="h-24 text-center text-sm text-slate-400 font-medium">
                     Không tìm thấy biển báo vật lý nào phù hợp.
                   </TableCell>
                 </TableRow>
@@ -644,6 +648,38 @@ export default function AssetListPage() {
             </TableBody>
           </Table>
         </div>
+
+        {/* Pagination */}
+        {filteredAssets.length > 0 && (
+          <div className="flex items-center justify-between pt-2">
+            <span className="text-sm text-slate-500">
+              {filteredAssets.length === 0 ? '0' : `${page * PAGE_SIZE + 1}–${Math.min((page + 1) * PAGE_SIZE, filteredAssets.length)}`} / <strong>{filteredAssets.length}</strong> biển báo
+            </span>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page === 0}
+                onClick={() => setPage(p => p - 1)}
+                className="text-sm px-4 py-2 rounded-lg disabled:opacity-40"
+              >
+                ← Trước
+              </Button>
+              <span className="text-sm font-semibold text-slate-700 px-2">
+                Trang {page + 1} / {totalPages || 1}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages - 1}
+                onClick={() => setPage(p => p + 1)}
+                className="text-sm px-4 py-2 rounded-lg disabled:opacity-40"
+              >
+                Sau →
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
       {/* Image Preview Overlay Modal */}
       {zoomedImage && (

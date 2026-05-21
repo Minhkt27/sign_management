@@ -54,13 +54,13 @@ export default function TicketDetailPage() {
   const renderStatusBadge = (status: MaintenanceTicket['ticketStatus']) => {
     switch (status) {
       case 'OPEN':
-        return <Badge className="bg-rose-50 text-rose-700 hover:bg-rose-50 border border-rose-200 flex items-center space-x-1 w-fit"><AlertCircle size={12} /> <span>Chờ tiếp nhận</span></Badge>;
+        return <Badge className="bg-rose-50 text-rose-700 hover:bg-rose-50 border border-rose-200 flex items-center space-x-1 w-fit text-xs px-2 py-0.5"><AlertCircle size={12} /> <span>Chờ tiếp nhận</span></Badge>;
       case 'IN_PROGRESS':
-        return <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-50 border border-amber-250 flex items-center space-x-1 w-fit"><Wrench size={12} /> <span>Đang xử lý</span></Badge>;
+        return <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-50 border border-amber-200 flex items-center space-x-1 w-fit text-xs px-2 py-0.5"><Wrench size={12} /> <span>Đang xử lý</span></Badge>;
       case 'RESOLVED':
-        return <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border border-emerald-250 flex items-center space-x-1 w-fit"><CheckCircle2 size={12} /> <span>Đã sửa xong</span></Badge>;
+        return <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border border-emerald-200 flex items-center space-x-1 w-fit text-xs px-2 py-0.5"><CheckCircle2 size={12} /> <span>Đã sửa xong</span></Badge>;
       case 'CLOSED':
-        return <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border border-slate-200 flex items-center space-x-1 w-fit"><CheckCircle2 size={12} /> <span>Đã đóng phiếu</span></Badge>;
+        return <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border border-slate-200 flex items-center space-x-1 w-fit text-xs px-2 py-0.5"><CheckCircle2 size={12} /> <span>Đã đóng phiếu</span></Badge>;
       default:
         return <Badge>{status}</Badge>;
     }
@@ -131,7 +131,7 @@ export default function TicketDetailPage() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5 text-center">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Trước khi sửa</span>
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Trước khi sửa</span>
                 <div className="aspect-video bg-slate-100 rounded-xl border border-slate-200 overflow-hidden flex items-center justify-center relative">
                   {ticket.imageBefore ? (
                     <img src={getBackendUrl(ticket.imageBefore)} alt="Before repair" className="w-full h-full object-cover" />
@@ -142,7 +142,7 @@ export default function TicketDetailPage() {
               </div>
 
               <div className="space-y-1.5 text-center">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Sau khi sửa</span>
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Sau khi sửa</span>
                 <div className="aspect-video bg-slate-100 rounded-xl border border-slate-200 overflow-hidden flex items-center justify-center relative">
                   {ticket.imageAfter ? (
                     <img src={getBackendUrl(ticket.imageAfter)} alt="After repair" className="w-full h-full object-cover" />
@@ -159,13 +159,13 @@ export default function TicketDetailPage() {
         <div className="space-y-6">
           {/* People Card */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold text-slate-800">Thông tin Phân công</h3>
+            <h3 className="text-base font-bold text-slate-800">Thông tin Phân công</h3>
             
             <div className="space-y-3">
               <div className="flex items-center space-x-3 text-xs border-b border-slate-50 pb-2">
                 <UserIcon size={16} className="text-slate-400" />
                 <div>
-                  <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Người báo hỏng</p>
+                  <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Người báo hỏng</p>
                   <p className="font-bold text-slate-700">{reporter?.fullName || 'Quản trị viên'}</p>
                 </div>
               </div>
@@ -173,7 +173,7 @@ export default function TicketDetailPage() {
               <div className="flex items-center space-x-3 text-xs">
                 <UserIcon size={16} className="text-slate-400" />
                 <div>
-                  <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Kỹ thuật viên thực hiện</p>
+                  <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Kỹ thuật viên thực hiện</p>
                   <p className="font-bold text-slate-700">
                     {assignee ? assignee.fullName : <span className="text-slate-400 font-medium">Chưa phân công</span>}
                   </p>
@@ -202,14 +202,14 @@ export default function TicketDetailPage() {
 
           {/* Workflow Status Timeline */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold text-slate-800">Tiến trình Phiếu bảo trì</h3>
+            <h3 className="text-base font-bold text-slate-800">Tiến trình Phiếu bảo trì</h3>
             
             <div className="space-y-4 relative pl-5 before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
               <div className="flex items-start space-x-3 relative">
                 <span className="absolute -left-5 w-3.5 h-3.5 rounded-full bg-blue-600 border-2 border-white"></span>
                 <div>
                   <p className="text-xs font-bold text-slate-700">Đã khởi tạo phiếu</p>
-                  <span className="text-[10px] text-slate-400">Khởi tạo bởi quản trị viên.</span>
+                  <span className="text-xs text-slate-400">Khởi tạo bởi quản trị viên.</span>
                 </div>
               </div>
 
@@ -222,7 +222,7 @@ export default function TicketDetailPage() {
                     Đã bàn giao công việc
                   </p>
                   {assignee && (
-                    <span className="text-[10px] text-slate-400">Giao cho: {assignee.fullName}</span>
+                    <span className="text-xs text-slate-400">Giao cho: {assignee.fullName}</span>
                   )}
                 </div>
               </div>

@@ -20,30 +20,32 @@ export default function TicketListPage() {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [priorityFilter, setPriorityFilter] = useState('ALL');
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 15;
 
   // Query
   const { data: ticketData, isLoading } = useQuery<PagedResponse<MaintenanceTicket>>({
     queryKey: ['tickets'],
-    queryFn: () => ticketService.getTickets(),
+    queryFn: () => ticketService.getTickets(undefined, 0, 200),
   });
   const tickets = ticketData?.content ?? [];
 
   const getAssigneeName = (assignee: User | null) => {
-    if (!assignee) return <span className="text-slate-400 font-medium">Chưa phân công</span>;
-    return assignee.fullName;
+    if (!assignee) return <span className="text-slate-400 text-sm font-medium italic">Chưa phân công</span>;
+    return <span className="text-sm font-semibold text-slate-700">{assignee.fullName}</span>;
   };
 
   // Helper: Render priority badge
   const renderPriorityBadge = (priority: MaintenanceTicket['priority']) => {
     switch (priority) {
       case 'CRITICAL':
-        return <Badge className="bg-red-50 text-red-700 hover:bg-red-50 border border-red-200">Khẩn cấp</Badge>;
+        return <Badge className="bg-red-50 text-red-700 hover:bg-red-50 border border-red-200 text-xs px-2 py-0.5">Khẩn cấp</Badge>;
       case 'HIGH':
-        return <Badge className="bg-orange-50 text-orange-700 hover:bg-orange-50 border border-orange-200">Cao</Badge>;
+        return <Badge className="bg-orange-50 text-orange-700 hover:bg-orange-50 border border-orange-200 text-xs px-2 py-0.5">Cao</Badge>;
       case 'MEDIUM':
-        return <Badge className="bg-blue-50 text-blue-700 hover:bg-blue-50 border border-blue-200">Trung bình</Badge>;
+        return <Badge className="bg-blue-50 text-blue-700 hover:bg-blue-50 border border-blue-200 text-xs px-2 py-0.5">Trung bình</Badge>;
       case 'LOW':
-        return <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border border-slate-200">Thấp</Badge>;
+        return <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border border-slate-200 text-xs px-2 py-0.5">Thấp</Badge>;
       default:
         return <Badge>{priority}</Badge>;
     }
@@ -53,13 +55,13 @@ export default function TicketListPage() {
   const renderStatusBadge = (status: MaintenanceTicket['ticketStatus']) => {
     switch (status) {
       case 'OPEN':
-        return <Badge className="bg-rose-50 text-rose-700 hover:bg-rose-50 border border-rose-200 flex items-center space-x-1 w-fit"><AlertCircle size={10} /> <span>Chờ tiếp nhận</span></Badge>;
+        return <Badge className="bg-rose-50 text-rose-700 hover:bg-rose-50 border border-rose-200 flex items-center space-x-1 w-fit text-xs px-2 py-0.5"><AlertCircle size={11} /> <span>Chờ tiếp nhận</span></Badge>;
       case 'IN_PROGRESS':
-        return <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-50 border border-amber-250 flex items-center space-x-1 w-fit"><Wrench size={10} /> <span>Đang xử lý</span></Badge>;
+        return <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-50 border border-amber-200 flex items-center space-x-1 w-fit text-xs px-2 py-0.5"><Wrench size={11} /> <span>Đang xử lý</span></Badge>;
       case 'RESOLVED':
-        return <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border border-emerald-250 flex items-center space-x-1 w-fit"><CheckCircle2 size={10} /> <span>Đã sửa xong</span></Badge>;
+        return <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border border-emerald-200 flex items-center space-x-1 w-fit text-xs px-2 py-0.5"><CheckCircle2 size={11} /> <span>Đã sửa xong</span></Badge>;
       case 'CLOSED':
-        return <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border border-slate-200 flex items-center space-x-1 w-fit"><ShieldCheck size={10} /> <span>Đã đóng phiếu</span></Badge>;
+        return <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border border-slate-200 flex items-center space-x-1 w-fit text-xs px-2 py-0.5"><ShieldCheck size={11} /> <span>Đã đóng phiếu</span></Badge>;
       default:
         return <Badge>{status}</Badge>;
     }
@@ -77,6 +79,9 @@ export default function TicketListPage() {
     const matchesPriority = priorityFilter === 'ALL' || t.priority === priorityFilter;
     return matchesStatus && matchesPriority;
   });
+
+  const totalPages = Math.ceil(filteredTickets.length / PAGE_SIZE);
+  const pagedTickets = filteredTickets.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   if (isLoading) {
     return <div className="text-center py-12 text-slate-500 font-medium">Đang tải danh sách phiếu bảo trì...</div>;
@@ -139,7 +144,7 @@ export default function TicketListPage() {
           <div className="flex flex-wrap items-center gap-3">
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
               className="border border-slate-200 bg-white text-slate-700 px-3.5 py-2.5 rounded-xl text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="ALL">Tất cả Trạng thái</option>
@@ -151,7 +156,7 @@ export default function TicketListPage() {
 
             <select
               value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value)}
+              onChange={(e) => { setPriorityFilter(e.target.value); setPage(0); }}
               className="border border-slate-200 bg-white text-slate-700 px-3.5 py-2.5 rounded-xl text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="ALL">Tất cả Độ ưu tiên</option>
@@ -168,32 +173,32 @@ export default function TicketListPage() {
           <Table>
             <TableHeader className="bg-slate-50">
               <TableRow>
-                <TableHead className="font-bold text-slate-700 text-left">Mã phiếu</TableHead>
-                <TableHead className="font-bold text-slate-700 text-left">Biển hiệu</TableHead>
-                <TableHead className="font-bold text-slate-700 text-left">Mô tả sự cố</TableHead>
-                <TableHead className="font-bold text-slate-700 text-left">Độ ưu tiên</TableHead>
-                <TableHead className="font-bold text-slate-700 text-left">Trạng thái</TableHead>
-                <TableHead className="font-bold text-slate-700 text-left">Kỹ thuật viên</TableHead>
-                <TableHead className="font-bold text-slate-700 text-left">Ngày phản ánh</TableHead>
-                <TableHead className="font-bold text-slate-700 text-left">Hành động</TableHead>
+                <TableHead className="text-sm font-bold text-slate-700 text-left">Mã phiếu</TableHead>
+                <TableHead className="text-sm font-bold text-slate-700 text-left">Biển hiệu</TableHead>
+                <TableHead className="text-sm font-bold text-slate-700 text-left">Mô tả sự cố</TableHead>
+                <TableHead className="text-sm font-bold text-slate-700 text-left">Độ ưu tiên</TableHead>
+                <TableHead className="text-sm font-bold text-slate-700 text-left">Trạng thái</TableHead>
+                <TableHead className="text-sm font-bold text-slate-700 text-left">Kỹ thuật viên</TableHead>
+                <TableHead className="text-sm font-bold text-slate-700 text-left">Ngày phản ánh</TableHead>
+                <TableHead className="text-sm font-bold text-slate-700 text-left">Hành động</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredTickets.length > 0 ? (
-                filteredTickets.map((t) => (
+                pagedTickets.map((t) => (
                   <TableRow key={t.id} className="hover:bg-slate-50/50">
-                    <TableCell className="font-bold text-slate-800 text-left">#{t.id}</TableCell>
-                    <TableCell className="font-semibold text-blue-600 text-left cursor-pointer hover:underline" onClick={() => navigate(`/admin/assets/${t.asset?.id}`)}>
+                    <TableCell className="text-sm font-bold text-slate-800 text-left">#{t.id}</TableCell>
+                    <TableCell className="text-sm font-bold text-blue-600 text-left cursor-pointer hover:underline" onClick={() => navigate(`/admin/assets/${t.asset?.id}`)}>
                       {t.asset?.assetCode || 'N/A'}
                     </TableCell>
-                    <TableCell className="text-slate-655 max-w-xs truncate text-left" title={t.description}>
+                    <TableCell className="text-sm text-slate-600 max-w-xs truncate text-left" title={t.description}>
                       {t.description}
                     </TableCell>
-                    <TableCell className="text-left">{renderPriorityBadge(t.priority)}</TableCell>
-                    <TableCell className="text-left">{renderStatusBadge(t.ticketStatus)}</TableCell>
-                    <TableCell className="text-left">{getAssigneeName(t.assignee)}</TableCell>
-                    <TableCell className="text-slate-500 text-left">
-                      {new Date(t.createdAt).toLocaleDateString()}
+                    <TableCell className="text-sm text-left">{renderPriorityBadge(t.priority)}</TableCell>
+                    <TableCell className="text-sm text-left">{renderStatusBadge(t.ticketStatus)}</TableCell>
+                    <TableCell className="text-sm text-left">{getAssigneeName(t.assignee)}</TableCell>
+                    <TableCell className="text-sm text-slate-500 text-left">
+                      {new Date(t.createdAt).toLocaleDateString('vi-VN')}
                     </TableCell>
                     <TableCell className="text-left">
                       <div className="flex items-center space-x-2">
@@ -210,7 +215,7 @@ export default function TicketListPage() {
                             onClick={() => navigate(`/admin/tickets/assign/${t.id}`)}
                             variant="ghost"
                             size="sm"
-                            className="hover:bg-blue-50 text-blue-600 p-2 rounded-lg flex items-center space-x-1"
+                            className="hover:bg-blue-50 text-blue-600 p-2 rounded-lg"
                             title="Phân công nhân viên"
                           >
                             <UserCheck size={16} />
@@ -222,7 +227,7 @@ export default function TicketListPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-24 text-center text-slate-400 font-medium">
+                  <TableCell colSpan={8} className="h-24 text-center text-sm text-slate-400 font-medium">
                     Không tìm thấy phiếu sửa chữa nào.
                   </TableCell>
                 </TableRow>
@@ -230,6 +235,38 @@ export default function TicketListPage() {
             </TableBody>
           </Table>
         </div>
+
+        {/* Pagination */}
+        {filteredTickets.length > 0 && (
+          <div className="flex items-center justify-between pt-2">
+            <span className="text-sm text-slate-500">
+              {`${page * PAGE_SIZE + 1}–${Math.min((page + 1) * PAGE_SIZE, filteredTickets.length)}`} / <strong>{filteredTickets.length}</strong> phiếu
+            </span>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page === 0}
+                onClick={() => setPage(p => p - 1)}
+                className="text-sm px-4 py-2 rounded-lg disabled:opacity-40"
+              >
+                ← Trước
+              </Button>
+              <span className="text-sm font-semibold text-slate-700 px-2">
+                Trang {page + 1} / {totalPages || 1}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages - 1}
+                onClick={() => setPage(p => p + 1)}
+                className="text-sm px-4 py-2 rounded-lg disabled:opacity-40"
+              >
+                Sau →
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

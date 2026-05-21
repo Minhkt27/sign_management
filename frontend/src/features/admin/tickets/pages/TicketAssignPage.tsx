@@ -111,7 +111,7 @@ export default function TicketAssignPage() {
                   <div>
                     <h4 className="text-sm font-bold text-slate-800">{tech.fullName}</h4>
                     <p className="text-xs text-slate-450 mt-0.5">@{tech.username}</p>
-                    <span className="text-[10px] text-green-600 font-bold uppercase tracking-wider flex items-center space-x-1 mt-1">
+                    <span className="text-xs text-green-600 font-semibold flex items-center space-x-1 mt-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1 animate-pulse"></span> Sẵn sàng nhận việc
                     </span>
                   </div>
@@ -119,7 +119,7 @@ export default function TicketAssignPage() {
 
                 <Button 
                   onClick={() => handleAssign(tech.id)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2 px-3 text-xs flex items-center space-x-1 font-semibold"
+                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2.5 px-4 text-sm flex items-center space-x-2 font-semibold"
                 >
                   <UserCheck size={14} />
                   <span>Giao việc</span>

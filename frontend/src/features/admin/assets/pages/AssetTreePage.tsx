@@ -92,9 +92,22 @@ export default function AssetTreePage() {
     const visibleLocIds = new Set<number>();
     const expandedLocIds = new Set<number>();
 
-    // Add matching locations
+    // When a location matches: expand it and make entire subtree visible
+    const addSubtreeVisible = (locId: number) => {
+      const children = locations.filter(l => l.parentId === locId);
+      children.forEach(child => {
+        visibleLocIds.add(child.id);
+        expandedLocIds.add(locId); // expand parent so children show
+        addSubtreeVisible(child.id);
+      });
+      // Show all assets at this location (not just search-matching ones)
+      assets.filter(a => a.location?.id === locId).forEach(a => matchingAssetIds.add(a.id));
+    };
+
     matchingLocs.forEach(l => {
       visibleLocIds.add(l.id);
+      expandedLocIds.add(l.id); // expand the matched location itself
+      addSubtreeVisible(l.id);
     });
 
     // Add locations containing matching assets
@@ -245,7 +258,7 @@ export default function AssetTreePage() {
               <FolderOpen size={18} className="text-blue-500" />
               <span className="text-sm font-semibold text-slate-800">{loc.name}</span>
               {loc.type && (
-                <Badge variant="outline" className={`text-[10px] ml-2 font-semibold px-1.5 py-0 ${
+                <Badge variant="outline" className={`text-xs ml-2 font-semibold px-1.5 py-0 ${
                   loc.type === 'BUILDING' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
                   loc.type === 'FLOOR' ? 'bg-amber-50 text-amber-700 border-amber-200' :
                   loc.type === 'DEPARTMENT' ? 'bg-purple-50 text-purple-700 border-purple-200' :
@@ -329,7 +342,7 @@ export default function AssetTreePage() {
                       <span className="text-xs font-semibold text-slate-600">{asset.name}</span>
                     )}
                     {asset.signTypeId && signTypeMap.has(asset.signTypeId) && (
-                      <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] px-1.5 py-0 font-semibold">
+                      <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-xs px-1.5 py-0 font-semibold">
                         {signTypeMap.get(asset.signTypeId)}
                       </Badge>
                     )}
@@ -338,9 +351,9 @@ export default function AssetTreePage() {
 
                   <div className="flex items-center space-x-1.5">
                     {asset.status === 'ACTIVE' ? (
-                      <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border border-emerald-250 text-[10px] px-1.5 py-0">Hoạt động</Badge>
+                      <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border border-emerald-250 text-xs px-1.5 py-0">Hoạt động</Badge>
                     ) : (
-                      <Badge className="bg-rose-50 text-rose-700 hover:bg-rose-50 border border-rose-250 text-[10px] px-1.5 py-0">Gặp sự cố</Badge>
+                      <Badge className="bg-rose-50 text-rose-700 hover:bg-rose-50 border border-rose-250 text-xs px-1.5 py-0">Gặp sự cố</Badge>
                     )}
                   </div>
                 </div>
@@ -391,7 +404,7 @@ export default function AssetTreePage() {
           placeholder="Tìm nhanh biển hiệu (mã, mô tả, chất liệu...) hoặc vị trí..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10 pr-4 py-2 border-slate-200 hover:border-slate-350 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs"
+          className="pl-10 pr-4 py-2.5 border-slate-200 hover:border-slate-350 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-sm"
         />
       </div>
 
@@ -420,7 +433,7 @@ export default function AssetTreePage() {
             </div>
             <div className="px-6 py-5 space-y-4 text-left">
               <div>
-                <label className="block text-xs font-bold text-slate-655 mb-1.5">Tên {resolvedTypeLabel.toLowerCase()} *</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Tên {resolvedTypeLabel.toLowerCase()} *</label>
                 <Input
                   required
                   placeholder={placeholderText}
@@ -430,7 +443,7 @@ export default function AssetTreePage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-655 mb-1.5">Mô tả chi tiết</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Mô tả chi tiết</label>
                 <Input
                   placeholder="Ví dụ: Khu khám bệnh ngoại trú, phòng khám chức năng..."
                   value={newLocDesc}
@@ -464,7 +477,7 @@ export default function AssetTreePage() {
             </div>
             <div className="px-6 py-5 space-y-4 text-left">
               <div>
-                <label className="block text-xs font-bold text-slate-655 mb-1.5">Mã vị trí (Code) *</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Mã vị trí (Code) *</label>
                 <Input
                   required
                   placeholder="Ví dụ: B1_T1_P01"
@@ -474,7 +487,7 @@ export default function AssetTreePage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-655 mb-1.5">Tên vị trí *</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Tên vị trí *</label>
                 <Input
                   required
                   placeholder="Ví dụ: Tòa nhà A, Phòng 101..."
@@ -484,7 +497,7 @@ export default function AssetTreePage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-655 mb-1.5">Mô tả chi tiết</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Mô tả chi tiết</label>
                 <Input
                   placeholder="Mô tả cụ thể..."
                   value={editLocDesc}

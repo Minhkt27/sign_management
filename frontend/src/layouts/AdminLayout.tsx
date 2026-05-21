@@ -41,7 +41,7 @@ export default function AdminLayout() {
             </div>
             <div>
               <p className="text-sm font-semibold text-white truncate max-w-[150px]">{user.fullName}</p>
-              <span className="text-[10px] text-blue-400 font-bold uppercase tracking-wider">Administrator</span>
+              <span className="text-xs text-blue-400 font-semibold uppercase tracking-wider">Administrator</span>
             </div>
           </div>
         )}
@@ -63,8 +63,8 @@ export default function AdminLayout() {
                   }`
                 }
               >
-                <Icon size={18} />
-                <span className="text-sm">{item.label}</span>
+                <Icon size={20} />
+                <span className="text-base">{item.label}</span>
               </NavLink>
             );
           })}

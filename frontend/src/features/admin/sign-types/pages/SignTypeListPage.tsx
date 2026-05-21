@@ -20,13 +20,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Tags, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Tags, Search, FileText, HelpCircle } from 'lucide-react';
 
 export default function SignTypeListPage() {
   const queryClient = useQueryClient();
 
   // Search
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 15;
 
   // Form State
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -122,7 +124,6 @@ export default function SignTypeListPage() {
     return <div className="text-center py-12 text-slate-500 font-medium">Đang tải danh sách loại biển...</div>;
   }
 
-  // Filter
   const filtered = signTypes.filter(st => {
     const term = search.toLowerCase();
     return (
@@ -132,8 +133,47 @@ export default function SignTypeListPage() {
     );
   });
 
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const pagedSignTypes = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  const withDescCount = signTypes.filter(st => !!st.description).length;
+  const withoutDescCount = signTypes.length - withDescCount;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-slate-500">Tổng loại biển</p>
+            <h3 className="text-3xl font-extrabold text-slate-800 mt-1">{signTypes.length}</h3>
+          </div>
+          <div className="bg-blue-50 text-blue-600 p-3.5 rounded-xl">
+            <Tags size={24} />
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-slate-500">Có mô tả</p>
+            <h3 className="text-3xl font-extrabold text-emerald-600 mt-1">{withDescCount}</h3>
+          </div>
+          <div className="bg-emerald-50 text-emerald-600 p-3.5 rounded-xl">
+            <FileText size={24} />
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-slate-500">Chưa có mô tả</p>
+            <h3 className="text-3xl font-extrabold text-slate-400 mt-1">{withoutDescCount}</h3>
+          </div>
+          <div className="bg-slate-100 text-slate-400 p-3.5 rounded-xl">
+            <HelpCircle size={24} />
+          </div>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -143,7 +183,7 @@ export default function SignTypeListPage() {
               <Input
                 placeholder="Tìm mã hoặc tên loại biển..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => { setSearch(e.target.value); setPage(0); }}
                 className="pl-10 pr-4 py-2 border-slate-200 hover:border-slate-350 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
             </div>
@@ -169,23 +209,23 @@ export default function SignTypeListPage() {
           <Table>
             <TableHeader className="bg-slate-50">
               <TableRow>
-                <TableHead className="font-bold text-slate-700 text-left w-[80px]">#</TableHead>
-                <TableHead className="font-bold text-slate-700 text-left">Mã loại</TableHead>
-                <TableHead className="font-bold text-slate-700 text-left">Tên loại biển</TableHead>
-                <TableHead className="font-bold text-slate-700 text-left">Mô tả</TableHead>
-                <TableHead className="font-bold text-slate-700 text-left w-[120px]">Hành động</TableHead>
+                <TableHead className="text-sm font-bold text-slate-700 text-left w-[60px]">#</TableHead>
+                <TableHead className="text-sm font-bold text-slate-700 text-left">Mã loại</TableHead>
+                <TableHead className="text-sm font-bold text-slate-700 text-left">Tên loại biển</TableHead>
+                <TableHead className="text-sm font-bold text-slate-700 text-left">Mô tả</TableHead>
+                <TableHead className="text-sm font-bold text-slate-700 text-left w-[120px]">Hành động</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length > 0 ? (
-                filtered.map((st, idx) => (
+                pagedSignTypes.map((st, idx) => (
                   <TableRow key={st.id} className="hover:bg-slate-50/50">
-                    <TableCell className="text-slate-400 text-left">{idx + 1}</TableCell>
-                    <TableCell className="text-left">
+                    <TableCell className="text-sm text-slate-400 text-left">{page * PAGE_SIZE + idx + 1}</TableCell>
+                    <TableCell className="text-sm text-left">
                       <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-semibold text-xs">{st.code}</Badge>
                     </TableCell>
-                    <TableCell className="font-semibold text-slate-800 text-left">{st.name}</TableCell>
-                    <TableCell className="text-slate-500 text-left max-w-[300px] truncate">{st.description || '—'}</TableCell>
+                    <TableCell className="text-sm font-semibold text-slate-800 text-left">{st.name}</TableCell>
+                    <TableCell className="text-sm text-slate-500 text-left max-w-[300px] truncate">{st.description || '—'}</TableCell>
                     <TableCell className="text-left">
                       <div className="flex items-center space-x-1.5">
                         <Button
@@ -212,7 +252,7 @@ export default function SignTypeListPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center text-slate-400 font-medium">
+                  <TableCell colSpan={5} className="h-24 text-center text-sm text-slate-400 font-medium">
                     {search ? 'Không tìm thấy loại biển phù hợp.' : 'Chưa có loại biển nào. Hãy tạo loại biển đầu tiên!'}
                   </TableCell>
                 </TableRow>
@@ -220,6 +260,38 @@ export default function SignTypeListPage() {
             </TableBody>
           </Table>
         </div>
+
+        {/* Pagination */}
+        {filtered.length > 0 && totalPages > 1 && (
+          <div className="flex items-center justify-between pt-2">
+            <span className="text-sm text-slate-500">
+              {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} / <strong>{filtered.length}</strong> loại biển
+            </span>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page === 0}
+                onClick={() => setPage(p => p - 1)}
+                className="text-sm px-4 py-2 rounded-lg disabled:opacity-40"
+              >
+                ← Trước
+              </Button>
+              <span className="text-sm font-semibold text-slate-700 px-2">
+                Trang {page + 1} / {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages - 1}
+                onClick={() => setPage(p => p + 1)}
+                className="text-sm px-4 py-2 rounded-lg disabled:opacity-40"
+              >
+                Sau →
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Dialog */}
@@ -239,7 +311,7 @@ export default function SignTypeListPage() {
             </div>
             <div className="px-6 py-5 space-y-4 text-left">
               <div>
-                <label className="block text-xs font-bold text-slate-655 mb-1.5">Mã loại biển *</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Mã loại biển *</label>
                 <Input
                   required
                   placeholder="Ví dụ: CHI_DAN, PHONG_BAN, CANH_BAO..."
@@ -249,7 +321,7 @@ export default function SignTypeListPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-655 mb-1.5">Tên loại biển *</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Tên loại biển *</label>
                 <Input
                   required
                   placeholder="Ví dụ: Biển chỉ dẫn, Biển phòng ban, Biển cảnh báo..."
@@ -259,7 +331,7 @@ export default function SignTypeListPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-655 mb-1.5">Mô tả</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Mô tả</label>
                 <Input
                   placeholder="Mô tả ngắn gọn..."
                   value={formDescription}
