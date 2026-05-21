@@ -191,7 +191,7 @@ export default function AssetTreePage() {
     setEditLocId(loc.id);
     setEditLocName(loc.name);
     setEditLocDesc(loc.description || '');
-    setEditLocCode(loc.locationCode);
+    setEditLocCode(loc.locationCode ?? '');
     setIsEditLocDialogOpen(true);
   };
 

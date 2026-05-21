@@ -7,7 +7,7 @@ import { ticketService } from '@/services/ticketService';
 import { signTypeService } from '@/services/signTypeService';
 import { fileService } from '@/services/fileService';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
-import { sortLocationsHierarchically, getIndentedLocationName, getFullLocationPath, resolveLocationLevels } from '@/shared/helpers/locationHelper';
+import { getFullLocationPath, resolveLocationLevels } from '@/shared/helpers/locationHelper';
 import { Asset, Location, MaintenanceTicket, SignType } from '@/shared/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
