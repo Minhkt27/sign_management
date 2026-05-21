@@ -45,8 +45,7 @@ public class LocationEntity {
     @JoinColumn(name = "parent_id")
     private LocationEntity parent;
 
-    @Column(name = "path", columnDefinition = "ltree")
-    @org.hibernate.annotations.ColumnTransformer(write = "?::ltree")
+    @Column(name = "path", columnDefinition = "TEXT")
     private String path;
 
     @Column(columnDefinition = "TEXT")
