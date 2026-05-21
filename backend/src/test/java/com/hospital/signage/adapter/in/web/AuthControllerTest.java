@@ -57,7 +57,7 @@ public class AuthControllerTest {
         user.setRole(Role.ADMIN);
         user.setIsActive(true);
 
-        AuthUseCase.LoginResult mockResult = new AuthUseCase.LoginResult("mock-jwt-token", user);
+        AuthUseCase.LoginResult mockResult = new AuthUseCase.LoginResult("mock-jwt-token", "mock-refresh-token", user);
         when(authUseCase.login(any(AuthUseCase.LoginCommand.class))).thenReturn(mockResult);
 
         AuthController.LoginRequest request = new AuthController.LoginRequest("admin", "password");

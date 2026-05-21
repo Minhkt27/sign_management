@@ -1,5 +1,9 @@
-import axios from 'axios';
+import axios, { InternalAxiosRequestConfig } from 'axios';
 import { authStore } from '../app/store/authStore';
+
+interface RetryableRequest extends InternalAxiosRequestConfig {
+  _retry?: boolean;
+}
 
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080/api',
@@ -36,7 +40,7 @@ function processPendingQueue(error: unknown, token: string | null) {
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config;
+    const originalRequest = error.config as RetryableRequest;
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       const refreshToken = authStore.getRefreshToken();
