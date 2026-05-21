@@ -4,6 +4,7 @@ import com.hospital.signage.application.port.in.SignTypeUseCase;
 import com.hospital.signage.domain.model.SignType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,16 +28,19 @@ public class SignTypeController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<SignType> createSignType(@RequestBody SignType signType) {
         return ResponseEntity.ok(signTypeUseCase.createSignType(signType));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<SignType> updateSignType(@PathVariable Long id, @RequestBody SignType signType) {
         return ResponseEntity.ok(signTypeUseCase.updateSignType(id, signType));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteSignType(@PathVariable Long id) {
         signTypeUseCase.deleteSignType(id);

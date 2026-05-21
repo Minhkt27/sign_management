@@ -10,6 +10,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -55,6 +56,7 @@ public class TicketController {
         return ResponseEntity.ok(ticketUseCase.createTicket(command));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}/assign")
     public ResponseEntity<MaintenanceTicket> assignTicket(
             @PathVariable Long id,
@@ -66,6 +68,7 @@ public class TicketController {
         }
     }
 
+    @PreAuthorize("hasRole('ADMIN') or hasRole('TECHNICAL')")
     @PutMapping("/{id}/status")
     public ResponseEntity<MaintenanceTicket> updateTicketStatus(
             @PathVariable Long id,

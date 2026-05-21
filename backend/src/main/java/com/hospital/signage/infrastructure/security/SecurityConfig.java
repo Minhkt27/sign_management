@@ -19,7 +19,6 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
-import java.util.Collections;
 
 @Configuration
 @EnableWebSecurity
@@ -41,7 +40,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/login", "/api/auth/refresh").permitAll()
                 .requestMatchers("/uploads/**").permitAll()
                 .requestMatchers("/api/**").authenticated()
-                .anyRequest().permitAll()
+                .anyRequest().denyAll()
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -55,7 +54,6 @@ public class SecurityConfig {
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Cache-Control", "Accept", "X-Requested-With"));
         configuration.setAllowCredentials(true);
-        configuration.setExposedHeaders(Collections.singletonList("Authorization"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

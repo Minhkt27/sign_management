@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -53,16 +54,19 @@ public class AssetController {
         return ResponseEntity.ok(assetUseCase.getAssetsByLocation(locationId));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<Asset> createAsset(@Valid @RequestBody AssetRequest request) {
         return ResponseEntity.ok(assetUseCase.createAsset(request.toDomain()));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<Asset> updateAsset(@PathVariable UUID id, @Valid @RequestBody AssetRequest request) {
         return ResponseEntity.ok(assetUseCase.updateAsset(id, request.toDomain()));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteAsset(@PathVariable UUID id) {
         assetUseCase.deleteAsset(id);

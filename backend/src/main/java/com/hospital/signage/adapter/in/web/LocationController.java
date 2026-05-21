@@ -4,6 +4,7 @@ import com.hospital.signage.application.port.in.LocationUseCase;
 import com.hospital.signage.domain.model.Location;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -32,16 +33,19 @@ public class LocationController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<Location> createLocation(@RequestBody Location location) {
         return ResponseEntity.ok(locationUseCase.createLocation(location));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<Location> updateLocation(@PathVariable Long id, @RequestBody Location location) {
         return ResponseEntity.ok(locationUseCase.updateLocation(id, location));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteLocation(@PathVariable Long id) {
         locationUseCase.deleteLocation(id);
