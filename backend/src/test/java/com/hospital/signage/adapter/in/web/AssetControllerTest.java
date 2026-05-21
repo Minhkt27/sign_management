@@ -18,8 +18,10 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.LocalDateTime;
+import org.springframework.data.domain.PageImpl;
+
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -65,13 +67,14 @@ public class AssetControllerTest {
         asset2.setMaterial(Material.INOX);
         asset2.setStatus(AssetStatus.DAMAGED);
 
-        when(assetUseCase.getAllAssets()).thenReturn(Arrays.asList(asset1, asset2));
+        when(assetUseCase.getAssetsPage(0, 50))
+                .thenReturn(new PageImpl<>(Arrays.asList(asset1, asset2)));
 
         mockMvc.perform(get("/api/assets")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].assetCode").value("ASSET-001"))
-                .andExpect(jsonPath("$[1].assetCode").value("ASSET-002"));
+                .andExpect(jsonPath("$.content[0].assetCode").value("ASSET-001"))
+                .andExpect(jsonPath("$.content[1].assetCode").value("ASSET-002"));
     }
 
     @Test

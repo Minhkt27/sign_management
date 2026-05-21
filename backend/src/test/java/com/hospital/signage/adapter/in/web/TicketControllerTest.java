@@ -6,7 +6,6 @@ import com.hospital.signage.application.port.out.UserDatabasePort;
 import com.hospital.signage.domain.enums.Priority;
 import com.hospital.signage.domain.enums.TicketStatus;
 import com.hospital.signage.domain.model.MaintenanceTicket;
-import com.hospital.signage.domain.model.User;
 import com.hospital.signage.infrastructure.security.JwtAuthenticationFilter;
 import com.hospital.signage.infrastructure.security.JwtTokenProvider;
 import com.hospital.signage.infrastructure.security.SecurityConfig;
@@ -19,11 +18,12 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
+import org.springframework.data.domain.PageImpl;
+
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -65,13 +65,14 @@ public class TicketControllerTest {
         ticket2.setPriority(Priority.LOW);
         ticket2.setTicketStatus(TicketStatus.IN_PROGRESS);
 
-        when(ticketUseCase.getAllTickets()).thenReturn(Arrays.asList(ticket1, ticket2));
+        when(ticketUseCase.getTicketsPage(0, 20, null, null))
+                .thenReturn(new PageImpl<>(Arrays.asList(ticket1, ticket2)));
 
         mockMvc.perform(get("/api/tickets")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].description").value("Broken light"))
-                .andExpect(jsonPath("$[1].description").value("Loose frame"));
+                .andExpect(jsonPath("$.content[0].description").value("Broken light"))
+                .andExpect(jsonPath("$.content[1].description").value("Loose frame"));
     }
 
     @Test
