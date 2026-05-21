@@ -3,17 +3,19 @@ package com.hospital.signage.application.service;
 import com.hospital.signage.application.port.in.AssetUseCase;
 import com.hospital.signage.application.port.out.AssetDatabasePort;
 import com.hospital.signage.application.port.out.LocationDatabasePort;
+import com.hospital.signage.application.port.out.TicketDatabasePort;
 import com.hospital.signage.domain.model.Asset;
 import com.hospital.signage.domain.model.Location;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
-import com.hospital.signage.application.port.out.TicketDatabasePort;
 
 @Service
 @RequiredArgsConstructor
@@ -86,6 +88,11 @@ public class AssetService implements AssetUseCase {
     @Override
     public List<Asset> getAllAssets() {
         return assetDatabasePort.findAll();
+    }
+
+    @Override
+    public Page<Asset> getAssetsPage(int page, int size) {
+        return assetDatabasePort.findAll(PageRequest.of(page, size, Sort.by("createdAt").descending()));
     }
 
     @Override

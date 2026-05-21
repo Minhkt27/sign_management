@@ -4,6 +4,7 @@ import com.hospital.signage.domain.enums.Priority;
 import com.hospital.signage.domain.enums.TicketStatus;
 import com.hospital.signage.domain.model.MaintenanceTicket;
 import com.hospital.signage.domain.model.User;
+import org.springframework.data.domain.Page;
 
 import java.util.List;
 import java.util.Optional;
@@ -15,6 +16,7 @@ public interface TicketUseCase {
     MaintenanceTicket updateTicketStatus(Long ticketId, TicketStatus status, String imageBefore, String imageAfter);
     Optional<MaintenanceTicket> getTicketById(Long id);
     List<MaintenanceTicket> getAllTickets();
+    Page<MaintenanceTicket> getTicketsPage(int page, int size, Long assigneeId, UUID assetId);
     List<MaintenanceTicket> getTicketsByAsset(UUID assetId);
     List<MaintenanceTicket> getTicketsByAssignee(Long assigneeId);
 

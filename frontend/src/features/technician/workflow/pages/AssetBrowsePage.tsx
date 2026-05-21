@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { assetService } from '@/services/assetService';
 import { ticketService } from '@/services/ticketService';
+import { PagedResponse } from '@/services/assetService';
 import { Asset, MaintenanceTicket } from '@/shared/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,10 +27,11 @@ export default function AssetBrowsePage() {
     queryFn: () => assetService.getAllAssets(),
   });
 
-  const { data: tickets = [] } = useQuery<MaintenanceTicket[]>({
+  const { data: ticketData } = useQuery<PagedResponse<MaintenanceTicket>>({
     queryKey: ['tickets'],
     queryFn: () => ticketService.getTickets(),
   });
+  const tickets = ticketData?.content ?? [];
 
   // Mutations
   const createTicketMutation = useMutation({

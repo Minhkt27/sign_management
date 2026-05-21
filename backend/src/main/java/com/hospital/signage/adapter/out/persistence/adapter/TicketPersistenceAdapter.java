@@ -6,6 +6,8 @@ import com.hospital.signage.adapter.out.persistence.repository.TicketRepository;
 import com.hospital.signage.application.port.out.TicketDatabasePort;
 import com.hospital.signage.domain.model.MaintenanceTicket;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -40,6 +42,11 @@ public class TicketPersistenceAdapter implements TicketDatabasePort {
     }
 
     @Override
+    public Page<MaintenanceTicket> findAll(Pageable pageable) {
+        return repository.findAll(pageable).map(mapper::toDomain);
+    }
+
+    @Override
     public List<MaintenanceTicket> findByAssetId(UUID assetId) {
         return repository.findByAssetId(assetId).stream()
                 .map(mapper::toDomain)
@@ -47,9 +54,19 @@ public class TicketPersistenceAdapter implements TicketDatabasePort {
     }
 
     @Override
+    public Page<MaintenanceTicket> findByAssetId(UUID assetId, Pageable pageable) {
+        return repository.findByAssetId(assetId, pageable).map(mapper::toDomain);
+    }
+
+    @Override
     public List<MaintenanceTicket> findByAssigneeId(Long assigneeId) {
         return repository.findByAssigneeId(assigneeId).stream()
                 .map(mapper::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<MaintenanceTicket> findByAssigneeId(Long assigneeId, Pageable pageable) {
+        return repository.findByAssigneeId(assigneeId, pageable).map(mapper::toDomain);
     }
 }

@@ -66,11 +66,12 @@ export default function AssetDetailPage() {
   });
 
   // Fetch Tickets for this asset
-  const { data: tickets = [] } = useQuery<MaintenanceTicket[]>({
+  const { data: ticketData } = useQuery({
     queryKey: ['assetTickets', id],
     queryFn: () => ticketService.getTickets({ assetId: id }),
     enabled: !!id,
   });
+  const tickets = ticketData?.content ?? [];
 
   // Fetch Sign Types
   const { data: signTypes = [] } = useQuery<SignType[]>({

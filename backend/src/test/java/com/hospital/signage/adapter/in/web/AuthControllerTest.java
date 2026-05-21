@@ -68,8 +68,10 @@ public class AuthControllerTest {
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").value("mock-jwt-token"))
+                .andExpect(jsonPath("$.refreshToken").value("mock-refresh-token"))
                 .andExpect(jsonPath("$.user.username").value("admin"))
-                .andExpect(jsonPath("$.user.fullName").value("System Admin"));
+                .andExpect(jsonPath("$.user.fullName").value("System Admin"))
+                .andExpect(jsonPath("$.user.password").doesNotExist());
     }
 
     @Test

@@ -1,5 +1,6 @@
 import { apiClient } from './apiClient';
 import { MaintenanceTicket, User } from '../shared/types';
+import { PagedResponse } from './assetService';
 
 export interface CreateTicketParams {
   assetId: string;
@@ -8,15 +9,13 @@ export interface CreateTicketParams {
 }
 
 export const ticketService = {
-  getTickets: async (filters?: { assigneeId?: number; assetId?: string }): Promise<MaintenanceTicket[]> => {
+  getTickets: async (filters?: { assigneeId?: number; assetId?: string }, page = 0, size = 20): Promise<PagedResponse<MaintenanceTicket>> => {
     const params = new URLSearchParams();
-    if (filters?.assigneeId !== undefined) {
-      params.append('assigneeId', String(filters.assigneeId));
-    }
-    if (filters?.assetId) {
-      params.append('assetId', filters.assetId);
-    }
-    const response = await apiClient.get<MaintenanceTicket[]>(`/tickets?${params.toString()}`);
+    params.append('page', String(page));
+    params.append('size', String(size));
+    if (filters?.assigneeId !== undefined) params.append('assigneeId', String(filters.assigneeId));
+    if (filters?.assetId) params.append('assetId', filters.assetId);
+    const response = await apiClient.get<PagedResponse<MaintenanceTicket>>(`/tickets?${params.toString()}`);
     return response.data;
   },
 

@@ -1,9 +1,22 @@
 import { apiClient } from './apiClient';
 import { Asset } from '../shared/types';
 
+export interface PagedResponse<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  page: number;
+  size: number;
+}
+
 export const assetService = {
   getAllAssets: async (): Promise<Asset[]> => {
-    const response = await apiClient.get<Asset[]>('/assets');
+    const response = await apiClient.get<Asset[]>('/assets/all');
+    return response.data;
+  },
+
+  getAssetsPage: async (page = 0, size = 50): Promise<PagedResponse<Asset>> => {
+    const response = await apiClient.get<PagedResponse<Asset>>(`/assets?page=${page}&size=${size}`);
     return response.data;
   },
 
@@ -23,10 +36,9 @@ export const assetService = {
   },
 
   createAsset: async (asset: Omit<Partial<Asset>, 'location'> & { locationId: number }): Promise<Asset> => {
-    // Transform locationId into nested location object for backend mapping
     const payload = {
       ...asset,
-      location: { id: asset.locationId }
+      location: { id: asset.locationId },
     };
     const response = await apiClient.post<Asset>('/assets', payload);
     return response.data;
@@ -35,7 +47,7 @@ export const assetService = {
   updateAsset: async (id: string, asset: Omit<Partial<Asset>, 'location'> & { locationId?: number }): Promise<Asset> => {
     const payload = {
       ...asset,
-      ...(asset.locationId ? { location: { id: asset.locationId } } : {})
+      ...(asset.locationId ? { location: { id: asset.locationId } } : {}),
     };
     const response = await apiClient.put<Asset>(`/assets/${id}`, payload);
     return response.data;

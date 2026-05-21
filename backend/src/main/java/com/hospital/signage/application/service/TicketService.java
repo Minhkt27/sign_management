@@ -4,11 +4,14 @@ import com.hospital.signage.application.port.in.TicketUseCase;
 import com.hospital.signage.application.port.out.AssetDatabasePort;
 import com.hospital.signage.application.port.out.TicketDatabasePort;
 import com.hospital.signage.application.port.out.UserDatabasePort;
+import com.hospital.signage.domain.enums.TicketStatus;
 import com.hospital.signage.domain.model.Asset;
 import com.hospital.signage.domain.model.MaintenanceTicket;
-import com.hospital.signage.domain.enums.TicketStatus;
 import com.hospital.signage.domain.model.User;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -95,6 +98,14 @@ public class TicketService implements TicketUseCase {
     @Override
     public List<MaintenanceTicket> getAllTickets() {
         return ticketDatabasePort.findAll();
+    }
+
+    @Override
+    public Page<MaintenanceTicket> getTicketsPage(int page, int size, Long assigneeId, UUID assetId) {
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        if (assigneeId != null) return ticketDatabasePort.findByAssigneeId(assigneeId, pageRequest);
+        if (assetId != null) return ticketDatabasePort.findByAssetId(assetId, pageRequest);
+        return ticketDatabasePort.findAll(pageRequest);
     }
 
     @Override

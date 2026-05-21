@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ticketService } from '@/services/ticketService';
+import { PagedResponse } from '@/services/assetService';
 import { authStore } from '@/app/store/authStore';
 import { MaintenanceTicket } from '@/shared/types';
 import { Badge } from '@/components/ui/badge';
@@ -13,11 +14,12 @@ export default function TechDashboardPage() {
   const [tab, setTab] = useState<'PENDING' | 'DONE'>('PENDING');
 
   // Query to get tickets for the current tech user
-  const { data: tasks = [], isLoading } = useQuery<MaintenanceTicket[]>({
+  const { data: taskData, isLoading } = useQuery<PagedResponse<MaintenanceTicket>>({
     queryKey: ['techTickets', user?.id],
     queryFn: () => ticketService.getTickets({ assigneeId: user?.id }),
     enabled: !!user?.id,
   });
+  const tasks = taskData?.content ?? [];
 
   // Filter tasks based on selected tab
   const filteredTasks = tasks.filter((t: MaintenanceTicket) => {

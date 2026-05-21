@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { assetService } from '@/services/assetService';
+import { assetService, PagedResponse } from '@/services/assetService';
 import { locationService } from '@/services/locationService';
 import { signTypeService } from '@/services/signTypeService';
 import { fileService } from '@/services/fileService';
@@ -56,10 +56,11 @@ export default function AssetListPage() {
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
 
   // Fetch Data using React Query
-  const { data: assets = [], isLoading: isAssetsLoading } = useQuery<Asset[]>({
+  const { data: assetData, isLoading: isAssetsLoading } = useQuery<PagedResponse<Asset>>({
     queryKey: ['assets'],
-    queryFn: assetService.getAllAssets,
+    queryFn: () => assetService.getAssetsPage(),
   });
+  const assets = assetData?.content ?? [];
 
   const { data: locations = [] } = useQuery<Location[]>({
     queryKey: ['locations'],

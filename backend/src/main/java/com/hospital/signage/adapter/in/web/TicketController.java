@@ -5,12 +5,14 @@ import com.hospital.signage.domain.enums.Priority;
 import com.hospital.signage.domain.enums.TicketStatus;
 import com.hospital.signage.domain.model.MaintenanceTicket;
 import com.hospital.signage.domain.model.User;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -21,17 +23,12 @@ public class TicketController {
     private final TicketUseCase ticketUseCase;
 
     @GetMapping
-    public ResponseEntity<List<MaintenanceTicket>> getTickets(
+    public ResponseEntity<PagedResponse<MaintenanceTicket>> getTickets(
             @RequestParam(required = false) Long assigneeId,
-            @RequestParam(required = false) UUID assetId) {
-        
-        if (assigneeId != null) {
-            return ResponseEntity.ok(ticketUseCase.getTicketsByAssignee(assigneeId));
-        }
-        if (assetId != null) {
-            return ResponseEntity.ok(ticketUseCase.getTicketsByAsset(assetId));
-        }
-        return ResponseEntity.ok(ticketUseCase.getAllTickets());
+            @RequestParam(required = false) UUID assetId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(PagedResponse.from(ticketUseCase.getTicketsPage(page, size, assigneeId, assetId)));
     }
 
     @GetMapping("/{id}")
@@ -42,7 +39,7 @@ public class TicketController {
     }
 
     @PostMapping
-    public ResponseEntity<MaintenanceTicket> createTicket(@RequestBody CreateTicketRequest request) {
+    public ResponseEntity<MaintenanceTicket> createTicket(@Valid @RequestBody CreateTicketRequest request) {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         if (!(principal instanceof User reporter)) {
             return ResponseEntity.status(401).build();
@@ -85,7 +82,17 @@ public class TicketController {
         }
     }
 
-    public record CreateTicketRequest(UUID assetId, String description, Priority priority) {}
-    public record AssignTicketRequest(Long assigneeId) {}
-    public record UpdateStatusRequest(TicketStatus status, String imageBefore, String imageAfter) {}
+    public record CreateTicketRequest(
+            @NotNull(message = "Asset không được để trống") UUID assetId,
+            @NotBlank(message = "Mô tả không được để trống") String description,
+            @NotNull(message = "Mức độ ưu tiên không được để trống") Priority priority
+    ) {}
+
+    public record AssignTicketRequest(@NotNull(message = "Người được giao không được để trống") Long assigneeId) {}
+
+    public record UpdateStatusRequest(
+            @NotNull(message = "Trạng thái không được để trống") TicketStatus status,
+            String imageBefore,
+            String imageAfter
+    ) {}
 }

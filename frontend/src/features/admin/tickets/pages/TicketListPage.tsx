@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ticketService } from '@/services/ticketService';
+import { PagedResponse } from '@/services/assetService';
 import { MaintenanceTicket, User } from '@/shared/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,10 +22,11 @@ export default function TicketListPage() {
   const [priorityFilter, setPriorityFilter] = useState('ALL');
 
   // Query
-  const { data: tickets = [], isLoading } = useQuery<MaintenanceTicket[]>({
+  const { data: ticketData, isLoading } = useQuery<PagedResponse<MaintenanceTicket>>({
     queryKey: ['tickets'],
     queryFn: () => ticketService.getTickets(),
   });
+  const tickets = ticketData?.content ?? [];
 
   const getAssigneeName = (assignee: User | null) => {
     if (!assignee) return <span className="text-slate-400 font-medium">Chưa phân công</span>;

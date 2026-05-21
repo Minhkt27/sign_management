@@ -1,6 +1,8 @@
 package com.hospital.signage.application.port.out;
 
 import com.hospital.signage.domain.model.Asset;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
@@ -11,6 +13,7 @@ public interface AssetDatabasePort {
     Optional<Asset> findById(UUID id);
     Optional<Asset> findByAssetCode(String assetCode);
     List<Asset> findAll();
+    Page<Asset> findAll(Pageable pageable);
     List<Asset> findByLocationId(Long locationId);
     List<Asset> findBySignTypeId(Long signTypeId);
     void deleteById(UUID id);

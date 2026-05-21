@@ -19,35 +19,48 @@ public class AuthController {
     private final UserDatabasePort userDatabasePort;
 
     @PostMapping("/api/auth/login")
-    public ResponseEntity<AuthUseCase.LoginResult> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
         AuthUseCase.LoginCommand command = new AuthUseCase.LoginCommand(request.username(), request.password());
         AuthUseCase.LoginResult result = authUseCase.login(command);
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(new LoginResponse(
+                result.token(),
+                result.refreshToken(),
+                UserResponse.from(result.user())
+        ));
     }
 
     @PostMapping("/api/auth/refresh")
     public ResponseEntity<AuthUseCase.RefreshResult> refresh(@RequestBody RefreshRequest request) {
-        AuthUseCase.RefreshResult result = authUseCase.refreshToken(request.refreshToken());
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(authUseCase.refreshToken(request.refreshToken()));
     }
 
     @GetMapping("/api/auth/me")
-    public ResponseEntity<User> getMe() {
+    public ResponseEntity<UserResponse> getMe() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        if (principal instanceof User) {
-            return ResponseEntity.ok((User) principal);
+        if (principal instanceof User user) {
+            return ResponseEntity.ok(UserResponse.from(user));
         }
         return ResponseEntity.badRequest().build();
     }
 
     @GetMapping("/api/users/technicians")
-    public ResponseEntity<List<User>> getTechnicians() {
-        List<User> techs = userDatabasePort.findByRole(Role.TECHNICAL);
-        techs.forEach(u -> u.setPassword(null));
+    public ResponseEntity<List<UserResponse>> getTechnicians() {
+        List<UserResponse> techs = userDatabasePort.findByRole(Role.TECHNICAL)
+                .stream()
+                .map(UserResponse::from)
+                .toList();
         return ResponseEntity.ok(techs);
     }
 
     public record LoginRequest(String username, String password) {}
 
     public record RefreshRequest(String refreshToken) {}
+
+    public record LoginResponse(String token, String refreshToken, UserResponse user) {}
+
+    public record UserResponse(Long id, String username, String fullName, Role role) {
+        static UserResponse from(User u) {
+            return new UserResponse(u.getId(), u.getUsername(), u.getFullName(), u.getRole());
+        }
+    }
 }
