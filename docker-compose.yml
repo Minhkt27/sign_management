@@ -60,6 +60,8 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin123}
       MINIO_BUCKET: ${MINIO_BUCKET:-signage-assets}
       MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-http://localhost:9000}
+      ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD:-Admin@Docker#2024}
+      TECH_INITIAL_PASSWORD: ${TECH_INITIAL_PASSWORD:-Tech@Docker#2024}
     ports:
       - "8080:8080"
 
