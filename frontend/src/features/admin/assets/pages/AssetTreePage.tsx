@@ -46,7 +46,7 @@ export default function AssetTreePage() {
   });
 
   const { data: assets = [] } = useQuery<Asset[]>({
-    queryKey: ['assets'],
+    queryKey: ['assets', 'all'],
     queryFn: assetService.getAllAssets,
   });
 

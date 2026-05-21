@@ -23,7 +23,7 @@ export default function AssetBrowsePage() {
 
   // Queries
   const { data: assets = [], isLoading: isAssetsLoading } = useQuery<Asset[]>({
-    queryKey: ['assets'],
+    queryKey: ['assets', 'all'],
     queryFn: () => assetService.getAllAssets(),
   });
 
@@ -39,14 +39,14 @@ export default function AssetBrowsePage() {
       ticketService.createTicket(newTicket),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
-      queryClient.invalidateQueries({ queryKey: ['assets'] });
+      queryClient.invalidateQueries({ queryKey: ['assets', 'all'] });
       setShowReportForm(false);
       setIssueDesc('');
       setIssuePriority('MEDIUM');
       // Update selected asset and active ticket
       if (selectedAsset) {
         // Refetch asset details or just use client state
-        queryClient.refetchQueries({ queryKey: ['assets'] });
+        queryClient.refetchQueries({ queryKey: ['assets', 'all'] });
       }
     },
   });
