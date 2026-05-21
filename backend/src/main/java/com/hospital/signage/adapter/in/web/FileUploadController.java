@@ -1,51 +1,38 @@
 package com.hospital.signage.adapter.in.web;
 
+import com.hospital.signage.application.port.out.FileStoragePort;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/files")
+@RequiredArgsConstructor
 public class FileUploadController {
 
-    private static final String UPLOAD_DIR = "uploads";
+    private final FileStoragePort fileStoragePort;
 
     @PostMapping("/upload")
     public ResponseEntity<UploadResponse> uploadFile(@RequestParam("file") MultipartFile file) {
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
-
         try {
-            // Ensure uploads directory exists in workspace
-            File directory = new File(UPLOAD_DIR);
-            if (!directory.exists()) {
-                directory.mkdirs();
-            }
+            String original = file.getOriginalFilename();
+            String extension = (original != null && original.contains("."))
+                    ? original.substring(original.lastIndexOf("."))
+                    : "";
+            String filename = UUID.randomUUID() + extension;
+            String contentType = file.getContentType() != null
+                    ? file.getContentType()
+                    : "application/octet-stream";
 
-            // Generate unique file name
-            String originalFileName = file.getOriginalFilename();
-            String extension = "";
-            if (originalFileName != null && originalFileName.contains(".")) {
-                extension = originalFileName.substring(originalFileName.lastIndexOf("."));
-            }
-            String fileName = UUID.randomUUID().toString() + extension;
-
-            // Save file
-            Path filePath = Paths.get(UPLOAD_DIR, fileName);
-            Files.write(filePath, file.getBytes());
-
-            // Return relative serving path
-            String fileUrl = "/uploads/" + fileName;
-            return ResponseEntity.ok(new UploadResponse(fileUrl));
-
+            String url = fileStoragePort.store(filename, file.getInputStream(), file.getSize(), contentType);
+            return ResponseEntity.ok(new UploadResponse(url));
         } catch (IOException e) {
             return ResponseEntity.internalServerError().build();
         }
