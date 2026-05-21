@@ -1,0 +1,11 @@
+jwt:
+  secret: test-jwt-secret-key-for-unit-tests-only-must-be-at-least-256-bits-long
+  expiration: 3600000
+  refresh-expiration: 604800000
+
+cors:
+  allowed-origins: http://localhost:5173
+
+app:
+  admin-initial-password: AdminTest#2024
+  tech-initial-password: TechTest#2024

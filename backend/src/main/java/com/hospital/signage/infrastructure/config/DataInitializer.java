@@ -7,6 +7,7 @@ import com.hospital.signage.application.port.out.UserDatabasePort;
 import com.hospital.signage.domain.enums.*;
 import com.hospital.signage.domain.model.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -25,6 +26,12 @@ public class DataInitializer implements CommandLineRunner {
     private final TicketUseCase ticketUseCase;
     private final PasswordEncoder passwordEncoder;
 
+    @Value("${app.admin-initial-password}")
+    private String adminInitialPassword;
+
+    @Value("${app.tech-initial-password}")
+    private String techInitialPassword;
+
     @Override
     @Transactional
     public void run(String... args) throws Exception {
@@ -36,7 +43,7 @@ public class DataInitializer implements CommandLineRunner {
         // 1. Seed Users
         User admin = User.builder()
                 .username("admin")
-                .password(passwordEncoder.encode("password"))
+                .password(passwordEncoder.encode(adminInitialPassword))
                 .fullName("Quản trị hệ thống")
                 .role(Role.ADMIN)
                 .isActive(true)
@@ -47,7 +54,7 @@ public class DataInitializer implements CommandLineRunner {
 
         User tech = User.builder()
                 .username("tech")
-                .password(passwordEncoder.encode("password"))
+                .password(passwordEncoder.encode(techInitialPassword))
                 .fullName("Nguyễn Văn Kỹ Thuật")
                 .role(Role.TECHNICAL)
                 .isActive(true)

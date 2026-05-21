@@ -132,28 +132,6 @@ export default function LoginPage() {
               </button>
             </form>
 
-            {/* Demo quick login */}
-            <div className="mt-6 pt-6 border-t border-slate-100">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider text-center mb-3">
-                Demo nhanh
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => doLogin('admin', 'password')}
-                  disabled={loading}
-                  className="py-2.5 px-4 rounded-xl border-2 border-blue-100 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold text-sm transition-colors disabled:opacity-50"
-                >
-                  Quản trị viên
-                </button>
-                <button
-                  onClick={() => doLogin('tech', 'password')}
-                  disabled={loading}
-                  className="py-2.5 px-4 rounded-xl border-2 border-emerald-100 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold text-sm transition-colors disabled:opacity-50"
-                >
-                  Kỹ thuật viên
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       </div>

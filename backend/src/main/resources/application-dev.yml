@@ -16,3 +16,7 @@ jwt:
   secret: hospital-signage-secret-key-must-be-at-least-256-bits-long-for-hs256
   expiration: 3600000
   refresh-expiration: 604800000
+
+app:
+  admin-initial-password: ${ADMIN_INITIAL_PASSWORD:Admin@Dev#2024}
+  tech-initial-password: ${TECH_INITIAL_PASSWORD:Tech@Dev#2024}
