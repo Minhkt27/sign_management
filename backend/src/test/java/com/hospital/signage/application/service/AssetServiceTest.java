@@ -1,6 +1,7 @@
 package com.hospital.signage.application.service;
 
 import com.hospital.signage.application.port.out.AssetDatabasePort;
+import com.hospital.signage.application.port.out.FileStoragePort;
 import com.hospital.signage.application.port.out.LocationDatabasePort;
 import com.hospital.signage.application.port.out.TicketDatabasePort;
 import com.hospital.signage.domain.enums.AssetStatus;
@@ -35,6 +36,9 @@ class AssetServiceTest {
 
     @Mock
     private TicketDatabasePort ticketDatabasePort;
+
+    @Mock
+    private FileStoragePort fileStoragePort;
 
     @InjectMocks
     private AssetService assetService;
@@ -113,6 +117,7 @@ class AssetServiceTest {
 
     @Test
     void deleteAsset_withLinkedTickets_throwsIllegalArgument() {
+        when(assetDatabasePort.findById(sampleAsset.getId())).thenReturn(Optional.of(sampleAsset));
         when(ticketDatabasePort.findByAssetId(sampleAsset.getId()))
                 .thenReturn(List.of(new com.hospital.signage.domain.model.MaintenanceTicket()));
 
@@ -124,6 +129,7 @@ class AssetServiceTest {
 
     @Test
     void deleteAsset_withNoTickets_deletesSuccessfully() {
+        when(assetDatabasePort.findById(sampleAsset.getId())).thenReturn(Optional.of(sampleAsset));
         when(ticketDatabasePort.findByAssetId(sampleAsset.getId())).thenReturn(Collections.emptyList());
         doNothing().when(assetDatabasePort).deleteById(sampleAsset.getId());
 
