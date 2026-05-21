@@ -47,6 +47,7 @@ export default function AssetListPage() {
   const [selectedBuildingId, setSelectedBuildingId] = useState<number | ''>('');
   const [selectedFloorId, setSelectedFloorId] = useState<number | ''>('');
   const [selectedRoomId, setSelectedRoomId] = useState<number | ''>('');
+  const [selectedSubRoomId, setSelectedSubRoomId] = useState<number | ''>('');
   const [signTypeId, setSignTypeId] = useState<number | undefined>(undefined);
   const [material, setMaterial] = useState<'MICA' | 'INOX' | 'LED' | 'ALU'>('MICA');
   const [size, setSize] = useState('40x30 cm');
@@ -91,6 +92,7 @@ export default function AssetListPage() {
       setSelectedBuildingId('');
       setSelectedFloorId('');
       setSelectedRoomId('');
+      setSelectedSubRoomId('');
       setIsDialogOpen(false);
     },
   });
@@ -108,7 +110,7 @@ export default function AssetListPage() {
 
   const handleCreateAsset = async (e: React.FormEvent) => {
     e.preventDefault();
-    const finalLocationId = selectedRoomId || selectedFloorId || selectedBuildingId;
+    const finalLocationId = selectedSubRoomId || selectedRoomId || selectedFloorId || selectedBuildingId;
     if (!finalLocationId) {
       alert('Vui lòng chọn vị trí lắp đặt.');
       return;
@@ -433,10 +435,10 @@ export default function AssetListPage() {
                           <MapPin size={13} className="text-slate-400" />
                           <span>Vị trí lắp đặt *</span>
                         </label>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           {/* Level 1: Building */}
                           <div>
-                            <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Tòa nhà / Khu vực chính</span>
+                            <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Tòa nhà</span>
                             <select
                               id="create-asset-building"
                               value={selectedBuildingId}
@@ -445,6 +447,7 @@ export default function AssetListPage() {
                                 setSelectedBuildingId(val);
                                 setSelectedFloorId('');
                                 setSelectedRoomId('');
+                                setSelectedSubRoomId('');
                               }}
                               className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300"
                             >
@@ -457,7 +460,7 @@ export default function AssetListPage() {
 
                           {/* Level 2: Floor */}
                           <div>
-                            <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Tầng / Phân khu</span>
+                            <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Tầng</span>
                             <select
                               id="create-asset-floor"
                               disabled={!selectedBuildingId}
@@ -466,6 +469,7 @@ export default function AssetListPage() {
                                 const val = e.target.value ? Number(e.target.value) : '';
                                 setSelectedFloorId(val);
                                 setSelectedRoomId('');
+                                setSelectedSubRoomId('');
                               }}
                               className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
                             >
@@ -476,18 +480,39 @@ export default function AssetListPage() {
                             </select>
                           </div>
 
-                          {/* Level 3: Room / Department */}
+                          {/* Level 3: Department */}
                           <div>
-                            <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Khoa / Phòng / Vị trí cụ thể</span>
+                            <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Khoa / Phòng ban</span>
                             <select
-                              id="create-asset-room"
+                              id="create-asset-dept"
                               disabled={!selectedFloorId}
                               value={selectedRoomId}
-                              onChange={(e) => setSelectedRoomId(e.target.value ? Number(e.target.value) : '')}
+                              onChange={(e) => {
+                                const val = e.target.value ? Number(e.target.value) : '';
+                                setSelectedRoomId(val);
+                                setSelectedSubRoomId('');
+                              }}
                               className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
                             >
-                              <option value="">— Chọn Khoa / Phòng —</option>
+                              <option value="">— Chọn Khoa (tuỳ chọn) —</option>
                               {locations.filter(loc => loc.parentId === selectedFloorId).map(loc => (
+                                <option key={loc.id} value={loc.id}>{loc.name}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Level 4: Room */}
+                          <div>
+                            <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Phòng cụ thể</span>
+                            <select
+                              id="create-asset-room"
+                              disabled={!selectedRoomId || locations.filter(loc => loc.parentId === selectedRoomId).length === 0}
+                              value={selectedSubRoomId}
+                              onChange={(e) => setSelectedSubRoomId(e.target.value ? Number(e.target.value) : '')}
+                              className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+                            >
+                              <option value="">— Chọn Phòng (nếu có) —</option>
+                              {locations.filter(loc => loc.parentId === selectedRoomId).map(loc => (
                                 <option key={loc.id} value={loc.id}>{loc.name}</option>
                               ))}
                             </select>
