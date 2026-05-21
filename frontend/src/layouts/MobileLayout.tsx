@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { authStore } from '@/app/store/authStore';
+import { authService } from '@/services/authService';
 import { ClipboardList, QrCode, LogOut } from 'lucide-react';
 
 export default function MobileLayout() {
@@ -7,8 +8,7 @@ export default function MobileLayout() {
   const user = authStore.getUser();
 
   const handleLogout = () => {
-    authStore.logout();
-    navigate('/login');
+    authService.logout().then(() => navigate('/login'));
   };
 
   return (

@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { authStore } from '@/app/store/authStore';
+import { authService } from '@/services/authService';
 import { LayoutDashboard, Signpost, Ticket, LogOut, Tags } from 'lucide-react';
 
 export default function AdminLayout() {
@@ -7,8 +8,7 @@ export default function AdminLayout() {
   const user = authStore.getUser();
 
   const handleLogout = () => {
-    authStore.logout();
-    navigate('/login');
+    authService.logout().then(() => navigate('/login'));
   };
 
   const navItems = [

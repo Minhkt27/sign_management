@@ -8,9 +8,11 @@ public interface AuthUseCase {
 
     RefreshResult refreshToken(String refreshToken);
 
+    void logout(String username);
+
     record LoginCommand(String username, String password) {}
 
     record LoginResult(String token, String refreshToken, User user) {}
 
-    record RefreshResult(String token) {}
+    record RefreshResult(String token, String refreshToken) {}
 }

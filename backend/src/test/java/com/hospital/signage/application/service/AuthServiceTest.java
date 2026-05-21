@@ -52,6 +52,7 @@ class AuthServiceTest {
         when(passwordEncoder.matches("plain", "hashed_password")).thenReturn(true);
         when(jwtTokenProvider.generateToken("admin", "ADMIN")).thenReturn("access-token");
         when(jwtTokenProvider.generateRefreshToken("admin")).thenReturn("refresh-token");
+        when(userDatabasePort.save(any())).thenReturn(activeUser);
 
         AuthUseCase.LoginResult result = authService.login(new AuthUseCase.LoginCommand("admin", "plain"));
 
@@ -91,13 +92,17 @@ class AuthServiceTest {
 
     @Test
     void refreshToken_withValidToken_returnsNewAccessToken() {
+        activeUser.setRefreshToken("valid-refresh");
         when(jwtTokenProvider.extractUsername("valid-refresh")).thenReturn("admin");
         when(userDatabasePort.findByUsername("admin")).thenReturn(Optional.of(activeUser));
         when(jwtTokenProvider.generateToken("admin", "ADMIN")).thenReturn("new-access-token");
+        when(jwtTokenProvider.generateRefreshToken("admin")).thenReturn("new-refresh-token");
+        when(userDatabasePort.save(any())).thenReturn(activeUser);
 
         AuthUseCase.RefreshResult result = authService.refreshToken("valid-refresh");
 
         assertThat(result.token()).isEqualTo("new-access-token");
+        assertThat(result.refreshToken()).isEqualTo("new-refresh-token");
     }
 
     @Test
@@ -107,6 +112,6 @@ class AuthServiceTest {
 
         assertThatThrownBy(() -> authService.refreshToken("bad-refresh"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("User not found");
+                .hasMessage("Invalid or expired refresh token");
     }
 }

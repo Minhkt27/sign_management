@@ -16,9 +16,17 @@ export const authService = {
     authStore.setUser(user);
     return response.data;
   },
-  logout: () => {
-    authStore.logout();
+
+  logout: async () => {
+    try {
+      await apiClient.post('/auth/logout');
+    } catch {
+      // best-effort — clear local state regardless
+    } finally {
+      authStore.logout();
+    }
   },
+
   getCurrentUser: (): AuthUser | null => {
     return authStore.getUser();
   },

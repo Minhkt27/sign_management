@@ -34,6 +34,15 @@ public class AuthController {
         return ResponseEntity.ok(authUseCase.refreshToken(request.refreshToken()));
     }
 
+    @PostMapping("/api/auth/logout")
+    public ResponseEntity<Void> logout() {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (principal instanceof User user) {
+            authUseCase.logout(user.getUsername());
+        }
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/api/auth/me")
     public ResponseEntity<UserResponse> getMe() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();

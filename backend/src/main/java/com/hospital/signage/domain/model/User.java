@@ -20,6 +20,7 @@ public class User {
     private String fullName;
     private Role role;
     private Boolean isActive;
+    private String refreshToken;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

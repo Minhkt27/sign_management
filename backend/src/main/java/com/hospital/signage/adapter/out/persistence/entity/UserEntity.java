@@ -48,6 +48,9 @@ public class UserEntity {
     @Column(name = "is_active")
     private Boolean isActive;
 
+    @Column(name = "refresh_token", length = 512)
+    private String refreshToken;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

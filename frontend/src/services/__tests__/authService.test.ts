@@ -54,12 +54,13 @@ describe('authService', () => {
     await expect(authService.login('bad', 'creds')).rejects.toThrow('Unauthorized');
   });
 
-  it('logout clears stored auth data', () => {
+  it('logout clears stored auth data', async () => {
     authStore.setToken('jwt-token');
     authStore.setRefreshToken('refresh-token');
     authStore.setUser({ id: 1, username: 'admin', fullName: 'Admin', role: 'ADMIN' });
+    vi.mocked(apiClient.post).mockResolvedValueOnce({ data: {} });
 
-    authService.logout();
+    await authService.logout();
 
     expect(authStore.getToken()).toBeNull();
     expect(authStore.getUser()).toBeNull();
