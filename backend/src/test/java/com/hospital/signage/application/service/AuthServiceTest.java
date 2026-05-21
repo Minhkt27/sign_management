@@ -5,6 +5,7 @@ import com.hospital.signage.application.port.out.UserDatabasePort;
 import com.hospital.signage.domain.enums.Role;
 import com.hospital.signage.domain.model.User;
 import com.hospital.signage.infrastructure.security.JwtTokenProvider;
+import com.hospital.signage.infrastructure.security.LoginAttemptService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,6 +31,9 @@ class AuthServiceTest {
 
     @Mock
     private JwtTokenProvider jwtTokenProvider;
+
+    @Mock
+    private LoginAttemptService loginAttemptService;
 
     @InjectMocks
     private AuthService authService;
@@ -113,5 +117,42 @@ class AuthServiceTest {
         assertThatThrownBy(() -> authService.refreshToken("bad-refresh"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Invalid or expired refresh token");
+    }
+
+    @Test
+    void login_whenBlocked_throwsIllegalState() {
+        when(loginAttemptService.isBlocked("admin")).thenReturn(true);
+
+        assertThatThrownBy(() -> authService.login(new AuthUseCase.LoginCommand("admin", "any")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Quá nhiều lần đăng nhập thất bại");
+
+        verify(userDatabasePort, never()).findByUsername(any());
+    }
+
+    @Test
+    void login_withWrongPassword_recordsFailure() {
+        when(loginAttemptService.isBlocked("admin")).thenReturn(false);
+        when(userDatabasePort.findByUsername("admin")).thenReturn(Optional.of(activeUser));
+        when(passwordEncoder.matches("wrong", "hashed_password")).thenReturn(false);
+
+        assertThatThrownBy(() -> authService.login(new AuthUseCase.LoginCommand("admin", "wrong")))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        verify(loginAttemptService).recordFailure("admin");
+    }
+
+    @Test
+    void login_withValidCredentials_recordsSuccess() {
+        when(loginAttemptService.isBlocked("admin")).thenReturn(false);
+        when(userDatabasePort.findByUsername("admin")).thenReturn(Optional.of(activeUser));
+        when(passwordEncoder.matches("plain", "hashed_password")).thenReturn(true);
+        when(jwtTokenProvider.generateToken("admin", "ADMIN")).thenReturn("access-token");
+        when(jwtTokenProvider.generateRefreshToken("admin")).thenReturn("refresh-token");
+        when(userDatabasePort.save(any())).thenReturn(activeUser);
+
+        authService.login(new AuthUseCase.LoginCommand("admin", "plain"));
+
+        verify(loginAttemptService).recordSuccess("admin");
     }
 }
