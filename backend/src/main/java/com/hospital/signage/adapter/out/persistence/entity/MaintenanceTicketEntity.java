@@ -1,6 +1,7 @@
 package com.hospital.signage.adapter.out.persistence.entity;
 
 import com.hospital.signage.domain.enums.Priority;
+import com.hospital.signage.domain.enums.TicketSource;
 import com.hospital.signage.domain.enums.TicketStatus;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -64,6 +65,10 @@ public class MaintenanceTicketEntity {
 
     @Column(name = "image_after", length = 500)
     private String imageAfter;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "source", nullable = false)
+    private TicketSource source;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
