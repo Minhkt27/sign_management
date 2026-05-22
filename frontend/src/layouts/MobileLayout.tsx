@@ -20,7 +20,7 @@ export default function MobileLayout() {
       <header className="bg-gradient-to-r from-blue-700 to-indigo-800 text-white px-5 py-4 sticky top-0 z-20 flex justify-between items-center shadow-md">
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center font-bold text-sm">
-            {user ? user.fullName.charAt(0) : 'K'}
+            {user?.fullName?.charAt(0) ?? 'K'}
           </div>
           <div>
             <h1 className="text-base font-bold tracking-wide">Kỹ thuật viên</h1>

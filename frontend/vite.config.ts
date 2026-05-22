@@ -9,6 +9,13 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    allowedHosts: ['preset-unedited-lesser.ngrok-free.dev'],
+    proxy: {
+      '/api': { target: 'http://localhost:8080', changeOrigin: true },
+      '/signage-assets': { target: 'http://localhost:9000', changeOrigin: true },
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',

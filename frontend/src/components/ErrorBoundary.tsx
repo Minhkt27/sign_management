@@ -40,6 +40,11 @@ export class ErrorBoundary extends Component<Props, State> {
             <p className="text-gray-500 text-sm mb-6">
               {this.state.error?.message || 'Vui lòng tải lại trang hoặc liên hệ quản trị viên.'}
             </p>
+            {this.state.error && (
+              <pre className="text-left text-xs bg-gray-100 rounded p-3 mb-4 overflow-auto max-h-40 text-red-600">
+                {this.state.error.stack || this.state.error.message}
+              </pre>
+            )}
             <div className="flex gap-3 justify-center">
               <button
                 onClick={this.handleReset}
