@@ -89,9 +89,16 @@ export default function TicketDetailPage() {
                   {ticket.priority}
                 </Badge>
               </div>
-              <p className="text-xs text-slate-400 mt-1 flex items-center space-x-1">
-                <Clock size={12} /> <span>Phản ánh lúc: {new Date(ticket.createdAt).toLocaleString()}</span>
-              </p>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
+                <p className="text-xs text-slate-400 flex items-center gap-1">
+                  <Clock size={12} /> Phản ánh: {new Date(ticket.createdAt).toLocaleString('vi-VN')}
+                </p>
+                {ticket.completedAt && (
+                  <p className="text-xs text-emerald-600 flex items-center gap-1 font-medium">
+                    <CheckCircle2 size={12} /> Hoàn thành: {new Date(ticket.completedAt).toLocaleString('vi-VN')}
+                  </p>
+                )}
+              </div>
             </div>
             <div>{renderStatusBadge(ticket.ticketStatus)}</div>
           </div>

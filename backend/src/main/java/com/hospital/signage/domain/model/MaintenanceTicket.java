@@ -28,4 +28,5 @@ public class MaintenanceTicket {
     private TicketSource source;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private LocalDateTime completedAt;
 }

@@ -60,6 +60,7 @@ export interface MaintenanceTicket {
   assignee: User | null;
   createdAt: string;
   updatedAt?: string;
+  completedAt?: string;
   imageBefore?: string;
   imageAfter?: string;
   source?: 'MANUAL' | 'QR_SCAN';

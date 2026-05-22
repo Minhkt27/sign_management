@@ -75,6 +75,9 @@ public class TicketService implements TicketUseCase {
         if (imageAfter != null && !imageAfter.isBlank()) {
             ticket.setImageAfter(imageAfter);
         }
+        if (status == TicketStatus.RESOLVED && ticket.getCompletedAt() == null) {
+            ticket.setCompletedAt(LocalDateTime.now());
+        }
         ticket.setUpdatedAt(LocalDateTime.now());
 
         Asset asset = ticket.getAsset();
