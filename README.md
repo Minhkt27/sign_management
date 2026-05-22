@@ -1,132 +1,205 @@
-# Hệ thống Quản lý Biển báo Vật lý trong Bệnh viện (Hospital Physical Signage Management System)
+# Hệ thống Quản lý Biển báo Vật lý trong Bệnh viện
 
-Dự án này là hệ thống số hóa, quản lý và điều phối bảo trì toàn bộ hệ thống biển báo vật lý (chỉ dẫn phòng ban, lối thoát hiểm, bảng thông tin...) trong khuôn viên bệnh viện. Hệ thống được phát triển với lộ trình dài hạn gồm 4 giai đoạn, hỗ trợ vận hành đa thiết bị (Desktop cho Admin và Mobile cho Kỹ thuật viên).
+Hệ thống số hóa, quản lý và điều phối bảo trì toàn bộ biển báo vật lý (chỉ dẫn phòng ban, lối thoát hiểm, bảng thông tin...) trong khuôn viên bệnh viện. Hỗ trợ vận hành đa thiết bị: Desktop cho Quản trị viên và Mobile Web cho Kỹ thuật viên.
 
 ---
 
 ## 1. Lộ trình phát triển (4 Phases)
 
-*   **PHASE 1 (Hiện tại):** Xây dựng lõi quản trị dữ liệu nền tảng trên Desktop và điều phối phiếu sửa chữa nội bộ. Sử dụng mã biển báo nhập tay (`asset_code`) và cây thư mục vị trí dạng chữ.
-*   **PHASE 2 (Tương lai gần):** Số hóa điểm chạm bằng định danh tầm ngắn. Tích hợp QR Code, NFC gắn tại mỗi biển báo để báo hỏng nhanh qua thiết bị di động.
-*   **PHASE 3 (Trung hạn):** Xây dựng hệ thống sơ đồ số và công cụ tìm đường trong nhà (Wayfinding) tích hợp cho bệnh nhân và nhân viên y tế.
-*   **PHASE 4 (Dài hạn):** Áp dụng AI dự báo hư hỏng biển báo dựa trên lịch sử bảo trì, tần suất báo hỏng và thời tiết/môi trường.
+| Phase | Trạng thái | Mô tả |
+|-------|-----------|-------|
+| **Phase 1** | ✅ Hoàn thành | Lõi quản trị dữ liệu nền tảng. Quản lý biển báo, vị trí phân cấp, phiếu bảo trì, phân công kỹ thuật viên. |
+| **Phase 2** | Tương lai gần | Số hóa điểm chạm: tích hợp QR Code / NFC gắn tại mỗi biển để báo hỏng nhanh từ điện thoại. |
+| **Phase 3** | Trung hạn | Sơ đồ số và công cụ tìm đường trong nhà (Wayfinding) cho bệnh nhân và nhân viên. |
+| **Phase 4** | Dài hạn | AI dự báo hư hỏng dựa trên lịch sử bảo trì, tần suất báo hỏng và điều kiện môi trường. |
 
 ---
 
-## 2. Kiến trúc Hệ thống
+## 2. Tính năng Phase 1
 
-Hệ thống được thiết kế theo mô hình phân tách rõ ràng giữa Backend và Frontend để đảm bảo tính dễ bảo trì, dễ kiểm thử và mở rộng.
+### Quản trị viên (Desktop)
+- **Biển báo**: Danh sách, tìm kiếm, thêm/sửa/xóa, upload ảnh, xem lịch sử phiếu bảo trì
+- **Sơ đồ vị trí**: Cây phân cấp Tòa nhà → Tầng → Khoa/Phòng ban → Phòng; panel chi tiết biển khi click
+- **Loại biển**: Quản lý danh mục loại biển báo (LED, Mica, Alu, Inox...)
+- **Phiếu bảo trì**: Tạo phiếu, gán kỹ thuật viên, theo dõi trạng thái, đính kèm ảnh trước/sau
+- **Nhân viên**: Tạo tài khoản kỹ thuật viên, bật/tắt tài khoản, đổi mật khẩu
 
-### Backend: Kiến trúc Lục giác (Hexagonal Architecture / Ports & Adapters)
-Backend sử dụng **Spring Boot 3.x** và **Java 25**, tổ chức theo cấu trúc:
-*   `domain/`: Chứa các thực thể cốt lõi (`Asset`, `Location`, `MaintenanceTicket`, `User`) và logic nghiệp vụ thuần túy, không phụ thuộc vào bất kỳ framework nào.
-*   `application/`: Định nghĩa các cổng giao tiếp (Ports) và dịch vụ nghiệp vụ (Services) để điều phối luồng xử lý.
-    *   `port/in/` (Inbound Ports / Use Cases): Định nghĩa API nội bộ mà ứng dụng cung cấp cho các Adapter bên ngoài.
-    *   `port/out/` (Outbound Ports): Định nghĩa các giao diện lưu trữ, gửi thông báo mà ứng dụng cần kết nối ra ngoài.
-*   `adapter/`: Triển khai các cổng kết nối thực tế.
-    *   `adapter/in/rest/` (Inbound Adapters): Tiếp nhận REST APIs từ Frontend.
-    *   `adapter/out/persistence/` (Outbound Adapters): Triển khai lưu trữ dữ liệu xuống cơ sở dữ liệu PostgreSQL sử dụng Spring Data JPA, Hibernate, và MapStruct để ánh xạ dữ liệu giữa Domain Model và JPA Entity.
+### Kỹ thuật viên (Mobile Web)
+- **Dashboard nhiệm vụ**: Danh sách phiếu được giao, lọc theo trạng thái
+- **Chi tiết phiếu**: Xem thông tin biển, cập nhật tiến độ, upload ảnh tại hiện trường
+- **Tra cứu biển báo**: Tìm kiếm và xem thông tin biển theo mã
 
-### Frontend: Tổ chức theo Chức năng & Vai trò (Feature-First + Role-Based)
-Frontend sử dụng **React (Vite)**, **TypeScript**, **Tailwind CSS v3**, **Shadcn UI** và **TanStack Query (React Query)**:
-*   **Feature-First:** Tổ chức mã nguồn theo các module nghiệp vụ như `assets` (quản lý biển báo), `tickets` (quản lý phiếu bảo trì), và `workflow` (quy trình thực hiện của kỹ thuật viên) để dễ quản lý khi dự án phình to.
-*   **Role-Based:** Phân tách rõ ràng giao diện và luồng hoạt động dựa theo vai trò của người dùng:
-    *   `admin`: Giao diện quản trị viên chạy trên máy tính bàn (Desktop) quản lý thiết bị, sơ đồ vị trí và phân phối phiếu.
-    *   `technician`: Giao diện tối ưu hóa cho di động (Mobile Web) hỗ trợ kỹ thuật viên nhận nhiệm vụ, cập nhật trạng thái sửa chữa tại hiện trường.
-
----
-
-## 3. Thiết kế Cơ sở dữ liệu (PostgreSQL Schema)
-
-*   **Bảng `locations`**: Quản lý sơ đồ vị trí hình cây (Tòa nhà - Tầng - Phòng). Sử dụng kiểu dữ liệu `ltree` trong PostgreSQL để hỗ trợ lưu trữ đường dẫn phân cấp (`path`), phục vụ cho bài toán tìm đường ở Phase 3.
-*   **Bảng `assets`**: Quản lý thông tin biển báo vật lý (chất liệu Mica/Inox/Led/Alu, kích thước, trạng thái hoạt động Active/Damaged/Repairing/Scrapped).
-*   **Bảng `users`**: Quản lý tài khoản đăng nhập với phân quyền `ADMIN` hoặc `TECHNICAL` (Kỹ thuật viên).
-*   **Bảng `maintenance_tickets`**: Theo dõi các yêu cầu sửa chữa, báo hỏng biển báo từ khi tiếp nhận đến khi hoàn thành, phân công kỹ thuật viên thực hiện, thiết lập độ ưu tiên (Low/Medium/High/Critical).
-*   **Bảng `ticket_images`**: Lưu trữ hình ảnh chụp trạng thái biển báo trước và sau khi bảo trì để đối chiếu chất lượng công việc.
+### Bảo mật
+- JWT + Refresh Token Rotation (lưu DB, vô hiệu khi logout hoặc khoá tài khoản)
+- Rate limiting đăng nhập: 5 lần thất bại / 15 phút per username
+- Validate file upload: kiểm tra cả extension lẫn magic bytes (chống polyglot attack)
+- Không hardcode credentials; mật khẩu khởi tạo đọc từ biến môi trường
 
 ---
 
-## 4. Cấu trúc thư mục Dự án
+## 3. Kiến trúc hệ thống
 
-```text
-sign_management/
-│
-├── backend/                             # Java 25 / Spring Boot 3.x
-│   ├── src/main/java/com/hospital/signage/
-│   │   ├── domain/                      # Domain Model & Core Business Logic
-│   │   │   ├── model/                   # Asset, Location, User, MaintenanceTicket
-│   │   │   └── exception/               # Custom Domain Exceptions
-│   │   ├── application/                 # Ports & Application Services
-│   │   │   ├── port/in/                 # Use Cases (CreateAsset, AssignTicket...)
-│   │   │   └── port/out/                # Outbound Interfaces (Persistence Ports)
-│   │   ├── adapter/                     # Adapters (REST API & Persistence JPA)
-│   │   │   ├── in/rest/                 # Spring MVC Controllers (Inbound)
-│   │   │   └── out/persistence/         # JPA Entities, Repositories, Mappers (Outbound)
-│   │   └── config/                      # Spring configurations
-│   └── pom.xml                          # Maven configuration (Lombok, MapStruct)
-│
-├── frontend/                            # React / Vite / TypeScript
-│   ├── src/
-│   │   ├── app/                         # App providers (Query, Router) & global stores
-│   │   ├── layouts/                     # AdminLayout (Desktop), MobileLayout (Technician)
-│   │   ├── routes/                      # Route definitions (Admin & Technician)
-│   │   ├── features/                    # Feature modules (Feature-first)
-│   │   │   ├── admin/
-│   │   │   │   ├── assets/              # Assets pages (List, Tree, Detail) & components
-│   │   │   │   └── tickets/             # Ticket management & dispatching
-│   │   │   └── technician/
-│   │   │       └── workflow/            # Technician task flow pages (Dashboard, Detail)
-│   │   ├── components/ui/               # Reusable UI Components (Shadcn/ui)
-│   │   ├── services/                    # ApiClient (Axios) & Auth services
-│   │   └── shared/                      # Constants, Types, Helpers
-│   ├── tailwind.config.js               # Tailwind CSS configurations
-│   ├── tsconfig.json                    # TypeScript configurations with `@/*` path alias
-│   └── package.json                     # Frontend dependencies
+### Backend — Hexagonal Architecture (Ports & Adapters)
+
+```
+backend/src/main/java/com/hospital/signage/
+├── domain/          # Entity thuần: Asset, Location, User, MaintenanceTicket
+├── application/
+│   ├── port/in/     # Use Cases (interface): AssetUseCase, TicketUseCase, UserUseCase...
+│   └── port/out/    # Outbound Ports: AssetDatabasePort, FileStoragePort...
+├── adapter/
+│   ├── in/web/      # Spring MVC Controllers
+│   └── out/
+│       ├── persistence/   # JPA Entities, Repositories, MapStruct Mappers
+│       └── storage/       # MinIO adapter (FileStoragePort)
+└── infrastructure/
+    ├── config/      # DataInitializer, SecurityConfig, MinioConfig
+    └── security/    # JwtTokenProvider, JwtAuthenticationFilter
 ```
 
+**Stack:** Java 21 · Spring Boot 3.2 · Spring Security · Spring Data JPA · MapStruct · Lombok · PostgreSQL 15
+
+### Frontend — Feature-First + Role-Based
+
+```
+frontend/src/
+├── features/
+│   ├── admin/
+│   │   ├── assets/      # AssetListPage, AssetTreePage, AssetDetailPage
+│   │   ├── tickets/     # TicketListPage, TicketAssignPage, TicketDetailPage
+│   │   ├── sign-types/  # SignTypeListPage
+│   │   └── users/       # UserListPage
+│   └── technician/
+│       └── workflow/    # TechDashboardPage, TaskDetailPage, AssetBrowsePage
+├── layouts/             # AdminLayout (sidebar desktop), MobileLayout (bottom nav)
+├── components/ui/       # Base UI components (@base-ui/react)
+├── services/            # apiClient (Axios), authService, assetService, userService...
+└── shared/              # Types, helpers, constants
+```
+
+**Stack:** React 19 · TypeScript · Vite 8 · Tailwind CSS v4 · @base-ui/react · TanStack Query v5
+
+### Lưu trữ file — MinIO
+
+Ảnh biển báo và ảnh phiếu bảo trì được lưu trên MinIO (S3-compatible object storage). URL ảnh trả về dạng `http://<MINIO_HOST>:9000/<bucket>/<filename>`.
+
 ---
 
-## 5. Hướng dẫn chạy thử nghiệm tại máy địa phương (Local Setup)
+## 4. Cơ sở dữ liệu (PostgreSQL)
 
-### Yêu cầu hệ thống
-*   **Backend:** JDK 25 (hoặc mới hơn), Maven 3.9+
-*   **Frontend:** Node.js 20+ và npm 10+
-*   **Database:** PostgreSQL 15+ (hỗ trợ tiện ích mở rộng `ltree`)
+| Bảng | Mô tả |
+|------|-------|
+| `users` | Tài khoản với role `ADMIN` hoặc `TECHNICAL`; lưu `refresh_token` để kiểm soát phiên |
+| `locations` | Cây vị trí phân cấp (Tòa nhà/Tầng/Khoa/Phòng); có cột `path` kiểu `ltree` cho Phase 3 |
+| `assets` | Biển báo vật lý: mã, chất liệu, kích thước, trạng thái (ACTIVE/DAMAGED/REPAIRING/SCRAPPED) |
+| `sign_types` | Danh mục loại biển báo |
+| `maintenance_tickets` | Phiếu bảo trì: mô tả, độ ưu tiên, trạng thái, kỹ thuật viên được giao |
+| `ticket_images` | Ảnh đính kèm phiếu (BEFORE/AFTER) |
 
-### Bước 1: Chuẩn bị Cơ sở dữ liệu
-1. Tạo một cơ sở dữ liệu PostgreSQL có tên là `hospital_signage`.
-2. Kích hoạt extension `ltree` bằng lệnh:
-   ```sql
-   CREATE EXTENSION IF NOT EXISTS ltree;
-   ```
-3. Cấu hình thông tin kết nối Database (Username, Password, URL) trong file `backend/src/main/resources/application.yml`.
+---
 
-### Bước 2: Khởi động Backend
-1. Di chuyển vào thư mục `backend/`:
-   ```bash
-   cd backend
-   ```
-2. Thực hiện tải dependencies và biên dịch ứng dụng:
-   ```bash
-   mvn clean compile
-   ```
-3. Chạy ứng dụng Spring Boot:
-   ```bash
-   mvn spring-boot:run
-   ```
-   *Mặc định API Server sẽ lắng nghe tại cổng `http://localhost:8080`.*
+## 5. Chạy local (Development)
 
-### Bước 3: Khởi động Frontend
-1. Mở một terminal mới và di chuyển vào thư mục `frontend/`:
-   ```bash
-   cd frontend
-   ```
-2. Cài đặt các thư viện phụ thuộc:
-   ```bash
-   npm install
-   ```
-3. Chạy Frontend trong môi trường phát triển (Development mode):
-   ```bash
-   npm run dev
-   ```
-   *Mặc định giao diện Web sẽ chạy tại cổng `http://localhost:5173`.*
+### Yêu cầu
+- Docker & Docker Compose
+- JDK 21+, Maven 3.9+
+- Node.js 20+, npm 10+
+
+### Bước 1 — Tạo file `.env`
+
+Sao chép file mẫu và điều chỉnh nếu cần:
+
+```bash
+cp .env.example .env   # hoặc tạo thủ công theo mẫu bên dưới
+```
+
+Nội dung tối thiểu:
+
+```env
+POSTGRES_DB=signage_db
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=change_me_in_production
+
+JWT_SECRET=hospital-signage-super-secret-key-replace-this-now-2024
+
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=change_me_strong_password
+MINIO_BUCKET=signage-assets
+MINIO_PUBLIC_URL=http://localhost:9000
+```
+
+### Bước 2 — Khởi động PostgreSQL và MinIO bằng Docker
+
+```bash
+docker compose up -d postgres minio
+```
+
+Kiểm tra sẵn sàng:
+
+```bash
+docker compose ps   # postgres và minio phải ở trạng thái healthy
+```
+
+### Bước 3 — Khởi động Backend
+
+```bash
+cd backend
+POSTGRES_PASSWORD=change_me_in_production mvn spring-boot:run
+# Windows PowerShell:
+# $env:POSTGRES_PASSWORD = 'change_me_in_production'; mvn spring-boot:run
+```
+
+> Profile `dev` được kích hoạt tự động. Backend lắng nghe tại `http://localhost:8080`.  
+> Lần đầu chạy, `DataInitializer` tự seed dữ liệu mẫu và tạo tài khoản mặc định (xem mục 6).
+
+### Bước 4 — Khởi động Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+> Frontend chạy tại `http://localhost:5173`.
+
+---
+
+## 6. Tài khoản mặc định (sau seed lần đầu)
+
+| Username | Password | Vai trò |
+|----------|----------|---------|
+| `admin` | `Admin@Dev#2024` | Quản trị viên |
+| `tech` | `Tech@Dev#2024` | Kỹ thuật viên |
+
+> Mật khẩu seed được đọc từ `ADMIN_INITIAL_PASSWORD` / `TECH_INITIAL_PASSWORD` trong biến môi trường (fallback theo profile: `Admin@Dev#2024` cho dev, bắt buộc đặt trong `.env` cho prod).
+
+---
+
+## 7. Chạy toàn bộ bằng Docker (Production-like)
+
+```bash
+cp .env .env.prod   # chỉnh POSTGRES_PASSWORD, JWT_SECRET, MINIO_SECRET_KEY thành giá trị thực
+docker compose up -d
+```
+
+Các service:
+
+| Service | Port | Mô tả |
+|---------|------|-------|
+| `postgres` | 5432 | PostgreSQL database |
+| `minio` | 9000 / 9001 | Object storage / MinIO Console |
+| `backend` | 8080 | Spring Boot API |
+| `frontend` | 80 | React app (Nginx) |
+| `backup` | — | Cronjob backup DB mỗi Chủ nhật 02:00 |
+
+---
+
+## 8. Chạy kiểm thử
+
+```bash
+# Backend
+cd backend && mvn test -B
+
+# Frontend
+cd frontend && npm test -- --run
+```

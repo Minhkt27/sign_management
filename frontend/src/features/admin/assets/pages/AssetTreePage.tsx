@@ -438,18 +438,18 @@ export default function AssetTreePage() {
 
         {/* Asset detail panel */}
         {selectedAsset && (
-          <div className="w-80 shrink-0 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="w-[420px] shrink-0 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50">
-              <div className="flex items-center gap-2">
-                <Tag size={15} className="text-emerald-500" />
-                <span className="text-sm font-bold text-slate-700">{selectedAsset.assetCode}</span>
-                <Badge className={`text-xs px-1.5 py-0 border ${statusColor[selectedAsset.status]}`}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50">
+              <div className="flex items-center gap-2.5">
+                <Tag size={16} className="text-emerald-500" />
+                <span className="text-base font-bold text-slate-700">{selectedAsset.assetCode}</span>
+                <Badge className={`text-xs px-2 py-0.5 border ${statusColor[selectedAsset.status]}`}>
                   {statusLabel[selectedAsset.status]}
                 </Badge>
               </div>
               <button onClick={() => setSelectedAsset(null)} className="text-slate-400 hover:text-slate-600 transition-colors">
-                <X size={16} />
+                <X size={18} />
               </button>
             </div>
 
@@ -458,56 +458,70 @@ export default function AssetTreePage() {
               <img
                 src={getBackendUrl(selectedAsset.imageUrl)}
                 alt={selectedAsset.assetCode}
-                className="w-full h-40 object-cover border-b border-slate-100"
+                className="w-full h-56 object-cover border-b border-slate-100"
               />
             ) : (
-              <div className="w-full h-32 bg-slate-100 flex items-center justify-center border-b border-slate-100">
-                <span className="text-xs text-slate-400">Chưa có ảnh</span>
+              <div className="w-full h-44 bg-slate-100 flex items-center justify-center border-b border-slate-100">
+                <span className="text-sm text-slate-400">Chưa có ảnh</span>
               </div>
             )}
 
             {/* Info */}
-            <div className="p-4 space-y-3">
+            <div className="p-5 space-y-4">
               {selectedAsset.name && (
-                <p className="text-sm font-semibold text-slate-800">{selectedAsset.name}</p>
+                <p className="text-base font-semibold text-slate-800">{selectedAsset.name}</p>
               )}
 
-              <div className="space-y-2 text-xs text-slate-600">
-                <div className="flex items-start gap-2">
-                  <MapPin size={13} className="text-slate-400 mt-0.5 shrink-0" />
-                  <span>{selectedAsset.location?.name || '—'}</span>
+              <div className="space-y-3 text-sm text-slate-600">
+                <div className="flex items-start gap-3">
+                  <MapPin size={15} className="text-slate-400 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-xs text-slate-400 font-medium mb-0.5">Vị trí</p>
+                    <span className="font-medium">{selectedAsset.location?.name || '—'}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Package size={13} className="text-slate-400 shrink-0" />
-                  <span>{selectedAsset.material}</span>
+                <div className="flex items-start gap-3">
+                  <Package size={15} className="text-slate-400 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-xs text-slate-400 font-medium mb-0.5">Chất liệu</p>
+                    <span className="font-medium">{selectedAsset.material}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Ruler size={13} className="text-slate-400 shrink-0" />
-                  <span>{selectedAsset.size}</span>
+                <div className="flex items-start gap-3">
+                  <Ruler size={15} className="text-slate-400 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-xs text-slate-400 font-medium mb-0.5">Kích thước</p>
+                    <span className="font-medium">{selectedAsset.size}</span>
+                  </div>
                 </div>
                 {selectedAsset.supplier && (
-                  <div className="flex items-center gap-2">
-                    <Building size={13} className="text-slate-400 shrink-0" />
-                    <span className="truncate">{selectedAsset.supplier}</span>
+                  <div className="flex items-start gap-3">
+                    <Building size={15} className="text-slate-400 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-xs text-slate-400 font-medium mb-0.5">Nhà cung cấp</p>
+                      <span className="font-medium">{selectedAsset.supplier}</span>
+                    </div>
                   </div>
                 )}
                 {selectedAsset.installedAt && (
-                  <div className="flex items-center gap-2">
-                    <Calendar size={13} className="text-slate-400 shrink-0" />
-                    <span>{new Date(selectedAsset.installedAt).toLocaleDateString('vi-VN')}</span>
+                  <div className="flex items-start gap-3">
+                    <Calendar size={15} className="text-slate-400 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-xs text-slate-400 font-medium mb-0.5">Ngày lắp đặt</p>
+                      <span className="font-medium">{new Date(selectedAsset.installedAt).toLocaleDateString('vi-VN')}</span>
+                    </div>
                   </div>
                 )}
                 {selectedAsset.description && (
-                  <p className="text-slate-500 italic pt-1">{selectedAsset.description}</p>
+                  <p className="text-slate-500 italic pt-1 text-sm">{selectedAsset.description}</p>
                 )}
               </div>
 
               <Button
-                size="sm"
-                className="w-full mt-2"
+                className="w-full mt-1"
                 onClick={() => navigate(`/admin/assets/${selectedAsset.id}`)}
               >
-                <ExternalLink size={13} className="mr-1.5" />
+                <ExternalLink size={14} className="mr-2" />
                 Xem chi tiết đầy đủ
               </Button>
             </div>
