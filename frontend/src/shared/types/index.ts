@@ -62,4 +62,5 @@ export interface MaintenanceTicket {
   updatedAt?: string;
   imageBefore?: string;
   imageAfter?: string;
+  source?: 'MANUAL' | 'QR_SCAN';
 }

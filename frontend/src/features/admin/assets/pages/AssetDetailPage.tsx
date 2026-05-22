@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import QRCode from 'react-qr-code';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { assetService } from '@/services/assetService';
@@ -46,6 +47,7 @@ export default function AssetDetailPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  const qrRef = useRef<HTMLDivElement>(null);
 
   // Create Ticket State
   const [isTicketDialogOpen, setIsTicketDialogOpen] = useState(false);
@@ -167,6 +169,28 @@ export default function AssetDetailPage() {
     });
   };
 
+  const handleDownloadQR = () => {
+    const svg = qrRef.current?.querySelector('svg');
+    if (!svg || !asset) return;
+    const serializer = new XMLSerializer();
+    const svgStr = serializer.serializeToString(svg);
+    const canvas = document.createElement('canvas');
+    canvas.width = 300;
+    canvas.height = 300;
+    const ctx = canvas.getContext('2d')!;
+    const img = new Image();
+    img.onload = () => {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, 300, 300);
+      ctx.drawImage(img, 0, 0, 300, 300);
+      const link = document.createElement('a');
+      link.download = `QR-${asset.assetCode}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    };
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgStr)));
+  };
+
   if (isAssetLoading) {
     return <div className="text-center py-12 text-slate-500 font-medium">Đang tải thông tin biển hiệu...</div>;
   }
@@ -216,14 +240,23 @@ export default function AssetDetailPage() {
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col items-center justify-between text-center space-y-6">
           <div className="space-y-4">
             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Mã QR Biển Báo</h3>
-            {/* Visual mockup QR code box */}
-            <div className="w-48 h-48 border-2 border-slate-200 rounded-xl p-4 bg-slate-50 flex flex-col items-center justify-center relative shadow-inner">
-              <QrCode size={120} className="text-slate-800" />
-              <div className="absolute bottom-1 bg-blue-600 text-white font-bold text-[9px] px-2 py-0.5 rounded uppercase tracking-wider">
-                {asset.assetCode}
-              </div>
+            <div ref={qrRef} className="w-48 h-48 border-2 border-slate-200 rounded-xl p-3 bg-white flex flex-col items-center justify-center relative shadow-inner">
+              <QRCode
+                value={`${window.location.origin}/tech/assets/${asset.assetCode}`}
+                size={160}
+                level="M"
+              />
             </div>
-            <p className="text-xs text-slate-400 max-w-[200px]">Quét mã trên để truy cập nhanh bằng điện thoại.</p>
+            <p className="text-xs text-slate-400 max-w-[200px]">Quét mã để truy cập thông tin biển trên điện thoại.</p>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleDownloadQR}
+              className="w-full text-xs font-semibold flex items-center justify-center gap-2"
+            >
+              <QrCode size={14} />
+              Tải QR về máy (PNG)
+            </Button>
             
             <div className="space-y-2 text-left pt-2 border-t border-slate-100 w-full">
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center space-x-1">

@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { AlertCircle, Wrench, CheckCircle2, UserCheck, Eye, Clock, ShieldCheck } from 'lucide-react';
+import { AlertCircle, Wrench, CheckCircle2, UserCheck, Eye, Clock, ShieldCheck, QrCode } from 'lucide-react';
 
 export default function TicketListPage() {
   const navigate = useNavigate();
@@ -187,7 +187,16 @@ export default function TicketListPage() {
               {filteredTickets.length > 0 ? (
                 pagedTickets.map((t) => (
                   <TableRow key={t.id} className="hover:bg-slate-50/50">
-                    <TableCell className="text-sm font-bold text-slate-800 text-left">#{t.id}</TableCell>
+                    <TableCell className="text-sm font-bold text-slate-800 text-left">
+                      <div className="flex items-center gap-1.5">
+                        <span>#{t.id}</span>
+                        {t.source === 'QR_SCAN' && (
+                          <Badge className="bg-violet-50 text-violet-700 border border-violet-200 text-[10px] px-1.5 py-0 flex items-center gap-1 font-bold">
+                            <QrCode size={9} />QR
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-sm font-bold text-blue-600 text-left cursor-pointer hover:underline" onClick={() => navigate(`/admin/assets/${t.asset?.id}`)}>
                       {t.asset?.assetCode || 'N/A'}
                     </TableCell>

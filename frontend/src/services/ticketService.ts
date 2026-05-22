@@ -6,6 +6,7 @@ export interface CreateTicketParams {
   assetId: string;
   description: string;
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  source?: 'MANUAL' | 'QR_SCAN';
 }
 
 export const ticketService = {
