@@ -13,6 +13,7 @@ import TechDashboardPage from '../features/technician/workflow/pages/TechDashboa
 import TaskDetailPage from '../features/technician/workflow/pages/TaskDetailPage';
 import AssetBrowsePage from '../features/technician/workflow/pages/AssetBrowsePage';
 import SignTypeListPage from '../features/admin/sign-types/pages/SignTypeListPage';
+import UserListPage from '../features/admin/users/pages/UserListPage';
 
 export default function AppRoutes() {
   return (
@@ -30,6 +31,7 @@ export default function AppRoutes() {
           <Route path="tickets" element={<TicketListPage />} />
           <Route path="tickets/assign/:id" element={<TicketAssignPage />} />
           <Route path="tickets/:id" element={<TicketDetailPage />} />
+          <Route path="users" element={<UserListPage />} />
         </Route>
       </Route>
 

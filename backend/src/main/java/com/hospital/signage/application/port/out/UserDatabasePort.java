@@ -11,4 +11,5 @@ public interface UserDatabasePort {
     Optional<User> findById(Long id);
     Optional<User> findByUsername(String username);
     List<User> findByRole(Role role);
+    List<User> findAll();
 }

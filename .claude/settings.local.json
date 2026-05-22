@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker-compose logs *)",
+      "Bash(xargs cat)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(npx tsc *)",
+      "Bash(git -C /d/sign_management add backend/src/test/java/com/hospital/signage/application/service/AssetServiceTest.java)",
+      "Bash(git -C /d/sign_management commit -m ' *)",
+      "Bash(git -C /d/sign_management push)",
+      "Bash(xargs grep -l \"localStorage\\\\|sessionStorage\\\\|token\\\\|jwt\\\\|password\\\\|secret\\\\|apiKey\\\\|api_key\\\\|credential\")",
+      "Bash(xargs grep -l \"dangerouslySetInnerHTML\\\\|innerHTML\\\\|eval\\(\")",
+      "Bash(git -C \"d:/sign_management\" log --oneline --all -- .env)",
+      "Bash(xargs grep -l \"VITE_\\\\|process\\\\.env\\\\|import\\\\.meta\\\\.env\")",
+      "Bash(xargs grep -l \"hardcode\\\\|password\\\\|secret\\\\|apikey\\\\|api_key\\\\|HARDCODED\")",
+      "Bash(xargs grep -l \"log\\\\.\\\\|Logger\\\\|@Slf4j\")",
+      "Bash(xargs grep -n \"log\\\\.\\\\\\(info\\\\|debug\\\\|warn\\\\|error\\\\\\).*\\\\\\(password\\\\|token\\\\|secret\\\\|credential\\\\\\)\")",
+      "Bash(xargs grep -n \"nativeQuery\\\\|@Query\\\\|createQuery\\\\|createNativeQuery\")",
+      "Bash(xargs grep -n \"@PreAuthorize\\\\|@Secured\\\\|@RolesAllowed\\\\|hasRole\\\\|hasAuthority\")",
+      "Bash(xargs grep -n \"@Query\")",
+      "Bash(xargs grep -n \"role\\\\|ADMIN\\\\|TECHNICAL\\\\|isAdmin\\\\|hasPermission\")",
+      "Bash(xargs grep -n \"@Valid\\\\|@Validated\\\\|@NotNull\\\\|@NotBlank\\\\|@Size\\\\|@Pattern\\\\|@Min\\\\|@Max\")",
+      "Bash(xargs grep -n \"Exception\\\\|e\\\\.getMessage\\\\|ex\\\\.getMessage\\\\|printStackTrace\\\\|stack\")",
+      "Bash(xargs grep -n \"\\\\\"User not found\\\\\"\\\\|\\\\\"user not found\\\\\"\\\\|\\\\\"Invalid\\\\\"\\\\|\\\\\"Token\\\\\"\\\\|refresh.*token\\\\|validate.*token\")",
+      "Bash(xargs grep -n \"blacklist\\\\|revoke\\\\|invalidat.*token\\\\|token.*revok\\\\|logout\")",
+      "Bash(xargs grep -n \"permitAll\\\\|antMatchers\\\\|requestMatchers.*permit\\\\|ignoring\")",
+      "Bash(xargs grep -n \"window\\\\.location\\\\|history\\\\.push\\\\|navigate.*\\\\+\\\\|redirect.*\\\\+\\\\|url.*param\\\\|query.*param\")",
+      "Bash(xargs grep -n \"token\\\\|Bearer\\\\|auth\")",
+      "Bash(grep -v \"test\\\\|spec\\\\|import\\\\|interface\\\\|type\\\\|comment\\\\|//\")",
+      "Bash(xargs grep -n \"Slf4j\\\\|log\\\\.\\\\\\(debug\\\\|info\\\\|warn\\\\|error\\\\\\)\")",
+      "Bash(xargs grep -n \"hasRole.*ADMIN\\\\|hasRole.*TECHNICAL\\\\|@PreAuthorize\\\\|Role\\\\.\\\\\\(ADMIN\\\\|TECHNICAL\\\\\\)\")",
+      "Bash(mvn test *)",
+      "Bash(npm test *)",
+      "Bash(git -C /d/sign_management add backend/src/main/java/com/hospital/signage/domain/model/User.java backend/src/main/java/com/hospital/signage/adapter/out/persistence/entity/UserEntity.java backend/src/main/java/com/hospital/signage/application/port/in/AuthUseCase.java backend/src/main/java/com/hospital/signage/application/service/AuthService.java backend/src/main/java/com/hospital/signage/adapter/in/web/AuthController.java backend/src/test/java/com/hospital/signage/application/service/AuthServiceTest.java frontend/src/services/authService.ts frontend/src/services/apiClient.ts frontend/src/services/__tests__/authService.test.ts frontend/src/layouts/AdminLayout.tsx frontend/src/layouts/MobileLayout.tsx)",
+      "Bash(git -C /d/sign_management add frontend/src/features/auth/pages/LoginPage.tsx backend/src/main/resources/application.yml backend/src/main/resources/application-dev.yml backend/src/main/resources/application-prod.yml backend/src/main/java/com/hospital/signage/infrastructure/config/DataInitializer.java backend/src/test/resources/application.yml)"
+    ]
+  }
+}

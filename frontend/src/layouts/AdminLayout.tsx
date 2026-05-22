@@ -1,11 +1,14 @@
+import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { authStore } from '@/app/store/authStore';
 import { authService } from '@/services/authService';
-import { LayoutDashboard, Signpost, Ticket, LogOut, Tags } from 'lucide-react';
+import { LayoutDashboard, Signpost, Ticket, LogOut, Tags, Users, KeyRound } from 'lucide-react';
+import ChangePasswordModal from '@/components/ChangePasswordModal';
 
 export default function AdminLayout() {
   const navigate = useNavigate();
   const user = authStore.getUser();
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
   const handleLogout = () => {
     authService.logout().then(() => navigate('/login'));
@@ -16,6 +19,7 @@ export default function AdminLayout() {
     { to: '/admin/assets/tree', label: 'Sơ đồ Vị trí (Tree)', icon: LayoutDashboard },
     { to: '/admin/sign-types', label: 'Quản lý Loại biển', icon: Tags },
     { to: '/admin/tickets', label: 'Phiếu Bảo trì', icon: Ticket },
+    { to: '/admin/users', label: 'Quản lý Nhân viên', icon: Users },
   ];
 
   return (
@@ -40,8 +44,14 @@ export default function AdminLayout() {
               {user.fullName.charAt(0)}
             </div>
             <div>
-              <p className="text-sm font-semibold text-white truncate max-w-[150px]">{user.fullName}</p>
-              <span className="text-xs text-blue-400 font-semibold uppercase tracking-wider">Administrator</span>
+              <p className="text-sm font-semibold text-white truncate max-w-[110px]">{user.fullName}</p>
+              <button
+                onClick={() => setIsChangePasswordOpen(true)}
+                className="text-xs text-blue-400 hover:text-blue-300 font-semibold uppercase tracking-wider flex items-center gap-1 transition-colors"
+              >
+                <KeyRound size={10} />
+                Đổi mật khẩu
+              </button>
             </div>
           </div>
         )}
@@ -72,7 +82,7 @@ export default function AdminLayout() {
 
         {/* Footer / Logout */}
         <div className="p-4 border-t border-slate-800">
-          <button 
+          <button
             onClick={handleLogout}
             className="w-full flex items-center justify-center space-x-2 bg-red-950/30 hover:bg-red-600 text-red-400 hover:text-white py-3 px-4 rounded-xl border border-red-950 hover:border-red-600 transition-all duration-200 text-sm font-medium"
           >
@@ -88,13 +98,15 @@ export default function AdminLayout() {
           <h2 className="text-xl font-bold text-slate-800">Bảng điều khiển quản trị</h2>
           <div className="flex items-center space-x-2 text-xs text-slate-500 font-medium bg-slate-100 py-1.5 px-3 rounded-full">
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-            <span>Hệ thống trực tuyến (Demo)</span>
+            <span>Hệ thống trực tuyến</span>
           </div>
         </header>
         <div className="p-8 flex-1">
           <Outlet />
         </div>
       </main>
+
+      <ChangePasswordModal open={isChangePasswordOpen} onClose={() => setIsChangePasswordOpen(false)} />
     </div>
   );
 }

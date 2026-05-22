@@ -1,11 +1,14 @@
+import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { authStore } from '@/app/store/authStore';
 import { authService } from '@/services/authService';
-import { ClipboardList, QrCode, LogOut } from 'lucide-react';
+import { ClipboardList, QrCode, LogOut, KeyRound } from 'lucide-react';
+import ChangePasswordModal from '@/components/ChangePasswordModal';
 
 export default function MobileLayout() {
   const navigate = useNavigate();
   const user = authStore.getUser();
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
   const handleLogout = () => {
     authService.logout().then(() => navigate('/login'));
@@ -21,7 +24,7 @@ export default function MobileLayout() {
           </div>
           <div>
             <h1 className="text-base font-bold tracking-wide">Kỹ thuật viên</h1>
-            <p className="text-xs text-blue-200 truncate max-w-[160px]">{user?.fullName || 'Nguyễn Văn Hùng'}</p>
+            <p className="text-xs text-blue-200 truncate max-w-[160px]">{user?.fullName || ''}</p>
           </div>
         </div>
 
@@ -38,9 +41,9 @@ export default function MobileLayout() {
 
       {/* Mobile Sticky Bottom Navigation Bar */}
       <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-slate-200 px-6 py-2 flex justify-around items-center z-20 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
-        <NavLink 
+        <NavLink
           to="/tech/dashboard"
-          className={({ isActive }) => 
+          className={({ isActive }) =>
             `flex flex-col items-center space-y-1 py-1 transition-all ${
               isActive ? 'text-blue-600 font-medium' : 'text-slate-400 hover:text-slate-600'
             }`
@@ -50,9 +53,9 @@ export default function MobileLayout() {
           <span className="text-xs font-medium">Nhiệm vụ</span>
         </NavLink>
 
-        <NavLink 
+        <NavLink
           to="/tech/assets/browse"
-          className={({ isActive }) => 
+          className={({ isActive }) =>
             `flex flex-col items-center space-y-1 py-1 transition-all ${
               isActive ? 'text-blue-600 font-medium' : 'text-slate-400 hover:text-slate-600'
             }`
@@ -62,7 +65,15 @@ export default function MobileLayout() {
           <span className="text-xs font-medium">Tra cứu/Quét</span>
         </NavLink>
 
-        <button 
+        <button
+          onClick={() => setIsChangePasswordOpen(true)}
+          className="flex flex-col items-center space-y-1 py-1 text-slate-400 hover:text-blue-600 transition-all"
+        >
+          <KeyRound size={22} />
+          <span className="text-xs font-medium">Mật khẩu</span>
+        </button>
+
+        <button
           onClick={handleLogout}
           className="flex flex-col items-center space-y-1 py-1 text-red-400 hover:text-red-600 transition-all"
         >
@@ -70,6 +81,8 @@ export default function MobileLayout() {
           <span className="text-xs font-medium">Đăng xuất</span>
         </button>
       </nav>
+
+      <ChangePasswordModal open={isChangePasswordOpen} onClose={() => setIsChangePasswordOpen(false)} />
     </div>
   );
 }

@@ -41,4 +41,9 @@ public class UserPersistenceAdapter implements UserDatabasePort {
                 .map(mapper::toDomain)
                 .collect(java.util.stream.Collectors.toList());
     }
+
+    @Override
+    public List<User> findAll() {
+        return repository.findAll().stream().map(mapper::toDomain).toList();
+    }
 }
