@@ -2,7 +2,13 @@ package com.hospital.signage.application.port.in;
 
 import com.hospital.signage.domain.model.User;
 
+import java.util.List;
+
 public interface UserUseCase {
+
+    List<User> getAllUsers();
+
+    List<User> getTechnicians();
 
     User createTechnician(CreateTechnicianCommand command);
 
