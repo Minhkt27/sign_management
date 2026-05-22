@@ -97,9 +97,9 @@ export default function UserListPage() {
             Đổi mật khẩu
           </Button>
           <Dialog open={isCreateOpen} onOpenChange={open => { setIsCreateOpen(open); if (!open) resetForm(); }}>
-            <DialogTrigger asChild>
+            <DialogTrigger render={
               <Button><Plus size={16} className="mr-2" />Thêm kỹ thuật viên</Button>
-            </DialogTrigger>
+            } />
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>Thêm kỹ thuật viên mới</DialogTitle>
