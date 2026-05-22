@@ -110,11 +110,13 @@ public class FileUploadControllerTest {
 
     @Test
     @WithMockUser(roles = {"TECHNICAL"})
-    void upload_withTechnicianRole_returns403() throws Exception {
+    void upload_withTechnicianRole_returns200() throws Exception {
+        when(fileStoragePort.store(anyString(), any(), anyLong(), anyString()))
+                .thenReturn("http://localhost:9000/signage-assets/test.jpg");
         MockMultipartFile file = new MockMultipartFile(
                 "file", "photo.jpg", "image/jpeg", JPEG_HEADER);
 
         mockMvc.perform(multipart("/api/files/upload").file(file).with(csrf()))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk());
     }
 }
