@@ -70,6 +70,9 @@ public class MaintenanceTicketEntity {
     @Column(name = "source", nullable = false)
     private TicketSource source;
 
+    @Column(name = "rejection_note", columnDefinition = "TEXT")
+    private String rejectionNote;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -77,4 +80,7 @@ public class MaintenanceTicketEntity {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
 }

@@ -47,13 +47,12 @@ public class TicketController {
             return ResponseEntity.status(401).build();
         }
 
-        TicketSource source = request.source() != null ? request.source() : TicketSource.MANUAL;
         TicketUseCase.CreateTicketCommand command = new TicketUseCase.CreateTicketCommand(
                 request.assetId(),
                 request.description(),
                 request.priority(),
                 reporter,
-                source
+                request.source()
         );
 
         return ResponseEntity.ok(ticketUseCase.createTicket(command));
@@ -81,7 +80,8 @@ public class TicketController {
                     id,
                     request.status(),
                     request.imageBefore(),
-                    request.imageAfter()
+                    request.imageAfter(),
+                    request.rejectionNote()
             ));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
@@ -100,6 +100,7 @@ public class TicketController {
     public record UpdateStatusRequest(
             @NotNull(message = "Trạng thái không được để trống") TicketStatus status,
             String imageBefore,
-            String imageAfter
+            String imageAfter,
+            String rejectionNote
     ) {}
 }

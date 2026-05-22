@@ -1,7 +1,6 @@
 package com.hospital.signage.adapter.in.web;
 
 import com.hospital.signage.application.port.in.UserUseCase;
-import com.hospital.signage.application.port.out.UserDatabasePort;
 import com.hospital.signage.domain.enums.Role;
 import com.hospital.signage.domain.model.User;
 import lombok.RequiredArgsConstructor;
@@ -18,21 +17,16 @@ import java.util.List;
 public class UserController {
 
     private final UserUseCase userUseCase;
-    private final UserDatabasePort userDatabasePort;
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UserResponse>> getAllUsers() {
-        return ResponseEntity.ok(
-                userDatabasePort.findAll().stream().map(UserResponse::from).toList()
-        );
+        return ResponseEntity.ok(userUseCase.getAllUsers().stream().map(UserResponse::from).toList());
     }
 
     @GetMapping("/technicians")
     public ResponseEntity<List<UserResponse>> getTechnicians() {
-        return ResponseEntity.ok(
-                userDatabasePort.findByRole(Role.TECHNICAL).stream().map(UserResponse::from).toList()
-        );
+        return ResponseEntity.ok(userUseCase.getTechnicians().stream().map(UserResponse::from).toList());
     }
 
     @PostMapping

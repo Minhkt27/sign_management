@@ -39,12 +39,14 @@ export const ticketService = {
     id: number,
     status: MaintenanceTicket['ticketStatus'],
     imageBefore?: string,
-    imageAfter?: string
+    imageAfter?: string,
+    rejectionNote?: string
   ): Promise<MaintenanceTicket> => {
     const response = await apiClient.put<MaintenanceTicket>(`/tickets/${id}/status`, {
       status,
       imageBefore,
       imageAfter,
+      rejectionNote,
     });
     return response.data;
   },

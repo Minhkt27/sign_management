@@ -14,7 +14,7 @@ import java.util.UUID;
 public interface TicketUseCase {
     MaintenanceTicket createTicket(CreateTicketCommand command);
     MaintenanceTicket assignTicket(Long ticketId, Long assigneeId);
-    MaintenanceTicket updateTicketStatus(Long ticketId, TicketStatus status, String imageBefore, String imageAfter);
+    MaintenanceTicket updateTicketStatus(Long ticketId, TicketStatus status, String imageBefore, String imageAfter, String rejectionNote);
     Optional<MaintenanceTicket> getTicketById(Long id);
     List<MaintenanceTicket> getAllTickets();
     Page<MaintenanceTicket> getTicketsPage(int page, int size, Long assigneeId, UUID assetId);
@@ -22,8 +22,11 @@ public interface TicketUseCase {
     List<MaintenanceTicket> getTicketsByAssignee(Long assigneeId);
 
     record CreateTicketCommand(UUID assetId, String description, Priority priority, User reporter, TicketSource source) {
+        public CreateTicketCommand {
+            source = source != null ? source : TicketSource.MANUAL;
+        }
         public CreateTicketCommand(UUID assetId, String description, Priority priority, User reporter) {
-            this(assetId, description, priority, reporter, TicketSource.MANUAL);
+            this(assetId, description, priority, reporter, null);
         }
     }
 }

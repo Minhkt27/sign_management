@@ -180,6 +180,7 @@ export default function TicketListPage() {
                 <TableHead className="text-sm font-bold text-slate-700 text-left">Trạng thái</TableHead>
                 <TableHead className="text-sm font-bold text-slate-700 text-left">Kỹ thuật viên</TableHead>
                 <TableHead className="text-sm font-bold text-slate-700 text-left">Ngày phản ánh</TableHead>
+                <TableHead className="text-sm font-bold text-slate-700 text-left">Hoàn thành</TableHead>
                 <TableHead className="text-sm font-bold text-slate-700 text-left">Hành động</TableHead>
               </TableRow>
             </TableHeader>
@@ -209,6 +210,11 @@ export default function TicketListPage() {
                     <TableCell className="text-sm text-slate-500 text-left">
                       {new Date(t.createdAt).toLocaleDateString('vi-VN')}
                     </TableCell>
+                    <TableCell className="text-sm text-left">
+                      {t.completedAt
+                        ? <span className="text-emerald-600 font-medium">{new Date(t.completedAt).toLocaleDateString('vi-VN')}</span>
+                        : <span className="text-slate-300">—</span>}
+                    </TableCell>
                     <TableCell className="text-left">
                       <div className="flex items-center space-x-2">
                         <Button
@@ -236,7 +242,7 @@ export default function TicketListPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-24 text-center text-sm text-slate-400 font-medium">
+                  <TableCell colSpan={9} className="h-24 text-center text-sm text-slate-400 font-medium">
                     Không tìm thấy phiếu sửa chữa nào.
                   </TableCell>
                 </TableRow>

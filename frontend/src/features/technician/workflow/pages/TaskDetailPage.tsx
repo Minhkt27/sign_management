@@ -6,7 +6,7 @@ import { fileService } from '@/services/fileService';
 import { MaintenanceTicket } from '@/shared/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, CheckCircle2, Wrench, Camera, ShieldCheck, Image as ImageIcon, Plus } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Wrench, Camera, ShieldCheck, Image as ImageIcon, Plus, RotateCcw } from 'lucide-react';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 
@@ -96,6 +96,17 @@ export default function TaskDetailPage() {
         <ArrowLeft size={18} />
         <span>Quay lại danh sách nhiệm vụ</span>
       </button>
+
+      {/* Rejection banner */}
+      {task.ticketStatus === 'IN_PROGRESS' && task.rejectionNote && (
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-start gap-3">
+          <RotateCcw size={18} className="text-orange-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-bold text-orange-700">Admin yêu cầu sửa lại</p>
+            <p className="text-sm text-orange-600 mt-0.5">{task.rejectionNote}</p>
+          </div>
+        </div>
+      )}
 
       {/* Header card */}
       <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm space-y-2.5">
