@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { locationService } from '@/services/locationService';
 import { assetService } from '@/services/assetService';
 import { signTypeService } from '@/services/signTypeService';
+import { getBackendUrl } from '@/shared/helpers/imageUrl';
 import { Location, Asset, SignType } from '@/shared/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ChevronRight, ChevronDown, FolderOpen, Tag, Plus, Pencil, Trash2, Search } from 'lucide-react';
+import { ChevronRight, ChevronDown, FolderOpen, Tag, Plus, Pencil, Trash2, Search, X, ExternalLink, MapPin, Package, Ruler, Calendar, Building } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
@@ -18,6 +20,8 @@ import {
 
 export default function AssetTreePage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [expandedNodes, setExpandedNodes] = useState<Record<number, boolean>>({
     1: true, // Auto-expand Building A
     2: true, // Auto-expand Building B
@@ -330,10 +334,15 @@ export default function AssetTreePage() {
 
               {/* Render assets directly inside this location */}
               {childAssets.map(asset => (
-                <div 
-                  key={asset.id} 
-                  style={{ marginLeft: `${(depth + 1) * 20}px` }} 
-                  className="flex items-center justify-between p-2 hover:bg-blue-50/50 rounded-xl border border-dashed border-transparent hover:border-blue-200/50 transition-all duration-150 text-left"
+                <div
+                  key={asset.id}
+                  style={{ marginLeft: `${(depth + 1) * 20}px` }}
+                  onClick={() => setSelectedAsset(asset)}
+                  className={`flex items-center justify-between p-2 rounded-xl border border-dashed transition-all duration-150 text-left cursor-pointer ${
+                    selectedAsset?.id === asset.id
+                      ? 'bg-blue-50 border-blue-300'
+                      : 'hover:bg-blue-50/50 border-transparent hover:border-blue-200/50'
+                  }`}
                 >
                   <div className="flex items-center space-x-2.5">
                     <Tag size={16} className="text-emerald-500" />
@@ -348,7 +357,6 @@ export default function AssetTreePage() {
                     )}
                     <span className="text-xs font-medium text-slate-400">{asset.material} ({asset.size})</span>
                   </div>
-
                   <div className="flex items-center space-x-1.5">
                     {asset.status === 'ACTIVE' ? (
                       <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border border-emerald-250 text-xs px-1.5 py-0">Hoạt động</Badge>
@@ -381,6 +389,16 @@ export default function AssetTreePage() {
     }
   }
 
+  const statusLabel: Record<string, string> = {
+    ACTIVE: 'Hoạt động', DAMAGED: 'Hỏng', REPAIRING: 'Đang sửa', SCRAPPED: 'Thanh lý',
+  };
+  const statusColor: Record<string, string> = {
+    ACTIVE: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    DAMAGED: 'bg-rose-50 text-rose-700 border-rose-200',
+    REPAIRING: 'bg-amber-50 text-amber-700 border-amber-200',
+    SCRAPPED: 'bg-slate-100 text-slate-500 border-slate-200',
+  };
+
   return (
     <div className="bg-white p-8 rounded-2xl border border-slate-200/80 shadow-sm space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-100 pb-5">
@@ -408,11 +426,92 @@ export default function AssetTreePage() {
         />
       </div>
 
-      <div className="bg-slate-50 p-6 rounded-xl border border-slate-200/50 min-h-[300px] space-y-3">
-        {locations.length > 0 ? (
-          renderTreeNodes(null)
-        ) : (
-          <div className="text-center text-slate-400 py-12 font-medium">Chưa có dữ liệu vị trí nào được thiết lập.</div>
+      <div className="flex gap-4 items-start">
+        {/* Tree panel */}
+        <div className={`bg-slate-50 p-6 rounded-xl border border-slate-200/50 min-h-[300px] space-y-3 transition-all duration-300 ${selectedAsset ? 'flex-1' : 'w-full'}`}>
+          {locations.length > 0 ? (
+            renderTreeNodes(null)
+          ) : (
+            <div className="text-center text-slate-400 py-12 font-medium">Chưa có dữ liệu vị trí nào được thiết lập.</div>
+          )}
+        </div>
+
+        {/* Asset detail panel */}
+        {selectedAsset && (
+          <div className="w-80 shrink-0 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50">
+              <div className="flex items-center gap-2">
+                <Tag size={15} className="text-emerald-500" />
+                <span className="text-sm font-bold text-slate-700">{selectedAsset.assetCode}</span>
+                <Badge className={`text-xs px-1.5 py-0 border ${statusColor[selectedAsset.status]}`}>
+                  {statusLabel[selectedAsset.status]}
+                </Badge>
+              </div>
+              <button onClick={() => setSelectedAsset(null)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Image */}
+            {selectedAsset.imageUrl ? (
+              <img
+                src={getBackendUrl(selectedAsset.imageUrl)}
+                alt={selectedAsset.assetCode}
+                className="w-full h-40 object-cover border-b border-slate-100"
+              />
+            ) : (
+              <div className="w-full h-32 bg-slate-100 flex items-center justify-center border-b border-slate-100">
+                <span className="text-xs text-slate-400">Chưa có ảnh</span>
+              </div>
+            )}
+
+            {/* Info */}
+            <div className="p-4 space-y-3">
+              {selectedAsset.name && (
+                <p className="text-sm font-semibold text-slate-800">{selectedAsset.name}</p>
+              )}
+
+              <div className="space-y-2 text-xs text-slate-600">
+                <div className="flex items-start gap-2">
+                  <MapPin size={13} className="text-slate-400 mt-0.5 shrink-0" />
+                  <span>{selectedAsset.location?.name || '—'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Package size={13} className="text-slate-400 shrink-0" />
+                  <span>{selectedAsset.material}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Ruler size={13} className="text-slate-400 shrink-0" />
+                  <span>{selectedAsset.size}</span>
+                </div>
+                {selectedAsset.supplier && (
+                  <div className="flex items-center gap-2">
+                    <Building size={13} className="text-slate-400 shrink-0" />
+                    <span className="truncate">{selectedAsset.supplier}</span>
+                  </div>
+                )}
+                {selectedAsset.installedAt && (
+                  <div className="flex items-center gap-2">
+                    <Calendar size={13} className="text-slate-400 shrink-0" />
+                    <span>{new Date(selectedAsset.installedAt).toLocaleDateString('vi-VN')}</span>
+                  </div>
+                )}
+                {selectedAsset.description && (
+                  <p className="text-slate-500 italic pt-1">{selectedAsset.description}</p>
+                )}
+              </div>
+
+              <Button
+                size="sm"
+                className="w-full mt-2"
+                onClick={() => navigate(`/admin/assets/${selectedAsset.id}`)}
+              >
+                <ExternalLink size={13} className="mr-1.5" />
+                Xem chi tiết đầy đủ
+              </Button>
+            </div>
+          </div>
         )}
       </div>
 
