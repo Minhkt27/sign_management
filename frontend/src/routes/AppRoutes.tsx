@@ -12,6 +12,7 @@ import TicketDetailPage from '../features/admin/tickets/pages/TicketDetailPage';
 import TechDashboardPage from '../features/technician/workflow/pages/TechDashboardPage';
 import TaskDetailPage from '../features/technician/workflow/pages/TaskDetailPage';
 import AssetBrowsePage from '../features/technician/workflow/pages/AssetBrowsePage';
+import ScanLandingPage from '../features/technician/workflow/pages/ScanLandingPage';
 import SignTypeListPage from '../features/admin/sign-types/pages/SignTypeListPage';
 import UserListPage from '../features/admin/users/pages/UserListPage';
 
@@ -42,6 +43,7 @@ export default function AppRoutes() {
           <Route path="dashboard" element={<TechDashboardPage />} />
           <Route path="tasks/:id" element={<TaskDetailPage />} />
           <Route path="assets/browse" element={<AssetBrowsePage />} />
+          <Route path="assets/:assetCode" element={<ScanLandingPage />} />
         </Route>
       </Route>
 

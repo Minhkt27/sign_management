@@ -38,6 +38,7 @@ public class TicketService implements TicketUseCase {
                 .description(command.description())
                 .priority(command.priority())
                 .ticketStatus(TicketStatus.OPEN)
+                .source(command.source())
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();

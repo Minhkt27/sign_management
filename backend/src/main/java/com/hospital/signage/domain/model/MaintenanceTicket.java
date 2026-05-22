@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import com.hospital.signage.domain.enums.Priority;
+import com.hospital.signage.domain.enums.TicketSource;
 import com.hospital.signage.domain.enums.TicketStatus;
 
 import java.time.LocalDateTime;
@@ -24,6 +25,7 @@ public class MaintenanceTicket {
     private TicketStatus ticketStatus;
     private String imageBefore;
     private String imageAfter;
+    private TicketSource source;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

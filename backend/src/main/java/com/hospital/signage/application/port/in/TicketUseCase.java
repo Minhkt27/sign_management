@@ -1,6 +1,7 @@
 package com.hospital.signage.application.port.in;
 
 import com.hospital.signage.domain.enums.Priority;
+import com.hospital.signage.domain.enums.TicketSource;
 import com.hospital.signage.domain.enums.TicketStatus;
 import com.hospital.signage.domain.model.MaintenanceTicket;
 import com.hospital.signage.domain.model.User;
@@ -20,5 +21,9 @@ public interface TicketUseCase {
     List<MaintenanceTicket> getTicketsByAsset(UUID assetId);
     List<MaintenanceTicket> getTicketsByAssignee(Long assigneeId);
 
-    record CreateTicketCommand(UUID assetId, String description, Priority priority, User reporter) {}
+    record CreateTicketCommand(UUID assetId, String description, Priority priority, User reporter, TicketSource source) {
+        public CreateTicketCommand(UUID assetId, String description, Priority priority, User reporter) {
+            this(assetId, description, priority, reporter, TicketSource.MANUAL);
+        }
+    }
 }

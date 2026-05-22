@@ -2,6 +2,7 @@ package com.hospital.signage.adapter.in.web;
 
 import com.hospital.signage.application.port.in.TicketUseCase;
 import com.hospital.signage.domain.enums.Priority;
+import com.hospital.signage.domain.enums.TicketSource;
 import com.hospital.signage.domain.enums.TicketStatus;
 import com.hospital.signage.domain.model.MaintenanceTicket;
 import com.hospital.signage.domain.model.User;
@@ -46,11 +47,13 @@ public class TicketController {
             return ResponseEntity.status(401).build();
         }
 
+        TicketSource source = request.source() != null ? request.source() : TicketSource.MANUAL;
         TicketUseCase.CreateTicketCommand command = new TicketUseCase.CreateTicketCommand(
                 request.assetId(),
                 request.description(),
                 request.priority(),
-                reporter
+                reporter,
+                source
         );
 
         return ResponseEntity.ok(ticketUseCase.createTicket(command));
@@ -88,7 +91,8 @@ public class TicketController {
     public record CreateTicketRequest(
             @NotNull(message = "Asset không được để trống") UUID assetId,
             @NotBlank(message = "Mô tả không được để trống") String description,
-            @NotNull(message = "Mức độ ưu tiên không được để trống") Priority priority
+            @NotNull(message = "Mức độ ưu tiên không được để trống") Priority priority,
+            TicketSource source
     ) {}
 
     public record AssignTicketRequest(@NotNull(message = "Người được giao không được để trống") Long assigneeId) {}
