@@ -75,6 +75,23 @@ services:
     ports:
       - "80:80"
 
+  backup:
+    image: postgres:15-alpine
+    container_name: signage_backup
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:-password}
+    volumes:
+      - ./backups:/backups
+    entrypoint: >
+      sh -c "
+        echo '0 2 * * 0 pg_dump -h postgres -U $${POSTGRES_USER:-postgres} $${POSTGRES_DB:-signage_db} | gzip > /backups/backup_$$(date +\\%Y\\%m\\%d).sql.gz && ls -t /backups/*.sql.gz | tail -n +5 | xargs rm -f' > /etc/crontabs/root &&
+        crond -f
+      "
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   minio_data:
