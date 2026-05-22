@@ -64,7 +64,7 @@ public class TicketService implements TicketUseCase {
 
     @Override
     public MaintenanceTicket updateTicketStatus(Long ticketId, TicketStatus status, String imageBefore,
-            String imageAfter) {
+            String imageAfter, String rejectionNote) {
         MaintenanceTicket ticket = ticketDatabasePort.findById(ticketId)
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
 
@@ -77,6 +77,10 @@ public class TicketService implements TicketUseCase {
         }
         if (status == TicketStatus.RESOLVED && ticket.getCompletedAt() == null) {
             ticket.setCompletedAt(LocalDateTime.now());
+        }
+        if (status == TicketStatus.IN_PROGRESS && rejectionNote != null && !rejectionNote.isBlank()) {
+            ticket.setRejectionNote(rejectionNote);
+            ticket.setCompletedAt(null);
         }
         ticket.setUpdatedAt(LocalDateTime.now());
 

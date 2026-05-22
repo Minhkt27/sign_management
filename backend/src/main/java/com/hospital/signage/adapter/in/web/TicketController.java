@@ -81,7 +81,8 @@ public class TicketController {
                     id,
                     request.status(),
                     request.imageBefore(),
-                    request.imageAfter()
+                    request.imageAfter(),
+                    request.rejectionNote()
             ));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
@@ -100,6 +101,7 @@ public class TicketController {
     public record UpdateStatusRequest(
             @NotNull(message = "Trạng thái không được để trống") TicketStatus status,
             String imageBefore,
-            String imageAfter
+            String imageAfter,
+            String rejectionNote
     ) {}
 }

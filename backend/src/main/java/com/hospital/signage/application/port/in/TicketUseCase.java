@@ -14,7 +14,7 @@ import java.util.UUID;
 public interface TicketUseCase {
     MaintenanceTicket createTicket(CreateTicketCommand command);
     MaintenanceTicket assignTicket(Long ticketId, Long assigneeId);
-    MaintenanceTicket updateTicketStatus(Long ticketId, TicketStatus status, String imageBefore, String imageAfter);
+    MaintenanceTicket updateTicketStatus(Long ticketId, TicketStatus status, String imageBefore, String imageAfter, String rejectionNote);
     Optional<MaintenanceTicket> getTicketById(Long id);
     List<MaintenanceTicket> getAllTickets();
     Page<MaintenanceTicket> getTicketsPage(int page, int size, Long assigneeId, UUID assetId);

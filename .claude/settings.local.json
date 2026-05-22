@@ -34,7 +34,14 @@
       "Bash(mvn test *)",
       "Bash(npm test *)",
       "Bash(git -C /d/sign_management add backend/src/main/java/com/hospital/signage/domain/model/User.java backend/src/main/java/com/hospital/signage/adapter/out/persistence/entity/UserEntity.java backend/src/main/java/com/hospital/signage/application/port/in/AuthUseCase.java backend/src/main/java/com/hospital/signage/application/service/AuthService.java backend/src/main/java/com/hospital/signage/adapter/in/web/AuthController.java backend/src/test/java/com/hospital/signage/application/service/AuthServiceTest.java frontend/src/services/authService.ts frontend/src/services/apiClient.ts frontend/src/services/__tests__/authService.test.ts frontend/src/layouts/AdminLayout.tsx frontend/src/layouts/MobileLayout.tsx)",
-      "Bash(git -C /d/sign_management add frontend/src/features/auth/pages/LoginPage.tsx backend/src/main/resources/application.yml backend/src/main/resources/application-dev.yml backend/src/main/resources/application-prod.yml backend/src/main/java/com/hospital/signage/infrastructure/config/DataInitializer.java backend/src/test/resources/application.yml)"
+      "Bash(git -C /d/sign_management add frontend/src/features/auth/pages/LoginPage.tsx backend/src/main/resources/application.yml backend/src/main/resources/application-dev.yml backend/src/main/resources/application-prod.yml backend/src/main/java/com/hospital/signage/infrastructure/config/DataInitializer.java backend/src/test/resources/application.yml)",
+      "PowerShell(cd d:\\\\sign_management\\\\backend; $env:SPRING_PROFILES_ACTIVE = 'dev'; mvn spring-boot:run 2>&1 | Select-Object -Last 8)",
+      "PowerShell(cd d:\\\\sign_management\\\\backend; $env:SPRING_PROFILES_ACTIVE = 'dev'; mvn spring-boot:run 2>&1 | Select-String \"Caused by|Error creating|Cannot|JWT|password|APPLICATION FAILED\" | Select-Object -First 15)",
+      "PowerShell(cd d:\\\\sign_management\\\\backend; $env:POSTGRES_PASSWORD = 'change_me_in_production'; $env:SPRING_PROFILES_ACTIVE = 'dev'; mvn spring-boot:run -q 2>&1 | Select-Object -First 5)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8080/actuator/health)",
+      "Bash(netstat -ano)",
+      "PowerShell(taskkill /PID 18984 /F)",
+      "Bash(SPRING_PROFILES_ACTIVE=dev mvn spring-boot:run)"
     ]
   }
 }

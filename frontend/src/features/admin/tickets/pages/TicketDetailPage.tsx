@@ -1,25 +1,26 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ticketService } from '@/services/ticketService';
 import { MaintenanceTicket } from '@/shared/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Clock, User as UserIcon, CheckCircle2, Wrench, AlertCircle, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Clock, User as UserIcon, CheckCircle2, Wrench, AlertCircle, Image as ImageIcon, RotateCcw } from 'lucide-react';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
 
 export default function TicketDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [showRejectForm, setShowRejectForm] = useState(false);
+  const [rejectionNote, setRejectionNote] = useState('');
 
-  // Queries
   const { data: ticket, isLoading: isTicketLoading } = useQuery<MaintenanceTicket>({
     queryKey: ['ticket', id],
     queryFn: () => ticketService.getTicketById(Number(id)),
     enabled: !!id,
   });
 
-  // Mutations
   const closeMutation = useMutation({
     mutationFn: (ticketId: number) => ticketService.updateTicketStatus(ticketId, 'CLOSED'),
     onSuccess: () => {
@@ -28,10 +29,19 @@ export default function TicketDetailPage() {
     },
   });
 
-  const handleCloseTicket = () => {
-    if (!ticket) return;
-    closeMutation.mutate(ticket.id);
-  };
+  const rejectMutation = useMutation({
+    mutationFn: ({ ticketId, note }: { ticketId: number; note: string }) =>
+      ticketService.updateTicketStatus(ticketId, 'IN_PROGRESS', undefined, undefined, note),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+      queryClient.invalidateQueries({ queryKey: ['tickets'] });
+      setShowRejectForm(false);
+      setRejectionNote('');
+    },
+  });
+
+  const handleCloseTicket = () => { if (ticket) closeMutation.mutate(ticket.id); };
+  const handleReject = () => { if (ticket && rejectionNote.trim()) rejectMutation.mutate({ ticketId: ticket.id, note: rejectionNote.trim() }); };
 
   if (isTicketLoading) {
     return <div className="text-center py-12 text-slate-500 font-medium">Đang tải thông tin phiếu sửa chữa...</div>;
@@ -197,13 +207,50 @@ export default function TicketDetailPage() {
               </Button>
             )}
 
-            {ticket.ticketStatus === 'RESOLVED' && (
-              <Button 
-                onClick={handleCloseTicket}
-                className="w-full bg-slate-900 hover:bg-black text-white rounded-xl py-3 font-semibold text-sm"
-              >
-                Đóng phiếu bảo trì
-              </Button>
+            {ticket.ticketStatus === 'RESOLVED' && !showRejectForm && (
+              <div className="space-y-2">
+                <Button
+                  onClick={handleCloseTicket}
+                  disabled={closeMutation.isPending}
+                  className="w-full bg-slate-900 hover:bg-black text-white rounded-xl py-3 font-semibold text-sm"
+                >
+                  {closeMutation.isPending ? 'Đang xử lý...' : 'Đóng phiếu bảo trì'}
+                </Button>
+                <Button
+                  onClick={() => setShowRejectForm(true)}
+                  variant="outline"
+                  className="w-full border-orange-300 text-orange-600 hover:bg-orange-50 rounded-xl py-3 font-semibold text-sm flex items-center justify-center gap-2"
+                >
+                  <RotateCcw size={15} /> Yêu cầu sửa lại
+                </Button>
+              </div>
+            )}
+
+            {ticket.ticketStatus === 'RESOLVED' && showRejectForm && (
+              <div className="space-y-3 p-3 bg-orange-50 border border-orange-200 rounded-xl">
+                <p className="text-xs font-bold text-orange-700 flex items-center gap-1.5">
+                  <RotateCcw size={13} /> Lý do yêu cầu sửa lại
+                </p>
+                <textarea
+                  rows={3}
+                  placeholder="Ví dụ: Ảnh sau chưa rõ, biển vẫn còn nghiêng..."
+                  value={rejectionNote}
+                  onChange={e => setRejectionNote(e.target.value)}
+                  className="w-full border border-orange-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-orange-400"
+                />
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => { setShowRejectForm(false); setRejectionNote(''); }} className="w-1/2 text-sm rounded-lg">
+                    Hủy
+                  </Button>
+                  <Button
+                    onClick={handleReject}
+                    disabled={!rejectionNote.trim() || rejectMutation.isPending}
+                    className="w-1/2 bg-orange-600 hover:bg-orange-700 text-white text-sm rounded-lg font-bold"
+                  >
+                    {rejectMutation.isPending ? 'Đang gửi...' : 'Xác nhận'}
+                  </Button>
+                </div>
+              </div>
             )}
           </div>
 

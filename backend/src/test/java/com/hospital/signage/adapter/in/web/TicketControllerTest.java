@@ -121,11 +121,11 @@ public class TicketControllerTest {
         ticket.setId(1L);
         ticket.setTicketStatus(TicketStatus.RESOLVED);
 
-        when(ticketUseCase.updateTicketStatus(eq(1L), eq(TicketStatus.RESOLVED), eq("before.jpg"), eq("after.jpg")))
+        when(ticketUseCase.updateTicketStatus(eq(1L), eq(TicketStatus.RESOLVED), eq("before.jpg"), eq("after.jpg"), eq(null)))
                 .thenReturn(ticket);
 
         TicketController.UpdateStatusRequest request = new TicketController.UpdateStatusRequest(
-                TicketStatus.RESOLVED, "before.jpg", "after.jpg"
+                TicketStatus.RESOLVED, "before.jpg", "after.jpg", null
         );
 
         mockMvc.perform(put("/api/tickets/1/status")
