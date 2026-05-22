@@ -47,13 +47,12 @@ public class TicketController {
             return ResponseEntity.status(401).build();
         }
 
-        TicketSource source = request.source() != null ? request.source() : TicketSource.MANUAL;
         TicketUseCase.CreateTicketCommand command = new TicketUseCase.CreateTicketCommand(
                 request.assetId(),
                 request.description(),
                 request.priority(),
                 reporter,
-                source
+                request.source()
         );
 
         return ResponseEntity.ok(ticketUseCase.createTicket(command));

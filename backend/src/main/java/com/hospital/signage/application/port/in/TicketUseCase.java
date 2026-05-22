@@ -22,8 +22,11 @@ public interface TicketUseCase {
     List<MaintenanceTicket> getTicketsByAssignee(Long assigneeId);
 
     record CreateTicketCommand(UUID assetId, String description, Priority priority, User reporter, TicketSource source) {
+        public CreateTicketCommand {
+            source = source != null ? source : TicketSource.MANUAL;
+        }
         public CreateTicketCommand(UUID assetId, String description, Priority priority, User reporter) {
-            this(assetId, description, priority, reporter, TicketSource.MANUAL);
+            this(assetId, description, priority, reporter, null);
         }
     }
 }
