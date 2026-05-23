@@ -43,6 +43,7 @@ export default function AssetDetailPage() {
   const [material, setMaterial] = useState<'MICA' | 'INOX' | 'LED' | 'ALU'>('MICA');
   const [size, setSize] = useState('');
   const [supplier, setSupplier] = useState('');
+  const [installedAt, setInstalledAt] = useState('');
   const [status, setStatus] = useState<Asset['status']>('ACTIVE');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -98,6 +99,7 @@ export default function AssetDetailPage() {
       setMaterial(asset.material);
       setSize(asset.size);
       setSupplier(asset.supplier || '');
+      setInstalledAt(asset.installedAt ? asset.installedAt.split('T')[0] : '');
       setStatus(asset.status);
     }
   }, [asset, locations, assetCode]);
@@ -148,6 +150,7 @@ export default function AssetDetailPage() {
         material,
         size,
         supplier,
+        installedAt: installedAt || undefined,
         status,
         imageUrl: uploadedUrl,
       });
@@ -330,6 +333,44 @@ export default function AssetDetailPage() {
                           <option value="SCRAPPED">Đã thanh lý</option>
                         </select>
                       </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Tên biển</label>
+                        <Input
+                          placeholder="Tên hiển thị của biển..."
+                          value={assetName}
+                          onChange={(e) => setAssetName(e.target.value)}
+                          className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Loại biển</label>
+                        <select
+                          value={editSignTypeId ?? ''}
+                          onChange={(e) => setEditSignTypeId(e.target.value ? Number(e.target.value) : undefined)}
+                          className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300"
+                        >
+                          <option value="">— Không phân loại —</option>
+                          {signTypes.map(st => (
+                            <option key={st.id} value={st.id}>{st.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
+                        <Calendar size={13} className="text-slate-400" />
+                        <span>Ngày lắp đặt</span>
+                      </label>
+                      <Input
+                        type="date"
+                        value={installedAt}
+                        onChange={(e) => setInstalledAt(e.target.value)}
+                        className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg"
+                      />
                     </div>
 
                     <div>
