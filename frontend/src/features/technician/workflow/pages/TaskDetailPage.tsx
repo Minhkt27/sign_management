@@ -36,8 +36,25 @@ export default function TaskDetailPage() {
     },
   });
 
+  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+  const MAX_SIZE_MB = 10;
+
+  const validateImage = (file: File): string | null => {
+    if (!ALLOWED_TYPES.includes(file.type) && !file.type.startsWith('image/')) {
+      return 'Chỉ chấp nhận file ảnh (JPG, PNG, WEBP, HEIC).';
+    }
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      return `Ảnh không được vượt quá ${MAX_SIZE_MB}MB.`;
+    }
+    return null;
+  };
+
   const handleStartWork = async () => {
     if (!task) return;
+    if (beforeFile) {
+      const err = validateImage(beforeFile);
+      if (err) { setUploadError(err); return; }
+    }
     setIsUploading(true);
     setUploadError('');
     try {
@@ -46,7 +63,7 @@ export default function TaskDetailPage() {
         imageBeforePath = await fileService.uploadFile(beforeFile);
       }
       updateStatusMutation.mutate({ status: 'IN_PROGRESS', imageBefore: imageBeforePath });
-    } catch (err) {
+    } catch {
       setUploadError('Lỗi tải lên hình ảnh trước khi sửa!');
     } finally {
       setIsUploading(false);
@@ -59,12 +76,14 @@ export default function TaskDetailPage() {
       setUploadError('Vui lòng chọn hình ảnh sau khi sửa để đối chiếu!');
       return;
     }
+    const err = validateImage(afterFile);
+    if (err) { setUploadError(err); return; }
     setIsUploading(true);
     setUploadError('');
     try {
       const imageAfterPath = await fileService.uploadFile(afterFile);
       updateStatusMutation.mutate({ status: 'RESOLVED', imageAfter: imageAfterPath });
-    } catch (err) {
+    } catch {
       setUploadError('Lỗi tải lên hình ảnh sau khi sửa!');
     } finally {
       setIsUploading(false);
@@ -102,7 +121,14 @@ export default function TaskDetailPage() {
         <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-start gap-3">
           <RotateCcw size={18} className="text-orange-500 shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-bold text-orange-700">Admin yêu cầu sửa lại</p>
+            <p className="text-sm font-bold text-orange-700">
+              Admin yêu cầu sửa lại
+              {task.rejectionCount != null && (
+                <span className="ml-2 text-xs font-normal text-orange-500">
+                  (lần {task.rejectionCount}/3)
+                </span>
+              )}
+            </p>
             <p className="text-sm text-orange-600 mt-0.5">{task.rejectionNote}</p>
           </div>
         </div>

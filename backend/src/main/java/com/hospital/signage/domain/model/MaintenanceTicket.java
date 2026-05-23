@@ -27,6 +27,7 @@ public class MaintenanceTicket {
     private String imageAfter;
     private TicketSource source;
     private String rejectionNote;
+    private int rejectionCount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime completedAt;

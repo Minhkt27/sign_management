@@ -75,11 +75,15 @@ public class TicketService implements TicketUseCase {
         if (imageAfter != null && !imageAfter.isBlank()) {
             ticket.setImageAfter(imageAfter);
         }
-        if (status == TicketStatus.RESOLVED && ticket.getCompletedAt() == null) {
+        if (status == TicketStatus.RESOLVED) {
             ticket.setCompletedAt(LocalDateTime.now());
         }
         if (status == TicketStatus.IN_PROGRESS && rejectionNote != null && !rejectionNote.isBlank()) {
+            if (ticket.getRejectionCount() >= 3) {
+                throw new IllegalStateException("Phiếu này đã bị từ chối tối đa 3 lần.");
+            }
             ticket.setRejectionNote(rejectionNote);
+            ticket.setRejectionCount(ticket.getRejectionCount() + 1);
             ticket.setCompletedAt(null);
         }
         ticket.setUpdatedAt(LocalDateTime.now());

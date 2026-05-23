@@ -216,13 +216,19 @@ export default function TicketDetailPage() {
                 >
                   {closeMutation.isPending ? 'Đang xử lý...' : 'Đóng phiếu bảo trì'}
                 </Button>
-                <Button
-                  onClick={() => setShowRejectForm(true)}
-                  variant="outline"
-                  className="w-full border-orange-300 text-orange-600 hover:bg-orange-50 rounded-xl py-3 font-semibold text-sm flex items-center justify-center gap-2"
-                >
-                  <RotateCcw size={15} /> Yêu cầu sửa lại
-                </Button>
+                {(ticket.rejectionCount ?? 0) < 3 ? (
+                  <Button
+                    onClick={() => setShowRejectForm(true)}
+                    variant="outline"
+                    className="w-full border-orange-300 text-orange-600 hover:bg-orange-50 rounded-xl py-3 font-semibold text-sm flex items-center justify-center gap-2"
+                  >
+                    <RotateCcw size={15} /> Yêu cầu sửa lại ({ticket.rejectionCount ?? 0}/3)
+                  </Button>
+                ) : (
+                  <p className="text-xs text-center text-slate-400 font-medium py-1">
+                    Đã từ chối tối đa 3 lần — chỉ có thể đóng phiếu.
+                  </p>
+                )}
               </div>
             )}
 
