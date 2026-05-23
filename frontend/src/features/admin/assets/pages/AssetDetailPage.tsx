@@ -38,7 +38,8 @@ export default function AssetDetailPage() {
   const [selectedBuildingId, setSelectedBuildingId] = useState<number | ''>('');
   const [selectedFloorId, setSelectedFloorId] = useState<number | ''>('');
   const [selectedRoomId, setSelectedRoomId] = useState<number | ''>('');
-  const locationId = selectedRoomId || selectedFloorId || selectedBuildingId || undefined;
+  const [selectedSubRoomId, setSelectedSubRoomId] = useState<number | ''>('');
+  const locationId = selectedSubRoomId || selectedRoomId || selectedFloorId || selectedBuildingId || undefined;
   const [editSignTypeId, setEditSignTypeId] = useState<number | undefined>(undefined);
   const [material, setMaterial] = useState<'MICA' | 'INOX' | 'LED' | 'ALU'>('MICA');
   const [size, setSize] = useState('');
@@ -94,6 +95,7 @@ export default function AssetDetailPage() {
       setSelectedBuildingId(levels.buildingId);
       setSelectedFloorId(levels.floorId);
       setSelectedRoomId(levels.roomId);
+      setSelectedSubRoomId(levels.subRoomId);
 
       setEditSignTypeId(asset.signTypeId);
       setMaterial(asset.material);
@@ -393,7 +395,7 @@ export default function AssetDetailPage() {
                         <MapPin size={13} className="text-slate-400" />
                         <span>Vị trí lắp đặt *</span>
                       </label>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                           <span className="block text-xs font-bold text-slate-400 uppercase mb-1">Tòa nhà</span>
                           <select
@@ -403,6 +405,7 @@ export default function AssetDetailPage() {
                               setSelectedBuildingId(val);
                               setSelectedFloorId('');
                               setSelectedRoomId('');
+                              setSelectedSubRoomId('');
                             }}
                             className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                           >
@@ -421,6 +424,7 @@ export default function AssetDetailPage() {
                               const val = e.target.value ? Number(e.target.value) : '';
                               setSelectedFloorId(val);
                               setSelectedRoomId('');
+                              setSelectedSubRoomId('');
                             }}
                             className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
                           >
@@ -431,15 +435,33 @@ export default function AssetDetailPage() {
                           </select>
                         </div>
                         <div>
-                          <span className="block text-xs font-bold text-slate-400 uppercase mb-1">Khoa / Phòng</span>
+                          <span className="block text-xs font-bold text-slate-400 uppercase mb-1">Khoa (tuỳ chọn)</span>
                           <select
                             disabled={!selectedFloorId}
                             value={selectedRoomId}
-                            onChange={(e) => setSelectedRoomId(e.target.value ? Number(e.target.value) : '')}
+                            onChange={(e) => {
+                              const val = e.target.value ? Number(e.target.value) : '';
+                              setSelectedRoomId(val);
+                              setSelectedSubRoomId('');
+                            }}
                             className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
                           >
-                            <option value="">— Chọn Khoa / Phòng —</option>
+                            <option value="">— Chọn Khoa —</option>
                             {locations.filter(loc => loc.parentId === selectedFloorId).map(loc => (
+                              <option key={loc.id} value={loc.id}>{loc.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <span className="block text-xs font-bold text-slate-400 uppercase mb-1">Phòng (nếu có)</span>
+                          <select
+                            disabled={!selectedRoomId || locations.filter(loc => loc.parentId === selectedRoomId).length === 0}
+                            value={selectedSubRoomId}
+                            onChange={(e) => setSelectedSubRoomId(e.target.value ? Number(e.target.value) : '')}
+                            className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+                          >
+                            <option value="">— Chọn Phòng —</option>
+                            {locations.filter(loc => loc.parentId === selectedRoomId).map(loc => (
                               <option key={loc.id} value={loc.id}>{loc.name}</option>
                             ))}
                           </select>
