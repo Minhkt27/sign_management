@@ -103,6 +103,20 @@ public class TicketService implements TicketUseCase {
     }
 
     @Override
+    public MaintenanceTicket takeTicket(Long ticketId, Long technicianId) {
+        MaintenanceTicket ticket = ticketDatabasePort.findById(ticketId)
+                .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
+        if (ticket.getTicketStatus() != TicketStatus.OPEN || ticket.getAssignee() != null) {
+            throw new IllegalStateException("Phiếu này đã được giao hoặc không còn ở trạng thái chờ.");
+        }
+        User technician = userDatabasePort.findById(technicianId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        ticket.setAssignee(technician);
+        ticket.setUpdatedAt(LocalDateTime.now());
+        return ticketDatabasePort.save(ticket);
+    }
+
+    @Override
     public Optional<MaintenanceTicket> getTicketById(Long id) {
         return ticketDatabasePort.findById(id);
     }

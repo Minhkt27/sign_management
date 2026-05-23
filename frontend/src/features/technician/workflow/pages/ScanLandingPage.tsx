@@ -3,11 +3,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { assetService } from '@/services/assetService';
 import { ticketService } from '@/services/ticketService';
+import { authStore } from '@/app/store/authStore';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
 import { Asset, MaintenanceTicket } from '@/shared/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Package, Ruler, Building, Calendar, AlertCircle, Wrench, ArrowLeft } from 'lucide-react';
+import { MapPin, Package, Ruler, Building, Calendar, AlertCircle, Wrench, ArrowLeft, HandshakeIcon } from 'lucide-react';
 
 export default function ScanLandingPage() {
   const { assetCode } = useParams<{ assetCode: string }>();
@@ -24,6 +25,8 @@ export default function ScanLandingPage() {
     enabled: !!assetCode,
   });
 
+  const currentUser = authStore.getUser();
+
   const { data: ticketData } = useQuery({
     queryKey: ['tickets', { assetId: asset?.id }],
     queryFn: () => ticketService.getTickets({ assetId: asset!.id }),
@@ -33,6 +36,14 @@ export default function ScanLandingPage() {
   const activeTicket = ticketData?.content?.find(
     (t: MaintenanceTicket) => t.ticketStatus === 'OPEN' || t.ticketStatus === 'IN_PROGRESS'
   );
+
+  const takeMutation = useMutation({
+    mutationFn: (ticketId: number) => ticketService.takeTicket(ticketId),
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: ['tickets'] });
+      navigate(`/tech/tasks/${updated.id}`);
+    },
+  });
 
   const createTicketMutation = useMutation({
     mutationFn: () => ticketService.createTicket({
@@ -122,18 +133,30 @@ export default function ScanLandingPage() {
 
       {/* Active ticket */}
       {activeTicket ? (
-        <div
-          onClick={() => navigate(`/tech/tasks/${activeTicket.id}`)}
-          className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-center justify-between cursor-pointer"
-        >
-          <div className="flex items-center gap-3 text-amber-800">
-            <Wrench size={18} className="text-amber-600 shrink-0" />
-            <div>
-              <p className="font-bold text-sm">Đang có yêu cầu sửa chữa</p>
-              <p className="text-xs text-amber-600 mt-0.5">Phiếu #{activeTicket.id} · {activeTicket.ticketStatus}</p>
+        <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl space-y-3">
+          <div
+            onClick={() => navigate(`/tech/tasks/${activeTicket.id}`)}
+            className="flex items-center justify-between cursor-pointer"
+          >
+            <div className="flex items-center gap-3 text-amber-800">
+              <Wrench size={18} className="text-amber-600 shrink-0" />
+              <div>
+                <p className="font-bold text-sm">Đang có yêu cầu sửa chữa</p>
+                <p className="text-xs text-amber-600 mt-0.5">Phiếu #{activeTicket.id} · {activeTicket.ticketStatus}</p>
+              </div>
             </div>
+            <Badge className="bg-amber-600 text-white text-xs px-2.5 py-1">Xem</Badge>
           </div>
-          <Badge className="bg-amber-600 text-white text-xs px-2.5 py-1">Xem</Badge>
+          {activeTicket.ticketStatus === 'OPEN' && !activeTicket.assignee && currentUser && (
+            <Button
+              onClick={() => takeMutation.mutate(activeTicket.id)}
+              disabled={takeMutation.isPending}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-3 font-bold text-sm flex items-center justify-center gap-2"
+            >
+              <HandshakeIcon size={16} />
+              {takeMutation.isPending ? 'Đang nhận...' : 'Nhận việc này'}
+            </Button>
+          )}
         </div>
       ) : !showForm ? (
         <Button

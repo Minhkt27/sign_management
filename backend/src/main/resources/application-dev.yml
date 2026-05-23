@@ -2,7 +2,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/signage_db
     username: postgres
-    password: ${POSTGRES_PASSWORD:password}
+    password: ${POSTGRES_PASSWORD:change_me_in_production}
 
   jpa:
     hibernate:
@@ -12,10 +12,16 @@ spring:
       hibernate:
         format_sql: true
 
+minio:
+  secret-key: change_me_strong_password
+
 jwt:
   secret: hospital-signage-secret-key-must-be-at-least-256-bits-long-for-hs256
   expiration: 3600000
   refresh-expiration: 604800000
+
+cors:
+  allowed-origins: http://localhost:5173,http://localhost:3000,https://preset-unedited-lesser.ngrok-free.dev
 
 app:
   admin-initial-password: ${ADMIN_INITIAL_PASSWORD:Admin@Dev#2024}
