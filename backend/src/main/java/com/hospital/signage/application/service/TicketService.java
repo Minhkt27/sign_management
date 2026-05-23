@@ -32,6 +32,10 @@ public class TicketService implements TicketUseCase {
         Asset asset = assetDatabasePort.findById(command.assetId())
                 .orElseThrow(() -> new IllegalArgumentException("Asset not found"));
 
+        if (asset.getStatus() == com.hospital.signage.domain.enums.AssetStatus.SCRAPPED) {
+            throw new IllegalStateException("Biển báo này đã thanh lý, không thể tạo phiếu bảo trì.");
+        }
+
         MaintenanceTicket ticket = MaintenanceTicket.builder()
                 .asset(asset)
                 .reporter(command.reporter())

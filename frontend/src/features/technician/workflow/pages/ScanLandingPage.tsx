@@ -132,7 +132,12 @@ export default function ScanLandingPage() {
       </div>
 
       {/* Active ticket */}
-      {activeTicket ? (
+      {asset.status === 'SCRAPPED' ? (
+        <div className="bg-slate-100 border border-slate-300 p-4 rounded-xl flex items-center gap-3 text-slate-500">
+          <AlertCircle size={18} className="shrink-0" />
+          <p className="text-sm font-medium">Biển báo này đã thanh lý, không thể báo hỏng.</p>
+        </div>
+      ) : activeTicket ? (
         <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl space-y-3">
           <div
             onClick={() => navigate(`/tech/tasks/${activeTicket.id}`)}
