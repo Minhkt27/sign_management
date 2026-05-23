@@ -125,6 +125,7 @@ export default function AssetDetailPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assetTickets', id] });
       queryClient.invalidateQueries({ queryKey: ['asset', id] });
+      queryClient.invalidateQueries({ queryKey: ['tickets'] });
       setTicketDesc('');
       setTicketPriority('MEDIUM');
       setIsTicketDialogOpen(false);
@@ -171,6 +172,7 @@ export default function AssetDetailPage() {
       assetId: id,
       description: ticketDesc,
       priority: ticketPriority,
+      source: 'MANUAL',
     });
   };
 
@@ -559,6 +561,12 @@ export default function AssetDetailPage() {
               </DialogContent>
             </Dialog>
 
+            {asset.status === 'SCRAPPED' ? (
+              <div className="w-full bg-slate-100 border border-slate-300 text-slate-500 text-sm font-medium px-4 py-3 rounded-xl flex items-center gap-2">
+                <AlertCircle size={15} className="shrink-0" />
+                Biển đã thanh lý, không thể báo hỏng
+              </div>
+            ) : (
             <Dialog open={isTicketDialogOpen} onOpenChange={setIsTicketDialogOpen}>
               <DialogTrigger render={
                 <Button className="w-full bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl flex items-center justify-center space-x-2 py-3">
@@ -606,6 +614,7 @@ export default function AssetDetailPage() {
                 </form>
               </DialogContent>
             </Dialog>
+            )}
           </div>
         </div>
 

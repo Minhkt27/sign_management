@@ -14,6 +14,7 @@ export default function TicketDetailPage() {
   const queryClient = useQueryClient();
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejectionNote, setRejectionNote] = useState('');
+  const [rejectError, setRejectError] = useState('');
 
   const { data: ticket, isLoading: isTicketLoading } = useQuery<MaintenanceTicket>({
     queryKey: ['ticket', id],
@@ -37,11 +38,18 @@ export default function TicketDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
       setShowRejectForm(false);
       setRejectionNote('');
+      setRejectError('');
     },
+    onError: () => setRejectError('Không thể yêu cầu sửa lại. Phiếu có thể đã đạt giới hạn 3 lần.'),
   });
 
   const handleCloseTicket = () => { if (ticket) closeMutation.mutate(ticket.id); };
-  const handleReject = () => { if (ticket && rejectionNote.trim()) rejectMutation.mutate({ ticketId: ticket.id, note: rejectionNote.trim() }); };
+  const handleReject = () => {
+    if (ticket && rejectionNote.trim()) {
+      setRejectError('');
+      rejectMutation.mutate({ ticketId: ticket.id, note: rejectionNote.trim() });
+    }
+  };
 
   if (isTicketLoading) {
     return <div className="text-center py-12 text-slate-500 font-medium">Đang tải thông tin phiếu sửa chữa...</div>;
@@ -244,8 +252,11 @@ export default function TicketDetailPage() {
                   onChange={e => setRejectionNote(e.target.value)}
                   className="w-full border border-orange-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-orange-400"
                 />
+                {rejectError && (
+                  <p className="text-xs text-rose-600 font-medium">{rejectError}</p>
+                )}
                 <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => { setShowRejectForm(false); setRejectionNote(''); }} className="w-1/2 text-sm rounded-lg">
+                  <Button variant="outline" onClick={() => { setShowRejectForm(false); setRejectionNote(''); setRejectError(''); }} className="w-1/2 text-sm rounded-lg">
                     Hủy
                   </Button>
                   <Button

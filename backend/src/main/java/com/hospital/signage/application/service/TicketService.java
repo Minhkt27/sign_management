@@ -13,6 +13,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -67,10 +68,18 @@ public class TicketService implements TicketUseCase {
     }
 
     @Override
+    @Transactional
     public MaintenanceTicket updateTicketStatus(Long ticketId, TicketStatus status, String imageBefore,
             String imageAfter, String rejectionNote) {
         MaintenanceTicket ticket = ticketDatabasePort.findById(ticketId)
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
+
+        boolean isRejection = status == TicketStatus.IN_PROGRESS
+                && rejectionNote != null && !rejectionNote.isBlank();
+
+        if (isRejection && ticket.getRejectionCount() >= 3) {
+            throw new IllegalStateException("Phiếu này đã bị từ chối tối đa 3 lần.");
+        }
 
         ticket.setTicketStatus(status);
         if (imageBefore != null && !imageBefore.isBlank()) {
@@ -82,10 +91,7 @@ public class TicketService implements TicketUseCase {
         if (status == TicketStatus.RESOLVED) {
             ticket.setCompletedAt(LocalDateTime.now());
         }
-        if (status == TicketStatus.IN_PROGRESS && rejectionNote != null && !rejectionNote.isBlank()) {
-            if (ticket.getRejectionCount() >= 3) {
-                throw new IllegalStateException("Phiếu này đã bị từ chối tối đa 3 lần.");
-            }
+        if (isRejection) {
             ticket.setRejectionNote(rejectionNote);
             ticket.setRejectionCount(ticket.getRejectionCount() + 1);
             ticket.setCompletedAt(null);
@@ -93,7 +99,7 @@ public class TicketService implements TicketUseCase {
         ticket.setUpdatedAt(LocalDateTime.now());
 
         Asset asset = ticket.getAsset();
-        if (asset != null) {
+        if (asset != null && asset.getStatus() != com.hospital.signage.domain.enums.AssetStatus.SCRAPPED) {
             if (status == TicketStatus.IN_PROGRESS) {
                 asset.setStatus(com.hospital.signage.domain.enums.AssetStatus.REPAIRING);
                 assetDatabasePort.save(asset);
@@ -107,6 +113,7 @@ public class TicketService implements TicketUseCase {
     }
 
     @Override
+    @Transactional
     public MaintenanceTicket takeTicket(Long ticketId, Long technicianId) {
         MaintenanceTicket ticket = ticketDatabasePort.findById(ticketId)
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));

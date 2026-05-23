@@ -18,6 +18,8 @@ export default function ScanLandingPage() {
   const [showForm, setShowForm] = useState(false);
   const [desc, setDesc] = useState('');
   const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM');
+  const [takeError, setTakeError] = useState('');
+  const [createError, setCreateError] = useState('');
 
   const { data: asset, isLoading, isError } = useQuery<Asset>({
     queryKey: ['asset-by-code', assetCode],
@@ -41,8 +43,10 @@ export default function ScanLandingPage() {
     mutationFn: (ticketId: number) => ticketService.takeTicket(ticketId),
     onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
+      queryClient.invalidateQueries({ queryKey: ['techTickets'] });
       navigate(`/tech/tasks/${updated.id}`);
     },
+    onError: () => setTakeError('Không thể nhận việc. Phiếu có thể đã được người khác nhận.'),
   });
 
   const createTicketMutation = useMutation({
@@ -54,9 +58,12 @@ export default function ScanLandingPage() {
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
+      queryClient.invalidateQueries({ queryKey: ['techTickets'] });
       setShowForm(false);
       setDesc('');
+      setCreateError('');
     },
+    onError: () => setCreateError('Gửi báo cáo thất bại. Vui lòng thử lại.'),
   });
 
   const statusColor: Record<string, string> = {
@@ -153,14 +160,19 @@ export default function ScanLandingPage() {
             <Badge className="bg-amber-600 text-white text-xs px-2.5 py-1">Xem</Badge>
           </div>
           {activeTicket.ticketStatus === 'OPEN' && !activeTicket.assignee && currentUser && (
-            <Button
-              onClick={() => takeMutation.mutate(activeTicket.id)}
-              disabled={takeMutation.isPending}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-3 font-bold text-sm flex items-center justify-center gap-2"
-            >
-              <HandshakeIcon size={16} />
-              {takeMutation.isPending ? 'Đang nhận...' : 'Nhận việc này'}
-            </Button>
+            <>
+              <Button
+                onClick={() => { setTakeError(''); takeMutation.mutate(activeTicket.id); }}
+                disabled={takeMutation.isPending}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-3 font-bold text-sm flex items-center justify-center gap-2"
+              >
+                <HandshakeIcon size={16} />
+                {takeMutation.isPending ? 'Đang nhận...' : 'Nhận việc này'}
+              </Button>
+              {takeError && (
+                <p className="text-xs text-rose-600 font-medium text-center">{takeError}</p>
+              )}
+            </>
           )}
         </div>
       ) : !showForm ? (
@@ -206,6 +218,9 @@ export default function ScanLandingPage() {
               <option value="CRITICAL">Khẩn cấp</option>
             </select>
           </div>
+          {createError && (
+            <p className="text-xs text-rose-600 font-medium">{createError}</p>
+          )}
           <div className="flex gap-3">
             <Button type="button" variant="outline" onClick={() => setShowForm(false)} className="w-1/2 rounded-lg">Hủy</Button>
             <Button
