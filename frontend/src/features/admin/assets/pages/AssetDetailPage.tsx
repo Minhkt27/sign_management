@@ -38,11 +38,13 @@ export default function AssetDetailPage() {
   const [selectedBuildingId, setSelectedBuildingId] = useState<number | ''>('');
   const [selectedFloorId, setSelectedFloorId] = useState<number | ''>('');
   const [selectedRoomId, setSelectedRoomId] = useState<number | ''>('');
-  const locationId = selectedRoomId || selectedFloorId || selectedBuildingId || undefined;
+  const [selectedSubRoomId, setSelectedSubRoomId] = useState<number | ''>('');
+  const locationId = selectedSubRoomId || selectedRoomId || selectedFloorId || selectedBuildingId || undefined;
   const [editSignTypeId, setEditSignTypeId] = useState<number | undefined>(undefined);
   const [material, setMaterial] = useState<'MICA' | 'INOX' | 'LED' | 'ALU'>('MICA');
   const [size, setSize] = useState('');
   const [supplier, setSupplier] = useState('');
+  const [installedAt, setInstalledAt] = useState('');
   const [status, setStatus] = useState<Asset['status']>('ACTIVE');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -93,11 +95,13 @@ export default function AssetDetailPage() {
       setSelectedBuildingId(levels.buildingId);
       setSelectedFloorId(levels.floorId);
       setSelectedRoomId(levels.roomId);
+      setSelectedSubRoomId(levels.subRoomId);
 
       setEditSignTypeId(asset.signTypeId);
       setMaterial(asset.material);
       setSize(asset.size);
       setSupplier(asset.supplier || '');
+      setInstalledAt(asset.installedAt ? asset.installedAt.split('T')[0] : '');
       setStatus(asset.status);
     }
   }, [asset, locations, assetCode]);
@@ -121,6 +125,7 @@ export default function AssetDetailPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assetTickets', id] });
       queryClient.invalidateQueries({ queryKey: ['asset', id] });
+      queryClient.invalidateQueries({ queryKey: ['tickets'] });
       setTicketDesc('');
       setTicketPriority('MEDIUM');
       setIsTicketDialogOpen(false);
@@ -148,6 +153,7 @@ export default function AssetDetailPage() {
         material,
         size,
         supplier,
+        installedAt: installedAt || undefined,
         status,
         imageUrl: uploadedUrl,
       });
@@ -166,6 +172,7 @@ export default function AssetDetailPage() {
       assetId: id,
       description: ticketDesc,
       priority: ticketPriority,
+      source: 'MANUAL',
     });
   };
 
@@ -332,6 +339,44 @@ export default function AssetDetailPage() {
                       </div>
                     </div>
 
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Tên biển</label>
+                        <Input
+                          placeholder="Tên hiển thị của biển..."
+                          value={assetName}
+                          onChange={(e) => setAssetName(e.target.value)}
+                          className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Loại biển</label>
+                        <select
+                          value={editSignTypeId ?? ''}
+                          onChange={(e) => setEditSignTypeId(e.target.value ? Number(e.target.value) : undefined)}
+                          className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300"
+                        >
+                          <option value="">— Không phân loại —</option>
+                          {signTypes.map(st => (
+                            <option key={st.id} value={st.id}>{st.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
+                        <Calendar size={13} className="text-slate-400" />
+                        <span>Ngày lắp đặt</span>
+                      </label>
+                      <Input
+                        type="date"
+                        value={installedAt}
+                        onChange={(e) => setInstalledAt(e.target.value)}
+                        className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg"
+                      />
+                    </div>
+
                     <div>
                       <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
                         <FileText size={13} className="text-slate-400" />
@@ -347,87 +392,97 @@ export default function AssetDetailPage() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="col-span-2 space-y-4">
-                        <label className="block text-xs font-bold text-slate-655 flex items-center space-x-1">
-                          <MapPin size={13} className="text-slate-400" />
-                          <span>Vị trí lắp đặt *</span>
-                        </label>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          {/* Level 1: Building */}
-                          <div>
-                            <span className="block text-xs font-bold text-slate-400 uppercase mb-1">Tòa nhà / Khu vực chính</span>
-                            <select
-                              id="edit-asset-building"
-                              value={selectedBuildingId}
-                              onChange={(e) => {
-                                const val = e.target.value ? Number(e.target.value) : '';
-                                setSelectedBuildingId(val);
-                                setSelectedFloorId('');
-                                setSelectedRoomId('');
-                              }}
-                              className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300"
-                            >
-                              <option value="">— Chọn Tòa nhà —</option>
-                              {locations.filter(loc => loc.parentId === null).map(loc => (
-                                <option key={loc.id} value={loc.id}>{loc.name}</option>
-                              ))}
-                            </select>
-                          </div>
-
-                          {/* Level 2: Floor */}
-                          <div>
-                            <span className="block text-xs font-bold text-slate-400 uppercase mb-1">Tầng / Phân khu</span>
-                            <select
-                              id="edit-asset-floor"
-                              disabled={!selectedBuildingId}
-                              value={selectedFloorId}
-                              onChange={(e) => {
-                                const val = e.target.value ? Number(e.target.value) : '';
-                                setSelectedFloorId(val);
-                                setSelectedRoomId('');
-                              }}
-                              className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
-                            >
-                              <option value="">— Chọn Tầng —</option>
-                              {locations.filter(loc => loc.parentId === selectedBuildingId).map(loc => (
-                                <option key={loc.id} value={loc.id}>{loc.name}</option>
-                              ))}
-                            </select>
-                          </div>
-
-                          {/* Level 3: Room / Department */}
-                          <div>
-                            <span className="block text-xs font-bold text-slate-400 uppercase mb-1">Khoa / Phòng / Vị trí cụ thể</span>
-                            <select
-                              id="edit-asset-room"
-                              disabled={!selectedFloorId}
-                              value={selectedRoomId}
-                              onChange={(e) => setSelectedRoomId(e.target.value ? Number(e.target.value) : '')}
-                              className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
-                            >
-                              <option value="">— Chọn Khoa / Phòng —</option>
-                              {locations.filter(loc => loc.parentId === selectedFloorId).map(loc => (
-                                <option key={loc.id} value={loc.id}>{loc.name}</option>
-                              ))}
-                            </select>
-                          </div>
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-slate-500 flex items-center space-x-1">
+                        <MapPin size={13} className="text-slate-400" />
+                        <span>Vị trí lắp đặt *</span>
+                      </label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <span className="block text-xs font-bold text-slate-400 uppercase mb-1">Tòa nhà</span>
+                          <select
+                            value={selectedBuildingId}
+                            onChange={(e) => {
+                              const val = e.target.value ? Number(e.target.value) : '';
+                              setSelectedBuildingId(val);
+                              setSelectedFloorId('');
+                              setSelectedRoomId('');
+                              setSelectedSubRoomId('');
+                            }}
+                            className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="">— Chọn Tòa nhà —</option>
+                            {locations.filter(loc => loc.parentId === null).map(loc => (
+                              <option key={loc.id} value={loc.id}>{loc.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <span className="block text-xs font-bold text-slate-400 uppercase mb-1">Tầng</span>
+                          <select
+                            disabled={!selectedBuildingId}
+                            value={selectedFloorId}
+                            onChange={(e) => {
+                              const val = e.target.value ? Number(e.target.value) : '';
+                              setSelectedFloorId(val);
+                              setSelectedRoomId('');
+                              setSelectedSubRoomId('');
+                            }}
+                            className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+                          >
+                            <option value="">— Chọn Tầng —</option>
+                            {locations.filter(loc => loc.parentId === selectedBuildingId).map(loc => (
+                              <option key={loc.id} value={loc.id}>{loc.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <span className="block text-xs font-bold text-slate-400 uppercase mb-1">Khoa (tuỳ chọn)</span>
+                          <select
+                            disabled={!selectedFloorId}
+                            value={selectedRoomId}
+                            onChange={(e) => {
+                              const val = e.target.value ? Number(e.target.value) : '';
+                              setSelectedRoomId(val);
+                              setSelectedSubRoomId('');
+                            }}
+                            className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+                          >
+                            <option value="">— Chọn Khoa —</option>
+                            {locations.filter(loc => loc.parentId === selectedFloorId).map(loc => (
+                              <option key={loc.id} value={loc.id}>{loc.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <span className="block text-xs font-bold text-slate-400 uppercase mb-1">Phòng (nếu có)</span>
+                          <select
+                            disabled={!selectedRoomId || locations.filter(loc => loc.parentId === selectedRoomId).length === 0}
+                            value={selectedSubRoomId}
+                            onChange={(e) => setSelectedSubRoomId(e.target.value ? Number(e.target.value) : '')}
+                            className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+                          >
+                            <option value="">— Chọn Phòng —</option>
+                            {locations.filter(loc => loc.parentId === selectedRoomId).map(loc => (
+                              <option key={loc.id} value={loc.id}>{loc.name}</option>
+                            ))}
+                          </select>
                         </div>
                       </div>
+                      {!locationId && <p className="text-xs text-rose-500 font-medium">Vui lòng chọn ít nhất Tòa nhà.</p>}
+                    </div>
 
-                      <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
-                          <Building size={13} className="text-slate-400" />
-                          <span>Nhà cung cấp</span>
-                        </label>
-                        <Input
-                          id="edit-asset-supplier"
-                          placeholder="Đơn vị sản xuất..."
-                          value={supplier}
-                          onChange={(e) => setSupplier(e.target.value)}
-                          className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg"
-                        />
-                      </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
+                        <Building size={13} className="text-slate-400" />
+                        <span>Nhà cung cấp</span>
+                      </label>
+                      <Input
+                        placeholder="Đơn vị sản xuất..."
+                        value={supplier}
+                        onChange={(e) => setSupplier(e.target.value)}
+                        className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg"
+                      />
                     </div>
 
                     <div>
@@ -506,6 +561,12 @@ export default function AssetDetailPage() {
               </DialogContent>
             </Dialog>
 
+            {asset.status === 'SCRAPPED' ? (
+              <div className="w-full bg-slate-100 border border-slate-300 text-slate-500 text-sm font-medium px-4 py-3 rounded-xl flex items-center gap-2">
+                <AlertCircle size={15} className="shrink-0" />
+                Biển đã thanh lý, không thể báo hỏng
+              </div>
+            ) : (
             <Dialog open={isTicketDialogOpen} onOpenChange={setIsTicketDialogOpen}>
               <DialogTrigger render={
                 <Button className="w-full bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl flex items-center justify-center space-x-2 py-3">
@@ -553,6 +614,7 @@ export default function AssetDetailPage() {
                 </form>
               </DialogContent>
             </Dialog>
+            )}
           </div>
         </div>
 

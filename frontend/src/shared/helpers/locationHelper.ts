@@ -71,10 +71,11 @@ export interface LocationLevels {
   buildingId: number | '';
   floorId: number | '';
   roomId: number | '';
+  subRoomId: number | '';
 }
 
 export const resolveLocationLevels = (locationId: number | undefined, locations: Location[]): LocationLevels => {
-  const result: LocationLevels = { buildingId: '', floorId: '', roomId: '' };
+  const result: LocationLevels = { buildingId: '', floorId: '', roomId: '', subRoomId: '' };
   if (!locationId || locations.length === 0) return result;
 
   const chain: Location[] = [];
@@ -85,20 +86,14 @@ export const resolveLocationLevels = (locationId: number | undefined, locations:
     visited.add(currentId);
     const found = locations.find(loc => loc.id === currentId);
     if (!found) break;
-    
     chain.unshift(found);
     currentId = found.parentId;
   }
 
-  if (chain.length > 0) {
-    result.buildingId = chain[0].id;
-  }
-  if (chain.length > 1) {
-    result.floorId = chain[1].id;
-  }
-  if (chain.length > 2) {
-    result.roomId = chain[2].id;
-  }
+  if (chain.length > 0) result.buildingId = chain[0].id;
+  if (chain.length > 1) result.floorId = chain[1].id;
+  if (chain.length > 2) result.roomId = chain[2].id;
+  if (chain.length > 3) result.subRoomId = chain[3].id;
 
   return result;
 };

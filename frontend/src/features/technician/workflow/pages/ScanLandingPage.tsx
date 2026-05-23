@@ -3,11 +3,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { assetService } from '@/services/assetService';
 import { ticketService } from '@/services/ticketService';
+import { authStore } from '@/app/store/authStore';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
 import { Asset, MaintenanceTicket } from '@/shared/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Package, Ruler, Building, Calendar, AlertCircle, Wrench, ArrowLeft } from 'lucide-react';
+import { MapPin, Package, Ruler, Building, Calendar, AlertCircle, Wrench, ArrowLeft, HandshakeIcon } from 'lucide-react';
 
 export default function ScanLandingPage() {
   const { assetCode } = useParams<{ assetCode: string }>();
@@ -17,12 +18,16 @@ export default function ScanLandingPage() {
   const [showForm, setShowForm] = useState(false);
   const [desc, setDesc] = useState('');
   const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM');
+  const [takeError, setTakeError] = useState('');
+  const [createError, setCreateError] = useState('');
 
   const { data: asset, isLoading, isError } = useQuery<Asset>({
     queryKey: ['asset-by-code', assetCode],
     queryFn: () => assetService.getAssetByCode(assetCode!),
     enabled: !!assetCode,
   });
+
+  const currentUser = authStore.getUser();
 
   const { data: ticketData } = useQuery({
     queryKey: ['tickets', { assetId: asset?.id }],
@@ -34,6 +39,16 @@ export default function ScanLandingPage() {
     (t: MaintenanceTicket) => t.ticketStatus === 'OPEN' || t.ticketStatus === 'IN_PROGRESS'
   );
 
+  const takeMutation = useMutation({
+    mutationFn: (ticketId: number) => ticketService.takeTicket(ticketId),
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: ['tickets'] });
+      queryClient.invalidateQueries({ queryKey: ['techTickets'] });
+      navigate(`/tech/tasks/${updated.id}`);
+    },
+    onError: () => setTakeError('Không thể nhận việc. Phiếu có thể đã được người khác nhận.'),
+  });
+
   const createTicketMutation = useMutation({
     mutationFn: () => ticketService.createTicket({
       assetId: asset!.id,
@@ -43,9 +58,12 @@ export default function ScanLandingPage() {
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
+      queryClient.invalidateQueries({ queryKey: ['techTickets'] });
       setShowForm(false);
       setDesc('');
+      setCreateError('');
     },
+    onError: () => setCreateError('Gửi báo cáo thất bại. Vui lòng thử lại.'),
   });
 
   const statusColor: Record<string, string> = {
@@ -121,19 +139,41 @@ export default function ScanLandingPage() {
       </div>
 
       {/* Active ticket */}
-      {activeTicket ? (
-        <div
-          onClick={() => navigate(`/tech/tasks/${activeTicket.id}`)}
-          className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-center justify-between cursor-pointer"
-        >
-          <div className="flex items-center gap-3 text-amber-800">
-            <Wrench size={18} className="text-amber-600 shrink-0" />
-            <div>
-              <p className="font-bold text-sm">Đang có yêu cầu sửa chữa</p>
-              <p className="text-xs text-amber-600 mt-0.5">Phiếu #{activeTicket.id} · {activeTicket.ticketStatus}</p>
+      {asset.status === 'SCRAPPED' ? (
+        <div className="bg-slate-100 border border-slate-300 p-4 rounded-xl flex items-center gap-3 text-slate-500">
+          <AlertCircle size={18} className="shrink-0" />
+          <p className="text-sm font-medium">Biển báo này đã thanh lý, không thể báo hỏng.</p>
+        </div>
+      ) : activeTicket ? (
+        <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl space-y-3">
+          <div
+            onClick={() => navigate(`/tech/tasks/${activeTicket.id}`)}
+            className="flex items-center justify-between cursor-pointer"
+          >
+            <div className="flex items-center gap-3 text-amber-800">
+              <Wrench size={18} className="text-amber-600 shrink-0" />
+              <div>
+                <p className="font-bold text-sm">Đang có yêu cầu sửa chữa</p>
+                <p className="text-xs text-amber-600 mt-0.5">Phiếu #{activeTicket.id} · {activeTicket.ticketStatus}</p>
+              </div>
             </div>
+            <Badge className="bg-amber-600 text-white text-xs px-2.5 py-1">Xem</Badge>
           </div>
-          <Badge className="bg-amber-600 text-white text-xs px-2.5 py-1">Xem</Badge>
+          {activeTicket.ticketStatus === 'OPEN' && !activeTicket.assignee && currentUser && (
+            <>
+              <Button
+                onClick={() => { setTakeError(''); takeMutation.mutate(activeTicket.id); }}
+                disabled={takeMutation.isPending}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-3 font-bold text-sm flex items-center justify-center gap-2"
+              >
+                <HandshakeIcon size={16} />
+                {takeMutation.isPending ? 'Đang nhận...' : 'Nhận việc này'}
+              </Button>
+              {takeError && (
+                <p className="text-xs text-rose-600 font-medium text-center">{takeError}</p>
+              )}
+            </>
+          )}
         </div>
       ) : !showForm ? (
         <Button
@@ -178,6 +218,9 @@ export default function ScanLandingPage() {
               <option value="CRITICAL">Khẩn cấp</option>
             </select>
           </div>
+          {createError && (
+            <p className="text-xs text-rose-600 font-medium">{createError}</p>
+          )}
           <div className="flex gap-3">
             <Button type="button" variant="outline" onClick={() => setShowForm(false)} className="w-1/2 rounded-lg">Hủy</Button>
             <Button

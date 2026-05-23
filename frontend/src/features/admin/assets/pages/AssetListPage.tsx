@@ -104,6 +104,12 @@ export default function AssetListPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assets'] });
     },
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message
+        ?? error?.response?.data
+        ?? 'Không thể xóa biển báo này vì đang có phiếu bảo trì liên kết.';
+      alert(msg);
+    },
   });
 
   if (isAssetsLoading) {

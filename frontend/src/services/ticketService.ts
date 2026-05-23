@@ -51,6 +51,11 @@ export const ticketService = {
     return response.data;
   },
 
+  takeTicket: async (id: number): Promise<MaintenanceTicket> => {
+    const response = await apiClient.put<MaintenanceTicket>(`/tickets/${id}/take`);
+    return response.data;
+  },
+
   getTechnicians: async (): Promise<User[]> => {
     const response = await apiClient.get<User[]>('/users/technicians');
     return response.data;

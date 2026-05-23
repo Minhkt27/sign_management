@@ -73,6 +73,10 @@ public class MaintenanceTicketEntity {
     @Column(name = "rejection_note", columnDefinition = "TEXT")
     private String rejectionNote;
 
+    @Column(name = "rejection_count", nullable = false)
+    @Builder.Default
+    private int rejectionCount = 0;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

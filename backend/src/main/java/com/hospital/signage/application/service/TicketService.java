@@ -13,6 +13,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -31,6 +32,10 @@ public class TicketService implements TicketUseCase {
     public MaintenanceTicket createTicket(CreateTicketCommand command) {
         Asset asset = assetDatabasePort.findById(command.assetId())
                 .orElseThrow(() -> new IllegalArgumentException("Asset not found"));
+
+        if (asset.getStatus() == com.hospital.signage.domain.enums.AssetStatus.SCRAPPED) {
+            throw new IllegalStateException("Biển báo này đã thanh lý, không thể tạo phiếu bảo trì.");
+        }
 
         MaintenanceTicket ticket = MaintenanceTicket.builder()
                 .asset(asset)
@@ -63,10 +68,18 @@ public class TicketService implements TicketUseCase {
     }
 
     @Override
+    @Transactional
     public MaintenanceTicket updateTicketStatus(Long ticketId, TicketStatus status, String imageBefore,
             String imageAfter, String rejectionNote) {
         MaintenanceTicket ticket = ticketDatabasePort.findById(ticketId)
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
+
+        boolean isRejection = status == TicketStatus.IN_PROGRESS
+                && rejectionNote != null && !rejectionNote.isBlank();
+
+        if (isRejection && ticket.getRejectionCount() >= 3) {
+            throw new IllegalStateException("Phiếu này đã bị từ chối tối đa 3 lần.");
+        }
 
         ticket.setTicketStatus(status);
         if (imageBefore != null && !imageBefore.isBlank()) {
@@ -75,17 +88,18 @@ public class TicketService implements TicketUseCase {
         if (imageAfter != null && !imageAfter.isBlank()) {
             ticket.setImageAfter(imageAfter);
         }
-        if (status == TicketStatus.RESOLVED && ticket.getCompletedAt() == null) {
+        if (status == TicketStatus.RESOLVED) {
             ticket.setCompletedAt(LocalDateTime.now());
         }
-        if (status == TicketStatus.IN_PROGRESS && rejectionNote != null && !rejectionNote.isBlank()) {
+        if (isRejection) {
             ticket.setRejectionNote(rejectionNote);
+            ticket.setRejectionCount(ticket.getRejectionCount() + 1);
             ticket.setCompletedAt(null);
         }
         ticket.setUpdatedAt(LocalDateTime.now());
 
         Asset asset = ticket.getAsset();
-        if (asset != null) {
+        if (asset != null && asset.getStatus() != com.hospital.signage.domain.enums.AssetStatus.SCRAPPED) {
             if (status == TicketStatus.IN_PROGRESS) {
                 asset.setStatus(com.hospital.signage.domain.enums.AssetStatus.REPAIRING);
                 assetDatabasePort.save(asset);
@@ -95,6 +109,21 @@ public class TicketService implements TicketUseCase {
             }
         }
 
+        return ticketDatabasePort.save(ticket);
+    }
+
+    @Override
+    @Transactional
+    public MaintenanceTicket takeTicket(Long ticketId, Long technicianId) {
+        MaintenanceTicket ticket = ticketDatabasePort.findById(ticketId)
+                .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
+        if (ticket.getTicketStatus() != TicketStatus.OPEN || ticket.getAssignee() != null) {
+            throw new IllegalStateException("Phiếu này đã được giao hoặc không còn ở trạng thái chờ.");
+        }
+        User technician = userDatabasePort.findById(technicianId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        ticket.setAssignee(technician);
+        ticket.setUpdatedAt(LocalDateTime.now());
         return ticketDatabasePort.save(ticket);
     }
 

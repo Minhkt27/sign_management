@@ -70,6 +70,22 @@ public class TicketController {
         }
     }
 
+    @PreAuthorize("hasRole('TECHNICAL')")
+    @PutMapping("/{id}/take")
+    public ResponseEntity<MaintenanceTicket> takeTicket(@PathVariable Long id) {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (!(principal instanceof User technician)) {
+            return ResponseEntity.status(401).build();
+        }
+        try {
+            return ResponseEntity.ok(ticketUseCase.takeTicket(id, technician.getId()));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     @PreAuthorize("hasRole('ADMIN') or hasRole('TECHNICAL')")
     @PutMapping("/{id}/status")
     public ResponseEntity<MaintenanceTicket> updateTicketStatus(
