@@ -62,6 +62,20 @@ public class UserService implements UserUseCase {
 
     @Override
     @Transactional
+    public void resetPassword(Long userId) {
+        User user = userDatabasePort.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại"));
+        if (user.getRole() == Role.ADMIN) {
+            throw new IllegalStateException("Không thể reset mật khẩu tài khoản quản trị.");
+        }
+        user.setPassword(passwordEncoder.encode("12345678"));
+        user.setRefreshToken(null);
+        user.setUpdatedAt(LocalDateTime.now());
+        userDatabasePort.save(user);
+    }
+
+    @Override
+    @Transactional
     public void changePassword(ChangePasswordCommand command) {
         User user = userDatabasePort.findById(command.userId())
                 .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại"));

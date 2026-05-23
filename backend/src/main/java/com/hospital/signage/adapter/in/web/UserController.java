@@ -45,6 +45,17 @@ public class UserController {
         return ResponseEntity.ok(UserResponse.from(user));
     }
 
+    @PutMapping("/{id}/reset-password")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> resetPassword(@PathVariable Long id) {
+        try {
+            userUseCase.resetPassword(id);
+            return ResponseEntity.ok().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
     @PutMapping("/me/password")
     public ResponseEntity<Void> changePassword(@RequestBody ChangePasswordRequest req) {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();

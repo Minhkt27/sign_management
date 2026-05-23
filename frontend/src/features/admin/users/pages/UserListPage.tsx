@@ -12,7 +12,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus, UserCheck, UserX, KeyRound } from 'lucide-react';
+import { Plus, UserCheck, UserX, KeyRound, RotateCcw } from 'lucide-react';
 import ChangePasswordModal from '@/components/ChangePasswordModal';
 
 const PAGE_SIZE = 15;
@@ -54,6 +54,18 @@ export default function UserListPage() {
       userService.setActive(id, active),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
   });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: (id: number) => userService.resetPassword(id),
+    onSuccess: () => alert('Đã reset mật khẩu về: 12345678'),
+    onError: () => alert('Reset mật khẩu thất bại.'),
+  });
+
+  const handleResetPassword = (user: User) => {
+    if (window.confirm(`Reset mật khẩu tài khoản "${user.username}" về 12345678?`)) {
+      resetPasswordMutation.mutate(user.id);
+    }
+  };
 
   const resetForm = () => {
     setUsername('');
@@ -175,19 +187,32 @@ export default function UserListPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     {currentUser?.id !== user.id && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={toggleActiveMutation.isPending}
-                        onClick={() => toggleActiveMutation.mutate({ id: user.id, active: !user.isActive })}
-                        className={user.isActive
-                          ? 'text-red-600 border-red-200 hover:bg-red-50'
-                          : 'text-green-600 border-green-200 hover:bg-green-50'}
-                      >
-                        {user.isActive
-                          ? <><UserX size={14} className="mr-1" />Vô hiệu hóa</>
-                          : <><UserCheck size={14} className="mr-1" />Kích hoạt</>}
-                      </Button>
+                      <div className="flex items-center justify-end gap-2">
+                        {user.role !== 'ADMIN' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={resetPasswordMutation.isPending}
+                            onClick={() => handleResetPassword(user)}
+                            className="text-amber-600 border-amber-200 hover:bg-amber-50"
+                          >
+                            <RotateCcw size={14} className="mr-1" />Reset mật khẩu
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={toggleActiveMutation.isPending}
+                          onClick={() => toggleActiveMutation.mutate({ id: user.id, active: !user.isActive })}
+                          className={user.isActive
+                            ? 'text-red-600 border-red-200 hover:bg-red-50'
+                            : 'text-green-600 border-green-200 hover:bg-green-50'}
+                        >
+                          {user.isActive
+                            ? <><UserX size={14} className="mr-1" />Vô hiệu hóa</>
+                            : <><UserCheck size={14} className="mr-1" />Kích hoạt</>}
+                        </Button>
+                      </div>
                     )}
                   </TableCell>
                 </TableRow>

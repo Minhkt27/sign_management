@@ -13,4 +13,7 @@ export const userService = {
 
   changePassword: (currentPassword: string, newPassword: string): Promise<void> =>
     apiClient.put('/users/me/password', { currentPassword, newPassword }).then(() => undefined),
+
+  resetPassword: (id: number): Promise<void> =>
+    apiClient.put(`/users/${id}/reset-password`).then(() => undefined),
 };

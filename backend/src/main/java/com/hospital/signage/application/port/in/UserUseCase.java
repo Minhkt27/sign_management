@@ -16,6 +16,8 @@ public interface UserUseCase {
 
     void changePassword(ChangePasswordCommand command);
 
+    void resetPassword(Long userId);
+
     record CreateTechnicianCommand(String username, String fullName, String password) {}
 
     record ChangePasswordCommand(Long userId, String currentPassword, String newPassword) {}
