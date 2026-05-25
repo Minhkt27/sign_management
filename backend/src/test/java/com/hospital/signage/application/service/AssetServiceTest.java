@@ -118,8 +118,7 @@ class AssetServiceTest {
     @Test
     void deleteAsset_withLinkedTickets_throwsIllegalArgument() {
         when(assetDatabasePort.findById(sampleAsset.getId())).thenReturn(Optional.of(sampleAsset));
-        when(ticketDatabasePort.findByAssetId(sampleAsset.getId()))
-                .thenReturn(List.of(new com.hospital.signage.domain.model.MaintenanceTicket()));
+        when(ticketDatabasePort.existsByAssetId(sampleAsset.getId())).thenReturn(true);
 
         assertThatThrownBy(() -> assetService.deleteAsset(sampleAsset.getId()))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -130,7 +129,7 @@ class AssetServiceTest {
     @Test
     void deleteAsset_withNoTickets_deletesSuccessfully() {
         when(assetDatabasePort.findById(sampleAsset.getId())).thenReturn(Optional.of(sampleAsset));
-        when(ticketDatabasePort.findByAssetId(sampleAsset.getId())).thenReturn(Collections.emptyList());
+        when(ticketDatabasePort.existsByAssetId(sampleAsset.getId())).thenReturn(false);
         doNothing().when(assetDatabasePort).deleteById(sampleAsset.getId());
 
         assetService.deleteAsset(sampleAsset.getId());

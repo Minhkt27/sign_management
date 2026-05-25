@@ -7,6 +7,8 @@ import com.hospital.signage.application.port.out.LocationDatabasePort;
 import com.hospital.signage.application.port.out.TicketDatabasePort;
 import com.hospital.signage.domain.model.Asset;
 import com.hospital.signage.domain.model.Location;
+
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -30,7 +32,7 @@ public class AssetService implements AssetUseCase {
     private final FileStoragePort fileStoragePort;
 
     @Override
-    @org.springframework.transaction.annotation.Transactional
+    @Transactional
     public Asset createAsset(Asset asset) {
         if (asset.getId() == null) {
             asset.setId(UUID.randomUUID());
@@ -52,7 +54,7 @@ public class AssetService implements AssetUseCase {
     }
 
     @Override
-    @org.springframework.transaction.annotation.Transactional
+    @Transactional
     public Asset updateAsset(UUID id, Asset updatedAsset) {
         Asset existing = assetDatabasePort.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Asset not found"));
@@ -110,6 +112,7 @@ public class AssetService implements AssetUseCase {
     }
 
     @Override
+    @Transactional
     public void deleteAsset(UUID id) {
         Asset asset = assetDatabasePort.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Asset not found"));

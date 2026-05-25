@@ -100,13 +100,11 @@ class AuthServiceTest {
         when(jwtTokenProvider.extractUsername("valid-refresh")).thenReturn("admin");
         when(userDatabasePort.findByUsername("admin")).thenReturn(Optional.of(activeUser));
         when(jwtTokenProvider.generateToken("admin", "ADMIN")).thenReturn("new-access-token");
-        when(jwtTokenProvider.generateRefreshToken("admin")).thenReturn("new-refresh-token");
-        when(userDatabasePort.save(any())).thenReturn(activeUser);
 
         AuthUseCase.RefreshResult result = authService.refreshToken("valid-refresh");
 
         assertThat(result.token()).isEqualTo("new-access-token");
-        assertThat(result.refreshToken()).isEqualTo("new-refresh-token");
+        assertThat(result.refreshToken()).isEqualTo("valid-refresh");
     }
 
     @Test

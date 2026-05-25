@@ -4,7 +4,7 @@ import { signTypeService } from '@/services/signTypeService';
 import { SignType } from '@/shared/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+
 import {
   Table,
   TableBody,
@@ -38,7 +38,7 @@ export default function SignTypeListPage() {
   const [formDescription, setFormDescription] = useState('');
 
   // Queries
-  const { data: pagedData, isLoading } = useQuery({
+  const { data: pagedData } = useQuery({
     queryKey: ['signTypes', page, search],
     queryFn: () => signTypeService.getPage(page, PAGE_SIZE, search),
   });
@@ -123,10 +123,6 @@ export default function SignTypeListPage() {
       deleteMutation.mutate(st.id);
     }
   };
-
-  if (isLoading) {
-    return <div className="text-center py-12 text-slate-500 font-medium">Đang tải danh sách loại biển...</div>;
-  }
 
   const withDescCount = signTypes.filter(st => !!st.description).length;
   const withoutDescCount = signTypes.length - withDescCount;
@@ -213,9 +209,7 @@ export default function SignTypeListPage() {
                 signTypes.map((st: SignType, idx: number) => (
                   <TableRow key={st.id} className="hover:bg-slate-50/50">
                     <TableCell className="text-sm text-slate-400 text-left">{page * PAGE_SIZE + idx + 1}</TableCell>
-                    <TableCell className="text-sm text-left">
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-semibold text-xs">{st.code}</Badge>
-                    </TableCell>
+                    <TableCell className="font-mono font-semibold text-slate-700 text-left">{st.code}</TableCell>
                     <TableCell className="text-sm font-semibold text-slate-800 text-left">{st.name}</TableCell>
                     <TableCell className="text-sm text-slate-500 text-left max-w-[300px] truncate">{st.description || '—'}</TableCell>
                     <TableCell className="text-left">

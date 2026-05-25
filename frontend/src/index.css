@@ -86,4 +86,7 @@
   html {
     @apply font-sans;
   }
+  td, th {
+    font-size: 1rem;
+  }
 }

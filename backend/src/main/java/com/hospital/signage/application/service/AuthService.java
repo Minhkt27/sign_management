@@ -68,12 +68,8 @@ public class AuthService implements AuthUseCase {
         }
 
         String newToken = jwtTokenProvider.generateToken(user.getUsername(), user.getRole().name());
-        String newRefreshToken = jwtTokenProvider.generateRefreshToken(user.getUsername());
 
-        user.setRefreshToken(newRefreshToken);
-        userDatabasePort.save(user);
-
-        return new RefreshResult(newToken, newRefreshToken);
+        return new RefreshResult(newToken, refreshToken);
     }
 
     @Override

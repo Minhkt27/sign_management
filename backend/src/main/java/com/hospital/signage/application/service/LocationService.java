@@ -77,6 +77,7 @@ public class LocationService implements LocationUseCase {
     }
 
     @Override
+    @Transactional
     public void deleteLocation(Long id) {
         if (locationDatabasePort.existsByParentId(id)) {
             throw new IllegalArgumentException("Không thể xóa vị trí này vì vẫn còn vị trí con trực thuộc.");

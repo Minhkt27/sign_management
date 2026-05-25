@@ -72,6 +72,7 @@ public class SignTypeService implements SignTypeUseCase {
     }
 
     @Override
+    @Transactional
     public void deleteSignType(Long id) {
         signTypeDatabasePort.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy loại biển với ID: " + id));

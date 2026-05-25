@@ -188,7 +188,8 @@ export default function AssetListPage() {
   // Filter assets
   const filteredAssets = assets
     .filter(asset => {
-      const matchesSearch = asset.assetCode.toLowerCase().includes(search.toLowerCase()) || 
+      const matchesSearch = asset.assetCode.toLowerCase().includes(search.toLowerCase()) ||
+                            (asset.name && asset.name.toLowerCase().includes(search.toLowerCase())) ||
                             (asset.description && asset.description.toLowerCase().includes(search.toLowerCase())) ||
                             (asset.locationDescription && asset.locationDescription.toLowerCase().includes(search.toLowerCase())) ||
                             getLocationName(asset).toLowerCase().includes(search.toLowerCase());

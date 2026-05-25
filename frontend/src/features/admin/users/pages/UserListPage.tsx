@@ -96,10 +96,7 @@ export default function UserListPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800">Quản lý Nhân viên</h2>
-          <p className="text-sm text-slate-500 mt-1">{totalElements} tài khoản</p>
-        </div>
+        <p className="text-sm text-slate-500">{totalElements} tài khoản</p>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setIsChangePasswordOpen(true)}>
             <KeyRound size={16} className="mr-2" />
@@ -175,13 +172,13 @@ export default function UserListPage() {
                   <TableCell className="font-medium">{user.fullName}</TableCell>
                   <TableCell className="text-slate-800">{user.username}</TableCell>
                   <TableCell>
-                    <Badge variant={user.role === 'ADMIN' ? 'default' : 'secondary'}>
+                    <Badge variant={user.role === 'ADMIN' ? 'default' : 'secondary'} className="text-sm px-2.5 h-6">
                       {user.role === 'ADMIN' ? 'Quản trị' : 'Kỹ thuật viên'}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     <Badge variant={user.isActive ? 'default' : 'destructive'}
-                      className={user.isActive ? 'bg-green-100 text-green-700 hover:bg-green-100' : ''}>
+                      className={`text-sm px-2.5 h-6 ${user.isActive ? 'bg-green-100 text-green-700 hover:bg-green-100' : ''}`}>
                       {user.isActive ? 'Hoạt động' : 'Vô hiệu'}
                     </Badge>
                   </TableCell>

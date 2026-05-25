@@ -56,6 +56,7 @@ public class TicketService implements TicketUseCase {
     }
 
     @Override
+    @Transactional
     public MaintenanceTicket assignTicket(Long ticketId, Long assigneeId) {
         MaintenanceTicket ticket = ticketDatabasePort.findById(ticketId)
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));

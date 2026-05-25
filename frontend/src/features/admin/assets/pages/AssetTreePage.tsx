@@ -403,8 +403,7 @@ export default function AssetTreePage() {
     <div className="bg-white p-8 rounded-2xl border border-slate-200/80 shadow-sm space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-100 pb-5">
         <div>
-          <h2 className="text-xl font-bold text-slate-800">Sơ đồ Cấu trúc Vị trí</h2>
-          <p className="text-sm text-slate-500 mt-1">Duyệt biển báo theo mô hình phân cấp Tòa nhà - Tầng - Phòng ban.</p>
+          <p className="text-sm text-slate-500">Duyệt biển báo theo mô hình phân cấp Tòa nhà - Tầng - Phòng ban.</p>
         </div>
         <Button 
           onClick={() => openCreateLocDialog(null)}

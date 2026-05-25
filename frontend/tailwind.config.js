@@ -16,6 +16,9 @@ export default {
       },
     },
     extend: {
+      fontSize: {
+        sm: ['1rem', { lineHeight: '1.5rem' }],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

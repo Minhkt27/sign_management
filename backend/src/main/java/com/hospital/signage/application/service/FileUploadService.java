@@ -2,6 +2,8 @@ package com.hospital.signage.application.service;
 
 import com.hospital.signage.application.port.in.FileUploadUseCase;
 import com.hospital.signage.application.port.out.FileStoragePort;
+
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -20,6 +22,7 @@ public class FileUploadService implements FileUploadUseCase {
     private final FileStoragePort fileStoragePort;
 
     @Override
+    @Transactional
     public String upload(MultipartFile file) {
         if (file.isEmpty()) {
             throw new IllegalArgumentException("File không được rỗng");
