@@ -27,8 +27,11 @@ export default function AdminLayout() {
 
   return (
     <div className="flex h-screen bg-slate-100 font-sans antialiased overflow-hidden">
+      {/* Sidebar Spacer */}
+      <div className="w-16 shrink-0 h-full" />
+
       {/* Sidebar */}
-      <aside className="group w-16 hover:w-56 transition-[width] duration-300 ease-in-out bg-white border-r border-slate-200 flex flex-col shadow-sm overflow-hidden shrink-0">
+      <aside className="fixed top-0 left-0 bottom-0 z-20 group w-16 hover:w-56 transition-[width] duration-300 ease-in-out bg-white border-r border-slate-200 flex flex-col shadow-sm overflow-hidden">
 
         {/* Brand */}
         <div className="h-16 border-b border-slate-100 flex items-center pl-[14px] shrink-0">
@@ -54,9 +57,9 @@ export default function AdminLayout() {
                 <p className="text-sm font-semibold text-slate-800 truncate">{user.fullName}</p>
                 <button
                   onClick={() => setIsChangePasswordOpen(true)}
-                  className="text-[11px] text-blue-500 hover:text-blue-700 font-semibold flex items-center gap-1 transition-colors"
+                  className="text-[11px] text-blue-500 hover:text-blue-700 font-semibold flex items-center gap-1 transition-colors whitespace-nowrap"
                 >
-                  <KeyRound size={10} />
+                  <KeyRound size={10} className="shrink-0" />
                   Đổi mật khẩu
                 </button>
               </div>
