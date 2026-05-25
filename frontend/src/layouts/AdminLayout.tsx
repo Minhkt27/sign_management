@@ -27,8 +27,8 @@ export default function AdminLayout() {
 
   return (
     <div className="flex h-screen bg-slate-100 font-sans antialiased overflow-hidden">
-      {/* Sidebar — fixed position so expand never causes main content reflow */}
-      <aside className="group fixed left-0 top-0 h-full z-40 w-16 hover:w-56 transition-[width] duration-300 ease-in-out bg-white border-r border-slate-200 flex flex-col shadow-sm overflow-hidden">
+      {/* Sidebar */}
+      <aside className="group w-16 hover:w-56 transition-[width] duration-300 ease-in-out bg-white border-r border-slate-200 flex flex-col shadow-sm overflow-hidden shrink-0">
 
         {/* Brand */}
         <div className="h-16 border-b border-slate-100 flex items-center pl-[14px] shrink-0">
@@ -110,8 +110,8 @@ export default function AdminLayout() {
         </div>
       </aside>
 
-      {/* Main Content — ml-16 matches collapsed sidebar width */}
-      <main className="ml-16 flex-1 overflow-y-auto bg-slate-50 flex flex-col min-w-0">
+      {/* Main Content */}
+      <main className="flex-1 overflow-y-auto bg-slate-50 flex flex-col min-w-0">
         <header className="bg-white border-b border-slate-200/80 px-8 py-4 flex items-center justify-between sticky top-0 z-10 shadow-sm shadow-slate-100">
           <h2 className="text-xl font-bold text-slate-800">{pageTitle}</h2>
           <div className="flex items-center gap-2 text-xs text-slate-500 font-medium bg-slate-100 py-1.5 px-3 rounded-full">
