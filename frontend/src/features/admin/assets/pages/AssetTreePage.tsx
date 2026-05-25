@@ -422,7 +422,7 @@ export default function AssetTreePage() {
           placeholder="Tìm nhanh biển hiệu (mã, mô tả, chất liệu...) hoặc vị trí..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-11 pr-4 py-3 border-slate-200 hover:border-slate-350 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-base"
+          className="pl-11 pr-4 py-3 border-slate-200 hover:border-slate-350 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-base text-slate-500"
         />
       </div>
 

@@ -259,7 +259,7 @@ export default function AssetListPage() {
                 placeholder="Tìm mã hoặc vị trí..."
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-                className="pl-11 pr-4 py-3 text-base border-slate-200 hover:border-slate-350 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                className="pl-11 pr-4 py-3 text-base text-slate-500 border-slate-200 hover:border-slate-350 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
             </div>
           </div>
