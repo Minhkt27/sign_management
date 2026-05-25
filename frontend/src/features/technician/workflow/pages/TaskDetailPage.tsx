@@ -34,6 +34,9 @@ export default function TaskDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['task', id] });
       queryClient.invalidateQueries({ queryKey: ['techTickets'] });
     },
+    onError: () => {
+      setUploadError('Cập nhật thất bại. Vui lòng thử lại hoặc đăng nhập lại.');
+    },
   });
 
   const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
