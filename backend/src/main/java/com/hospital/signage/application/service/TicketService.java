@@ -72,7 +72,7 @@ public class TicketService implements TicketUseCase {
     @Override
     @Transactional
     public MaintenanceTicket updateTicketStatus(Long ticketId, TicketStatus status, String imageBefore,
-            String imageAfter, String rejectionNote) {
+            String imageAfter, String rejectionNote, Long technicianId) {
         MaintenanceTicket ticket = ticketDatabasePort.findById(ticketId)
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
 
@@ -81,6 +81,12 @@ public class TicketService implements TicketUseCase {
 
         if (isRejection && ticket.getRejectionCount() >= 3) {
             throw new IllegalStateException("Phiếu này đã bị từ chối tối đa 3 lần.");
+        }
+
+        if (status == TicketStatus.IN_PROGRESS && !isRejection && technicianId != null) {
+            User technician = userDatabasePort.findById(technicianId)
+                    .orElseThrow(() -> new IllegalArgumentException("Technician not found"));
+            ticket.setAssignee(technician);
         }
 
         ticket.setTicketStatus(status);

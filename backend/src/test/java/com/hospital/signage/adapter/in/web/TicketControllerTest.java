@@ -121,7 +121,7 @@ public class TicketControllerTest {
         ticket.setId(1L);
         ticket.setTicketStatus(TicketStatus.RESOLVED);
 
-        when(ticketUseCase.updateTicketStatus(eq(1L), eq(TicketStatus.RESOLVED), eq("before.jpg"), eq("after.jpg"), eq(null)))
+        when(ticketUseCase.updateTicketStatus(eq(1L), eq(TicketStatus.RESOLVED), eq("before.jpg"), eq("after.jpg"), eq(null), eq(null)))
                 .thenReturn(ticket);
 
         TicketController.UpdateStatusRequest request = new TicketController.UpdateStatusRequest(

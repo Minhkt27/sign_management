@@ -91,13 +91,19 @@ public class TicketController {
     public ResponseEntity<MaintenanceTicket> updateTicketStatus(
             @PathVariable Long id,
             @RequestBody UpdateStatusRequest request) {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        Long technicianId = null;
+        if (principal instanceof User caller && "TECHNICAL".equals(caller.getRole().name())) {
+            technicianId = caller.getId();
+        }
         try {
             return ResponseEntity.ok(ticketUseCase.updateTicketStatus(
                     id,
                     request.status(),
                     request.imageBefore(),
                     request.imageAfter(),
-                    request.rejectionNote()
+                    request.rejectionNote(),
+                    technicianId
             ));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
