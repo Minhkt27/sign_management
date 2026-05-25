@@ -29,7 +29,7 @@ public class TicketController {
             @RequestParam(required = false) Long assigneeId,
             @RequestParam(required = false) UUID assetId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(PagedResponse.from(ticketUseCase.getTicketsPage(page, size, assigneeId, assetId)));
     }
 

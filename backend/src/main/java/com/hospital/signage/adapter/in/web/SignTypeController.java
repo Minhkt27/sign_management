@@ -25,7 +25,7 @@ public class SignTypeController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PagedResponse<SignType>> getSignTypesPage(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "15") int size,
+            @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "") String search) {
         var result = signTypeUseCase.getSignTypesPage(page, size, search);
         return ResponseEntity.ok(PagedResponse.from(result));
