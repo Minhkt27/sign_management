@@ -173,7 +173,7 @@ export default function UserListPage() {
               {users.map((user: User) => (
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">{user.fullName}</TableCell>
-                  <TableCell className="text-slate-500">{user.username}</TableCell>
+                  <TableCell className="text-slate-800">{user.username}</TableCell>
                   <TableCell>
                     <Badge variant={user.role === 'ADMIN' ? 'default' : 'secondary'}>
                       {user.role === 'ADMIN' ? 'Quản trị' : 'Kỹ thuật viên'}
