@@ -83,10 +83,16 @@ public class TicketService implements TicketUseCase {
             throw new IllegalStateException("Phiếu này đã bị từ chối tối đa 3 lần.");
         }
 
-        if (status == TicketStatus.IN_PROGRESS && !isRejection && technicianId != null) {
-            User technician = userDatabasePort.findById(technicianId)
-                    .orElseThrow(() -> new IllegalArgumentException("Technician not found"));
-            ticket.setAssignee(technician);
+        if (technicianId != null) {
+            if (ticket.getAssignee() == null) {
+                if (status == TicketStatus.IN_PROGRESS && !isRejection) {
+                    User technician = userDatabasePort.findById(technicianId)
+                            .orElseThrow(() -> new IllegalArgumentException("Technician not found"));
+                    ticket.setAssignee(technician);
+                }
+            } else if (!ticket.getAssignee().getId().equals(technicianId)) {
+                throw new IllegalStateException("Bạn không được phép cập nhật phiếu này.");
+            }
         }
 
         ticket.setTicketStatus(status);
