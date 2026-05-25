@@ -66,15 +66,15 @@ export default function AdminLayout() {
                 to={item.to}
                 end={item.to === '/admin/assets'}
                 className={({ isActive }) =>
-                  `flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-all duration-150 ${
+                  `flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-150 ${
                     isActive
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-200 font-semibold'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-200 font-bold'
+                      : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900 font-semibold'
                   }`
                 }
               >
-                <Icon size={18} />
-                <span className="text-sm">{item.label}</span>
+                <Icon size={20} />
+                <span className="text-base">{item.label}</span>
               </NavLink>
             );
           })}
