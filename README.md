@@ -9,7 +9,7 @@ Hệ thống số hóa, quản lý và điều phối bảo trì toàn bộ bi�
 | Phase | Trạng thái | Mô tả |
 |-------|-----------|-------|
 | **Phase 1** | ✅ Hoàn thành | Lõi quản trị dữ liệu nền tảng. Quản lý biển báo, vị trí phân cấp, phiếu bảo trì, phân công kỹ thuật viên. |
-| **Phase 2** | Tương lai gần | Số hóa điểm chạm: tích hợp QR Code / NFC gắn tại mỗi biển để báo hỏng nhanh từ điện thoại. |
+| **Phase 2** | ✅ Hoàn thành | Số hóa điểm chạm: QR Code gắn tại mỗi biển, báo hỏng và tự nhận việc từ điện thoại, luồng duyệt/từ chối phiếu. |
 | **Phase 3** | Trung hạn | Sơ đồ số và công cụ tìm đường trong nhà (Wayfinding) cho bệnh nhân và nhân viên. |
 | **Phase 4** | Dài hạn | AI dự báo hư hỏng dựa trên lịch sử bảo trì, tần suất báo hỏng và điều kiện môi trường. |
 
@@ -34,6 +34,23 @@ Hệ thống số hóa, quản lý và điều phối bảo trì toàn bộ bi�
 - Rate limiting đăng nhập: 5 lần thất bại / 15 phút per username
 - Validate file upload: kiểm tra cả extension lẫn magic bytes (chống polyglot attack)
 - Không hardcode credentials; mật khẩu khởi tạo đọc từ biến môi trường
+
+---
+
+## 2b. Tính năng Phase 2
+
+### Quản trị viên (Desktop)
+- **Duyệt/Từ chối phiếu**: Xem ảnh trước/sau, đóng phiếu hoặc yêu cầu sửa lại (tối đa 3 lần) kèm ghi chú lý do
+- **Biển báo thanh lý**: Chặn tạo phiếu báo hỏng cho biển đã thanh lý (cả UI lẫn backend)
+
+### Kỹ thuật viên (Mobile Web)
+- **Quét QR tại hiện trường**: Quét bằng camera hoặc chọn ảnh QR từ thư viện ảnh/file
+- **Trang thông tin biển (Scan Landing)**: Xem đầy đủ thông tin biển sau khi quét; báo hỏng ngay tại chỗ hoặc tự nhận phiếu đang OPEN chưa có người nhận
+- **Luồng xử lý phiếu**: Upload ảnh hiện trường trước khi bắt đầu và sau khi hoàn thành; xem ghi chú từ chối của admin; validate file ảnh (type + kích thước tối đa 10MB)
+
+### Tích hợp QR Code
+- Mỗi biển báo có mã QR riêng (sinh từ `assetCode`), tải được dạng PNG từ trang chi tiết
+- QR trỏ tới `/tech/assets/:assetCode` — hoạt động trên cả desktop lẫn mobile
 
 ---
 
@@ -70,7 +87,7 @@ frontend/src/
 │   │   ├── sign-types/  # SignTypeListPage
 │   │   └── users/       # UserListPage
 │   └── technician/
-│       └── workflow/    # TechDashboardPage, TaskDetailPage, AssetBrowsePage
+│       └── workflow/    # TechDashboardPage, TaskDetailPage, AssetBrowsePage, ScanLandingPage
 ├── layouts/             # AdminLayout (sidebar desktop), MobileLayout (bottom nav)
 ├── components/ui/       # Base UI components (@base-ui/react)
 ├── services/            # apiClient (Axios), authService, assetService, userService...
@@ -93,7 +110,7 @@ frontend/src/
 | `locations` | Cây vị trí phân cấp (Tòa nhà/Tầng/Khoa/Phòng); có cột `path` kiểu `ltree` cho Phase 3 |
 | `assets` | Biển báo vật lý: mã, chất liệu, kích thước, trạng thái (ACTIVE/DAMAGED/REPAIRING/SCRAPPED) |
 | `sign_types` | Danh mục loại biển báo |
-| `maintenance_tickets` | Phiếu bảo trì: mô tả, độ ưu tiên, trạng thái, kỹ thuật viên được giao |
+| `maintenance_tickets` | Phiếu bảo trì: mô tả, độ ưu tiên, trạng thái, nguồn (MANUAL/QR_SCAN), số lần từ chối, ghi chú từ chối, timestamp hoàn thành |
 | `ticket_images` | Ảnh đính kèm phiếu (BEFORE/AFTER) |
 
 ---
@@ -105,7 +122,17 @@ frontend/src/
 - JDK 21+, Maven 3.9+
 - Node.js 20+, npm 10+
 
-### Bước 1 — Tạo file `.env`
+### Cách nhanh (Windows) — 1 lệnh
+
+```powershell
+.\dev.ps1
+```
+
+Script tự động: khởi động Docker (postgres + minio), mở terminal backend (`mvn spring-boot:run`) và terminal frontend (`npm run dev`) trong 2 cửa sổ riêng.
+
+### Cách thủ công
+
+#### Bước 1 — Tạo file `.env`
 
 Sao chép file mẫu và điều chỉnh nếu cần:
 
@@ -128,7 +155,7 @@ MINIO_BUCKET=signage-assets
 MINIO_PUBLIC_URL=http://localhost:9000
 ```
 
-### Bước 2 — Khởi động PostgreSQL và MinIO bằng Docker
+#### Bước 2 — Khởi động PostgreSQL và MinIO bằng Docker
 
 ```bash
 docker compose up -d postgres minio
@@ -140,7 +167,7 @@ Kiểm tra sẵn sàng:
 docker compose ps   # postgres và minio phải ở trạng thái healthy
 ```
 
-### Bước 3 — Khởi động Backend
+#### Bước 3 — Khởi động Backend
 
 ```bash
 cd backend
@@ -152,7 +179,7 @@ POSTGRES_PASSWORD=change_me_in_production mvn spring-boot:run
 > Profile `dev` được kích hoạt tự động. Backend lắng nghe tại `http://localhost:8080`.  
 > Lần đầu chạy, `DataInitializer` tự seed dữ liệu mẫu và tạo tài khoản mặc định (xem mục 6).
 
-### Bước 4 — Khởi động Frontend
+#### Bước 4 — Khởi động Frontend
 
 ```bash
 cd frontend
@@ -161,6 +188,27 @@ npm run dev
 ```
 
 > Frontend chạy tại `http://localhost:5173`.
+
+### Truy cập từ điện thoại (ngrok)
+
+Để test tính năng QR scan trên điện thoại thật (yêu cầu HTTPS):
+
+```bash
+ngrok http 5173
+```
+
+Cập nhật URL ngrok vào `backend/src/main/resources/application-dev.yml`:
+
+```yaml
+cors:
+  allowed-origins: http://localhost:5173,https://<your-ngrok-url>
+```
+
+Và vào `frontend/vite.config.ts`:
+
+```ts
+allowedHosts: ['<your-ngrok-url>']
+```
 
 ---
 

@@ -403,8 +403,7 @@ export default function AssetTreePage() {
     <div className="bg-white p-8 rounded-2xl border border-slate-200/80 shadow-sm space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-100 pb-5">
         <div>
-          <h2 className="text-xl font-bold text-slate-800">Sơ đồ Cấu trúc Vị trí</h2>
-          <p className="text-sm text-slate-500 mt-1">Duyệt biển báo theo mô hình phân cấp Tòa nhà - Tầng - Phòng ban.</p>
+          <p className="text-sm text-slate-500">Duyệt biển báo theo mô hình phân cấp Tòa nhà - Tầng - Phòng ban.</p>
         </div>
         <Button 
           onClick={() => openCreateLocDialog(null)}
@@ -417,12 +416,12 @@ export default function AssetTreePage() {
 
       {/* Search Bar */}
       <div className="relative max-w-md">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
         <Input
           placeholder="Tìm nhanh biển hiệu (mã, mô tả, chất liệu...) hoặc vị trí..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10 pr-4 py-2.5 border-slate-200 hover:border-slate-350 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-sm"
+          className="pl-11 pr-4 py-3 border-slate-200 hover:border-slate-350 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-base text-slate-500"
         />
       </div>
 

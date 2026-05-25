@@ -3,9 +3,11 @@ package com.hospital.signage.application.service;
 import com.hospital.signage.application.port.in.LocationUseCase;
 import com.hospital.signage.application.port.out.AssetDatabasePort;
 import com.hospital.signage.application.port.out.LocationDatabasePort;
+import com.hospital.signage.domain.enums.LocationType;
 import com.hospital.signage.domain.model.Location;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -19,6 +21,7 @@ public class LocationService implements LocationUseCase {
     private final AssetDatabasePort assetDatabasePort;
 
     @Override
+    @Transactional
     public Location createLocation(Location location) {
         location.setCreatedAt(LocalDateTime.now());
         location.setUpdatedAt(LocalDateTime.now());
@@ -28,33 +31,26 @@ public class LocationService implements LocationUseCase {
             location.setLocationCode(base);
         }
 
-        // Auto-resolve or validate LocationType hierarchy
+        // Fetch parent once, reuse for type inference and path building
+        Location parent = location.getParentId() != null
+                ? locationDatabasePort.findById(location.getParentId())
+                        .orElseThrow(() -> new IllegalArgumentException("Parent location not found"))
+                : null;
+
         if (location.getType() == null) {
-            if (location.getParentId() == null) {
-                location.setType(com.hospital.signage.domain.enums.LocationType.BUILDING);
+            if (parent == null) {
+                location.setType(LocationType.BUILDING);
+            } else if (parent.getType() == LocationType.BUILDING) {
+                location.setType(LocationType.FLOOR);
+            } else if (parent.getType() == LocationType.FLOOR) {
+                location.setType(LocationType.DEPARTMENT);
             } else {
-                Location parent = locationDatabasePort.findById(location.getParentId())
-                        .orElseThrow(() -> new IllegalArgumentException("Parent location not found"));
-                if (parent.getType() == com.hospital.signage.domain.enums.LocationType.BUILDING) {
-                    location.setType(com.hospital.signage.domain.enums.LocationType.FLOOR);
-                } else if (parent.getType() == com.hospital.signage.domain.enums.LocationType.FLOOR) {
-                    location.setType(com.hospital.signage.domain.enums.LocationType.DEPARTMENT);
-                } else {
-                    location.setType(com.hospital.signage.domain.enums.LocationType.ROOM);
-                }
+                location.setType(LocationType.ROOM);
             }
         }
 
-        // Format code for postgres ltree (only A-Za-z0-9_ allowed per label)
         String label = cleanForLtree(location.getLocationCode());
-
-        if (location.getParentId() != null) {
-            Location parent = locationDatabasePort.findById(location.getParentId())
-                    .orElseThrow(() -> new IllegalArgumentException("Parent location not found"));
-            location.setPath(parent.getPath() + "." + label);
-        } else {
-            location.setPath(label);
-        }
+        location.setPath(parent != null ? parent.getPath() + "." + label : label);
 
         return locationDatabasePort.save(location);
     }
@@ -81,17 +77,19 @@ public class LocationService implements LocationUseCase {
     }
 
     @Override
+    @Transactional
     public void deleteLocation(Long id) {
-        if (!locationDatabasePort.findByParentId(id).isEmpty()) {
+        if (locationDatabasePort.existsByParentId(id)) {
             throw new IllegalArgumentException("Không thể xóa vị trí này vì vẫn còn vị trí con trực thuộc.");
         }
-        if (!assetDatabasePort.findByLocationId(id).isEmpty()) {
+        if (assetDatabasePort.existsByLocationId(id)) {
             throw new IllegalArgumentException("Không thể xóa vị trí này vì đang có biển báo liên kết.");
         }
         locationDatabasePort.deleteById(id);
     }
 
     @Override
+    @Transactional
     public Location updateLocation(Long id, Location locationDetails) {
         Location existing = locationDatabasePort.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Location not found"));
@@ -116,20 +114,10 @@ public class LocationService implements LocationUseCase {
         Location updated = locationDatabasePort.save(existing);
 
         if (!updated.getPath().equals(oldPath)) {
-            updateDescendantsPaths(updated.getId(), updated.getPath());
+            locationDatabasePort.bulkUpdatePathPrefix(oldPath, updated.getPath());
         }
 
         return updated;
-    }
-
-    private void updateDescendantsPaths(Long parentId, String parentPath) {
-        List<Location> children = locationDatabasePort.findByParentId(parentId);
-        for (Location child : children) {
-            String label = cleanForLtree(child.getLocationCode());
-            child.setPath(parentPath + "." + label);
-            locationDatabasePort.save(child);
-            updateDescendantsPaths(child.getId(), child.getPath());
-        }
     }
 
     @Override

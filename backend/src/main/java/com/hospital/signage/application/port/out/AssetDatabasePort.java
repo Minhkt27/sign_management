@@ -16,5 +16,7 @@ public interface AssetDatabasePort {
     Page<Asset> findAll(Pageable pageable);
     List<Asset> findByLocationId(Long locationId);
     List<Asset> findBySignTypeId(Long signTypeId);
+    boolean existsByLocationId(Long locationId);
+    boolean existsBySignTypeId(Long signTypeId);
     void deleteById(UUID id);
 }

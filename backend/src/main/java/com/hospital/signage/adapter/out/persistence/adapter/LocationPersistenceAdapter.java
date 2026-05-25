@@ -46,6 +46,16 @@ public class LocationPersistenceAdapter implements LocationDatabasePort {
     }
 
     @Override
+    public boolean existsByParentId(Long parentId) {
+        return repository.existsByParentId(parentId);
+    }
+
+    @Override
+    public void bulkUpdatePathPrefix(String oldPath, String newPath) {
+        repository.bulkUpdatePathPrefix(oldPath, newPath);
+    }
+
+    @Override
     public void deleteById(Long id) {
         repository.deleteById(id);
     }

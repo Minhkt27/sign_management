@@ -17,4 +17,5 @@ public interface TicketDatabasePort {
     Page<MaintenanceTicket> findByAssetId(UUID assetId, Pageable pageable);
     List<MaintenanceTicket> findByAssigneeId(Long assigneeId);
     Page<MaintenanceTicket> findByAssigneeId(Long assigneeId, Pageable pageable);
+    boolean existsByAssetId(UUID assetId);
 }

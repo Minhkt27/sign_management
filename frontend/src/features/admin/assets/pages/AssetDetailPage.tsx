@@ -153,9 +153,9 @@ export default function AssetDetailPage() {
         material,
         size,
         supplier,
-        installedAt: installedAt || undefined,
+        installedAt: installedAt ? `${installedAt}T00:00:00` : undefined,
         status,
-        imageUrl: uploadedUrl,
+        imageUrl: uploadedUrl || undefined,
       });
     } catch (err) {
       alert('Lỗi tải ảnh lên. Vui lòng thử lại.');
@@ -622,7 +622,7 @@ export default function AssetDetailPage() {
         <div className="bg-white p-8 rounded-2xl border border-slate-200/80 shadow-sm md:col-span-2 space-y-6">
           <div className="flex items-start justify-between border-b border-slate-100 pb-4">
             <div className="space-y-1">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Mã QR / Định danh</span>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Mã QR / Định danh</span>
               <h2 className="text-2xl font-bold text-slate-800">{asset.assetCode}</h2>
               {asset.name && (
                 <p className="text-base font-semibold text-slate-705 mt-1">{asset.name}</p>
@@ -633,8 +633,8 @@ export default function AssetDetailPage() {
                 </Badge>
               )}
               {asset.description && (
-                <p className="text-sm text-slate-500 mt-1 flex items-center space-x-1.5">
-                  <FileText size={15} className="text-slate-400" />
+                <p className="text-sm text-slate-700 mt-1 flex items-center space-x-1.5">
+                  <FileText size={15} className="text-slate-500" />
                   <span>{asset.description}</span>
                 </p>
               )}
@@ -644,7 +644,7 @@ export default function AssetDetailPage() {
 
           <div className="grid grid-cols-2 gap-y-5 gap-x-6">
             <div className="space-y-1 col-span-2 bg-slate-50/50 p-4 rounded-xl border border-slate-100/80">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center space-x-1">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center space-x-1">
                 <MapPin size={12} className="text-blue-500" />
                 <span>Vị trí chi tiết lắp đặt</span>
               </span>
@@ -657,19 +657,19 @@ export default function AssetDetailPage() {
             </div>
             
             <div className="space-y-1">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Chất liệu</span>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Chất liệu</span>
               <p className="text-sm font-semibold text-slate-700">{asset.material}</p>
             </div>
             <div className="space-y-1">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Kích thước</span>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Kích thước</span>
               <p className="text-sm font-semibold text-slate-700">{asset.size}</p>
             </div>
             <div className="space-y-1">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Nhà cung cấp</span>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Nhà cung cấp</span>
               <p className="text-sm font-semibold text-slate-700">{asset.supplier || 'Không xác định'}</p>
             </div>
             <div className="space-y-1">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center space-x-1">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center space-x-1">
                 <Calendar size={12} /> <span>Ngày lắp đặt</span>
               </span>
               <p className="text-sm font-semibold text-slate-700">
@@ -697,7 +697,7 @@ export default function AssetDetailPage() {
               >
                 <div className="space-y-1">
                   <div className="flex items-center space-x-2">
-                    <span className="text-xs font-bold text-slate-400">#{t.id}</span>
+                    <span className="text-xs font-bold text-slate-600">#{t.id}</span>
                     <Badge className={
                       t.priority === 'CRITICAL' ? 'bg-red-50 text-red-600 hover:bg-red-50 border border-red-200' :
                       t.priority === 'HIGH' ? 'bg-orange-50 text-orange-600 hover:bg-orange-50 border border-orange-200' :
@@ -717,7 +717,7 @@ export default function AssetDetailPage() {
                   <p className="text-sm font-medium text-slate-700 truncate max-w-[500px]">{t.description}</p>
                 </div>
 
-                <div className="text-right text-xs text-slate-400">
+                <div className="text-right text-xs text-slate-600">
                   <span>Khởi tạo: {new Date(t.createdAt).toLocaleDateString()}</span>
                 </div>
               </div>

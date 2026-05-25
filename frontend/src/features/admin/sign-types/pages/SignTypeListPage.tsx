@@ -4,7 +4,7 @@ import { signTypeService } from '@/services/signTypeService';
 import { SignType } from '@/shared/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+
 import {
   Table,
   TableBody,
@@ -38,10 +38,14 @@ export default function SignTypeListPage() {
   const [formDescription, setFormDescription] = useState('');
 
   // Queries
-  const { data: signTypes = [], isLoading } = useQuery<SignType[]>({
-    queryKey: ['signTypes'],
-    queryFn: signTypeService.getAllSignTypes,
+  const { data: pagedData } = useQuery({
+    queryKey: ['signTypes', page, search],
+    queryFn: () => signTypeService.getPage(page, PAGE_SIZE, search),
   });
+
+  const signTypes = pagedData?.content ?? [];
+  const totalPages = pagedData?.totalPages ?? 0;
+  const totalElements = pagedData?.totalElements ?? 0;
 
   // Mutations
   const createMutation = useMutation({
@@ -120,22 +124,6 @@ export default function SignTypeListPage() {
     }
   };
 
-  if (isLoading) {
-    return <div className="text-center py-12 text-slate-500 font-medium">Đang tải danh sách loại biển...</div>;
-  }
-
-  const filtered = signTypes.filter(st => {
-    const term = search.toLowerCase();
-    return (
-      st.code.toLowerCase().includes(term) ||
-      st.name.toLowerCase().includes(term) ||
-      (st.description && st.description.toLowerCase().includes(term))
-    );
-  });
-
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const pagedSignTypes = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-
   const withDescCount = signTypes.filter(st => !!st.description).length;
   const withoutDescCount = signTypes.length - withDescCount;
 
@@ -146,7 +134,7 @@ export default function SignTypeListPage() {
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold text-slate-500">Tổng loại biển</p>
-            <h3 className="text-3xl font-extrabold text-slate-800 mt-1">{signTypes.length}</h3>
+            <h3 className="text-3xl font-extrabold text-slate-800 mt-1">{totalElements}</h3>
           </div>
           <div className="bg-blue-50 text-blue-600 p-3.5 rounded-xl">
             <Tags size={24} />
@@ -179,12 +167,12 @@ export default function SignTypeListPage() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center space-x-3 flex-1 max-w-md">
             <div className="relative w-full">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
               <Input
                 placeholder="Tìm mã hoặc tên loại biển..."
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-                className="pl-10 pr-4 py-2 border-slate-200 hover:border-slate-350 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                className="pl-11 pr-4 py-3 text-base text-slate-500 border-slate-200 hover:border-slate-350 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -201,7 +189,7 @@ export default function SignTypeListPage() {
         {/* Stats */}
         <div className="flex items-center space-x-2 text-xs text-slate-500 font-medium">
           <Tags size={14} className="text-slate-400" />
-          <span>Tổng cộng: <strong className="text-slate-700">{signTypes.length}</strong> loại biển</span>
+          <span>Tổng cộng: <strong className="text-slate-700">{totalElements}</strong> loại biển</span>
         </div>
 
         {/* Table */}
@@ -217,13 +205,11 @@ export default function SignTypeListPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.length > 0 ? (
-                pagedSignTypes.map((st, idx) => (
+              {signTypes.length > 0 ? (
+                signTypes.map((st: SignType, idx: number) => (
                   <TableRow key={st.id} className="hover:bg-slate-50/50">
                     <TableCell className="text-sm text-slate-400 text-left">{page * PAGE_SIZE + idx + 1}</TableCell>
-                    <TableCell className="text-sm text-left">
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-semibold text-xs">{st.code}</Badge>
-                    </TableCell>
+                    <TableCell className="font-mono font-semibold text-slate-700 text-left">{st.code}</TableCell>
                     <TableCell className="text-sm font-semibold text-slate-800 text-left">{st.name}</TableCell>
                     <TableCell className="text-sm text-slate-500 text-left max-w-[300px] truncate">{st.description || '—'}</TableCell>
                     <TableCell className="text-left">
@@ -262,10 +248,10 @@ export default function SignTypeListPage() {
         </div>
 
         {/* Pagination */}
-        {filtered.length > 0 && totalPages > 1 && (
+        {totalElements > 0 && totalPages > 1 && (
           <div className="flex items-center justify-between pt-2">
             <span className="text-sm text-slate-500">
-              {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} / <strong>{filtered.length}</strong> loại biển
+              {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, totalElements)} / <strong>{totalElements}</strong> loại biển
             </span>
             <div className="flex items-center space-x-2">
               <Button

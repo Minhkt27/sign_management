@@ -20,8 +20,12 @@ public class UserController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<UserResponse>> getAllUsers() {
-        return ResponseEntity.ok(userUseCase.getAllUsers().stream().map(UserResponse::from).toList());
+    public ResponseEntity<PagedResponse<UserResponse>> getAllUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "") String search) {
+        var result = userUseCase.getUsersPage(page, size, search).map(UserResponse::from);
+        return ResponseEntity.ok(PagedResponse.from(result));
     }
 
     @GetMapping("/technicians")
@@ -43,6 +47,17 @@ public class UserController {
     public ResponseEntity<UserResponse> setActive(@PathVariable Long id, @RequestBody SetActiveRequest req) {
         User user = userUseCase.setUserActive(id, req.active());
         return ResponseEntity.ok(UserResponse.from(user));
+    }
+
+    @PutMapping("/{id}/reset-password")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> resetPassword(@PathVariable Long id) {
+        try {
+            userUseCase.resetPassword(id);
+            return ResponseEntity.ok().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 
     @PutMapping("/me/password")

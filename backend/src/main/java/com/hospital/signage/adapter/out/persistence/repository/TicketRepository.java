@@ -15,4 +15,5 @@ public interface TicketRepository extends JpaRepository<MaintenanceTicketEntity,
     Page<MaintenanceTicketEntity> findByAssetId(UUID assetId, Pageable pageable);
     List<MaintenanceTicketEntity> findByAssigneeId(Long assigneeId);
     Page<MaintenanceTicketEntity> findByAssigneeId(Long assigneeId, Pageable pageable);
+    boolean existsByAssetId(UUID assetId);
 }

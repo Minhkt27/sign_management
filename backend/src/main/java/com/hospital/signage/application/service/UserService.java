@@ -5,6 +5,9 @@ import com.hospital.signage.application.port.out.UserDatabasePort;
 import com.hospital.signage.domain.enums.Role;
 import com.hospital.signage.domain.model.User;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +25,12 @@ public class UserService implements UserUseCase {
     @Override
     public List<User> getAllUsers() {
         return userDatabasePort.findAll();
+    }
+
+    @Override
+    public Page<User> getUsersPage(int page, int size, String search) {
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        return userDatabasePort.findPage(search, pageRequest);
     }
 
     @Override
@@ -58,6 +67,20 @@ public class UserService implements UserUseCase {
             user.setRefreshToken(null);
         }
         return userDatabasePort.save(user);
+    }
+
+    @Override
+    @Transactional
+    public void resetPassword(Long userId) {
+        User user = userDatabasePort.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại"));
+        if (user.getRole() == Role.ADMIN) {
+            throw new IllegalStateException("Không thể reset mật khẩu tài khoản quản trị.");
+        }
+        user.setPassword(passwordEncoder.encode("12345678"));
+        user.setRefreshToken(null);
+        user.setUpdatedAt(LocalDateTime.now());
+        userDatabasePort.save(user);
     }
 
     @Override

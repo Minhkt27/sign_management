@@ -4,6 +4,7 @@ import com.hospital.signage.domain.enums.AssetStatus;
 import com.hospital.signage.domain.enums.Material;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.Column;
 import jakarta.persistence.ManyToOne;
@@ -23,7 +24,10 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "assets")
+@Table(name = "assets", indexes = {
+        @Index(name = "idx_assets_location_id",  columnList = "location_id"),
+        @Index(name = "idx_assets_sign_type_id", columnList = "sign_type_id")
+})
 @Getter
 @Setter
 @NoArgsConstructor

@@ -21,6 +21,16 @@ public class SignTypeController {
         return ResponseEntity.ok(signTypeUseCase.getAllSignTypes());
     }
 
+    @GetMapping("/page")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<PagedResponse<SignType>> getSignTypesPage(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "15") int size,
+            @RequestParam(defaultValue = "") String search) {
+        var result = signTypeUseCase.getSignTypesPage(page, size, search);
+        return ResponseEntity.ok(PagedResponse.from(result));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<SignType> getSignTypeById(@PathVariable Long id) {
         return signTypeUseCase.getSignTypeById(id)

@@ -201,13 +201,13 @@ export default function TicketListPage() {
                     <TableCell className="text-sm font-bold text-blue-600 text-left cursor-pointer hover:underline" onClick={() => navigate(`/admin/assets/${t.asset?.id}`)}>
                       {t.asset?.assetCode || 'N/A'}
                     </TableCell>
-                    <TableCell className="text-sm text-slate-600 max-w-xs truncate text-left" title={t.description}>
+                    <TableCell className="text-sm text-slate-800 max-w-xs truncate text-left" title={t.description}>
                       {t.description}
                     </TableCell>
                     <TableCell className="text-sm text-left">{renderPriorityBadge(t.priority)}</TableCell>
                     <TableCell className="text-sm text-left">{renderStatusBadge(t.ticketStatus)}</TableCell>
                     <TableCell className="text-sm text-left">{getAssigneeName(t.assignee)}</TableCell>
-                    <TableCell className="text-sm text-slate-500 text-left">
+                    <TableCell className="text-sm text-slate-700 text-left">
                       {new Date(t.createdAt).toLocaleDateString('vi-VN')}
                     </TableCell>
                     <TableCell className="text-sm text-left">

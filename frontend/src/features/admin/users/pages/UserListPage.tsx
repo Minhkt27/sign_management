@@ -12,7 +12,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus, UserCheck, UserX, KeyRound } from 'lucide-react';
+import { Plus, UserCheck, UserX, KeyRound, RotateCcw, Search } from 'lucide-react';
 import ChangePasswordModal from '@/components/ChangePasswordModal';
 
 const PAGE_SIZE = 15;
@@ -32,10 +32,14 @@ export default function UserListPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [formError, setFormError] = useState('');
 
-  const { data: users = [], isLoading } = useQuery({
-    queryKey: ['users'],
-    queryFn: userService.getAll,
+  const { data: pagedUsers, isLoading } = useQuery({
+    queryKey: ['users', page, search],
+    queryFn: () => userService.getPage(page, PAGE_SIZE, search),
   });
+
+  const users = pagedUsers?.content ?? [];
+  const totalPages = pagedUsers?.totalPages ?? 0;
+  const totalElements = pagedUsers?.totalElements ?? 0;
 
   const createMutation = useMutation({
     mutationFn: userService.createTechnician,
@@ -54,6 +58,18 @@ export default function UserListPage() {
       userService.setActive(id, active),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
   });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: (id: number) => userService.resetPassword(id),
+    onSuccess: () => alert('Đã reset mật khẩu về: 12345678'),
+    onError: () => alert('Reset mật khẩu thất bại.'),
+  });
+
+  const handleResetPassword = (user: User) => {
+    if (window.confirm(`Reset mật khẩu tài khoản "${user.username}" về 12345678?`)) {
+      resetPasswordMutation.mutate(user.id);
+    }
+  };
 
   const resetForm = () => {
     setUsername('');
@@ -77,20 +93,10 @@ export default function UserListPage() {
     createMutation.mutate({ username, fullName, password });
   };
 
-  const filtered = users.filter(u =>
-    u.fullName.toLowerCase().includes(search.toLowerCase()) ||
-    u.username.toLowerCase().includes(search.toLowerCase())
-  );
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800">Quản lý Nhân viên</h2>
-          <p className="text-sm text-slate-500 mt-1">{users.length} tài khoản</p>
-        </div>
+        <p className="text-sm text-slate-500">{totalElements} tài khoản</p>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setIsChangePasswordOpen(true)}>
             <KeyRound size={16} className="mr-2" />
@@ -136,12 +142,15 @@ export default function UserListPage() {
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
         <div className="p-4 border-b border-slate-100">
-          <Input
-            placeholder="Tìm theo tên hoặc tên đăng nhập..."
-            value={search}
-            onChange={e => { setSearch(e.target.value); setPage(0); }}
-            className="max-w-sm"
-          />
+          <div className="relative max-w-sm">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+            <Input
+              placeholder="Tìm theo tên hoặc tên đăng nhập..."
+              value={search}
+              onChange={e => { setSearch(e.target.value); setPage(0); }}
+              className="pl-11 pr-4 py-3 text-base text-slate-500 border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
         </div>
 
         {isLoading ? (
@@ -158,41 +167,54 @@ export default function UserListPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginated.map((user: User) => (
+              {users.map((user: User) => (
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">{user.fullName}</TableCell>
-                  <TableCell className="text-slate-500">{user.username}</TableCell>
+                  <TableCell className="text-slate-800">{user.username}</TableCell>
                   <TableCell>
-                    <Badge variant={user.role === 'ADMIN' ? 'default' : 'secondary'}>
+                    <Badge variant={user.role === 'ADMIN' ? 'default' : 'secondary'} className="text-sm px-2.5 h-6">
                       {user.role === 'ADMIN' ? 'Quản trị' : 'Kỹ thuật viên'}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     <Badge variant={user.isActive ? 'default' : 'destructive'}
-                      className={user.isActive ? 'bg-green-100 text-green-700 hover:bg-green-100' : ''}>
+                      className={`text-sm px-2.5 h-6 ${user.isActive ? 'bg-green-100 text-green-700 hover:bg-green-100' : ''}`}>
                       {user.isActive ? 'Hoạt động' : 'Vô hiệu'}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
                     {currentUser?.id !== user.id && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={toggleActiveMutation.isPending}
-                        onClick={() => toggleActiveMutation.mutate({ id: user.id, active: !user.isActive })}
-                        className={user.isActive
-                          ? 'text-red-600 border-red-200 hover:bg-red-50'
-                          : 'text-green-600 border-green-200 hover:bg-green-50'}
-                      >
-                        {user.isActive
-                          ? <><UserX size={14} className="mr-1" />Vô hiệu hóa</>
-                          : <><UserCheck size={14} className="mr-1" />Kích hoạt</>}
-                      </Button>
+                      <div className="flex items-center justify-end gap-2">
+                        {user.role !== 'ADMIN' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={resetPasswordMutation.isPending}
+                            onClick={() => handleResetPassword(user)}
+                            className="text-amber-600 border-amber-200 hover:bg-amber-50"
+                          >
+                            <RotateCcw size={14} className="mr-1" />Reset mật khẩu
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={toggleActiveMutation.isPending}
+                          onClick={() => toggleActiveMutation.mutate({ id: user.id, active: !user.isActive })}
+                          className={user.isActive
+                            ? 'text-red-600 border-red-200 hover:bg-red-50'
+                            : 'text-green-600 border-green-200 hover:bg-green-50'}
+                        >
+                          {user.isActive
+                            ? <><UserX size={14} className="mr-1" />Vô hiệu hóa</>
+                            : <><UserCheck size={14} className="mr-1" />Kích hoạt</>}
+                        </Button>
+                      </div>
                     )}
                   </TableCell>
                 </TableRow>
               ))}
-              {paginated.length === 0 && (
+              {users.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-slate-400 py-8">
                     Không tìm thấy tài khoản nào
