@@ -32,29 +32,29 @@ export default function AdminLayout() {
       <aside
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        className={`${hovered ? 'w-56' : 'w-16'} transition-[width] duration-200 ease-in-out bg-white border-r border-slate-200 flex flex-col shadow-sm overflow-hidden shrink-0`}
+        className={`${hovered ? 'w-56' : 'w-16'} transition-[width] duration-300 ease-in-out bg-white border-r border-slate-200 flex flex-col shadow-sm overflow-hidden shrink-0`}
       >
         {/* Brand */}
         <div className="h-16 border-b border-slate-100 flex items-center px-4 shrink-0">
           <div className="bg-blue-600 text-white p-2 rounded-lg shadow-sm shrink-0">
             <Signpost size={20} />
           </div>
-          {hovered && (
+          <div className={`overflow-hidden transition-all duration-200 ${hovered ? 'max-w-[200px] opacity-100 delay-150' : 'max-w-0 opacity-0 delay-0'}`}>
             <div className="ml-3 min-w-0">
               <p className="text-sm font-bold text-slate-800 whitespace-nowrap">Hospital Signage</p>
               <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest whitespace-nowrap">Admin Control</p>
             </div>
-          )}
+          </div>
         </div>
 
         {/* User avatar */}
         {user && (
-          <div className={`border-b border-slate-100 flex items-center bg-slate-50 shrink-0 ${hovered ? 'px-4 py-3 gap-3' : 'justify-center py-3'}`}>
+          <div className={`border-b border-slate-100 flex items-center bg-slate-50 shrink-0 px-4 py-3 ${hovered ? '' : 'justify-center'}`}>
             <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm shrink-0">
               {user.fullName.charAt(0)}
             </div>
-            {hovered && (
-              <div className="min-w-0">
+            <div className={`overflow-hidden transition-all duration-200 ${hovered ? 'max-w-[200px] opacity-100 delay-150' : 'max-w-0 opacity-0 delay-0'}`}>
+              <div className="ml-3 min-w-0">
                 <p className="text-sm font-semibold text-slate-800 truncate">{user.fullName}</p>
                 <button
                   onClick={() => setIsChangePasswordOpen(true)}
@@ -64,7 +64,7 @@ export default function AdminLayout() {
                   Đổi mật khẩu
                 </button>
               </div>
-            )}
+            </div>
           </div>
         )}
 
@@ -79,7 +79,7 @@ export default function AdminLayout() {
                 end={item.end}
                 title={!hovered ? item.label : undefined}
                 className={({ isActive }) =>
-                  `flex items-center py-2.5 rounded-xl transition-all duration-150 ${hovered ? 'px-3 gap-3' : 'justify-center px-0'} ${
+                  `flex items-center py-2.5 px-3 rounded-xl transition-colors duration-150 ${hovered ? '' : 'justify-center'} ${
                     isActive
                       ? 'bg-blue-600 text-white shadow-sm shadow-blue-200'
                       : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
@@ -87,9 +87,9 @@ export default function AdminLayout() {
                 }
               >
                 <Icon size={19} className="shrink-0" />
-                {hovered && (
-                  <span className="text-sm font-semibold whitespace-nowrap">{item.label}</span>
-                )}
+                <div className={`overflow-hidden transition-all duration-200 ${hovered ? 'max-w-[200px] opacity-100 delay-150' : 'max-w-0 opacity-0 delay-0'}`}>
+                  <span className="ml-3 text-sm font-semibold whitespace-nowrap">{item.label}</span>
+                </div>
               </NavLink>
             );
           })}
@@ -100,10 +100,12 @@ export default function AdminLayout() {
           <button
             onClick={handleLogout}
             title={!hovered ? 'Đăng xuất' : undefined}
-            className={`w-full flex items-center py-2.5 rounded-xl text-slate-500 hover:text-red-600 hover:bg-red-50 transition-all duration-150 text-sm font-medium ${hovered ? 'px-3 gap-2' : 'justify-center'}`}
+            className={`w-full flex items-center py-2.5 px-3 rounded-xl text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors duration-150 text-sm font-medium ${hovered ? '' : 'justify-center'}`}
           >
             <LogOut size={17} className="shrink-0" />
-            {hovered && <span>Đăng xuất</span>}
+            <div className={`overflow-hidden transition-all duration-200 ${hovered ? 'max-w-[200px] opacity-100 delay-150' : 'max-w-0 opacity-0 delay-0'}`}>
+              <span className="ml-2 whitespace-nowrap">Đăng xuất</span>
+            </div>
           </button>
         </div>
       </aside>
