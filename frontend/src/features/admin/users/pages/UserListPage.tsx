@@ -15,7 +15,7 @@ import {
 import { Plus, UserCheck, UserX, KeyRound, RotateCcw, Search } from 'lucide-react';
 import ChangePasswordModal from '@/components/ChangePasswordModal';
 
-const PAGE_SIZE = 15;
+const PAGE_SIZE = 10;
 
 export default function UserListPage() {
   const queryClient = useQueryClient();

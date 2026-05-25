@@ -28,7 +28,7 @@ export default function SignTypeListPage() {
   // Search
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
-  const PAGE_SIZE = 15;
+  const PAGE_SIZE = 10;
 
   // Form State
   const [isDialogOpen, setIsDialogOpen] = useState(false);

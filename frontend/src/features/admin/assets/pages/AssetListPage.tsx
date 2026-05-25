@@ -37,7 +37,7 @@ export default function AssetListPage() {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [materialFilter, setMaterialFilter] = useState('ALL');
   const [page, setPage] = useState(0);
-  const PAGE_SIZE = 15;
+  const PAGE_SIZE = 10;
 
   // Form State
   const [isDialogOpen, setIsDialogOpen] = useState(false);

@@ -21,7 +21,7 @@ export default function TicketListPage() {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [priorityFilter, setPriorityFilter] = useState('ALL');
   const [page, setPage] = useState(0);
-  const PAGE_SIZE = 15;
+  const PAGE_SIZE = 10;
 
   // Query
   const { data: ticketData, isLoading } = useQuery<PagedResponse<MaintenanceTicket>>({
