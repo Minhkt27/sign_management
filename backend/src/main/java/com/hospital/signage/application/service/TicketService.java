@@ -29,6 +29,7 @@ public class TicketService implements TicketUseCase {
     private final UserDatabasePort userDatabasePort;
 
     @Override
+    @Transactional
     public MaintenanceTicket createTicket(CreateTicketCommand command) {
         Asset asset = assetDatabasePort.findById(command.assetId())
                 .orElseThrow(() -> new IllegalArgumentException("Asset not found"));

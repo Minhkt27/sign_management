@@ -69,4 +69,9 @@ public class TicketPersistenceAdapter implements TicketDatabasePort {
     public Page<MaintenanceTicket> findByAssigneeId(Long assigneeId, Pageable pageable) {
         return repository.findByAssigneeId(assigneeId, pageable).map(mapper::toDomain);
     }
+
+    @Override
+    public boolean existsByAssetId(UUID assetId) {
+        return repository.existsByAssetId(assetId);
+    }
 }

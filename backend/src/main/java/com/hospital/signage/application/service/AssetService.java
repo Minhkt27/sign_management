@@ -30,6 +30,7 @@ public class AssetService implements AssetUseCase {
     private final FileStoragePort fileStoragePort;
 
     @Override
+    @org.springframework.transaction.annotation.Transactional
     public Asset createAsset(Asset asset) {
         if (asset.getId() == null) {
             asset.setId(UUID.randomUUID());
@@ -51,6 +52,7 @@ public class AssetService implements AssetUseCase {
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional
     public Asset updateAsset(UUID id, Asset updatedAsset) {
         Asset existing = assetDatabasePort.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Asset not found"));
@@ -111,7 +113,7 @@ public class AssetService implements AssetUseCase {
     public void deleteAsset(UUID id) {
         Asset asset = assetDatabasePort.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Asset not found"));
-        if (!ticketDatabasePort.findByAssetId(id).isEmpty()) {
+        if (ticketDatabasePort.existsByAssetId(id)) {
             throw new IllegalArgumentException("Không thể xóa biển báo này vì đang có phiếu bảo trì liên kết.");
         }
         assetDatabasePort.deleteById(id);

@@ -7,6 +7,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.Column;
 import jakarta.persistence.ManyToOne;
@@ -25,7 +26,11 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "maintenance_tickets")
+@Table(name = "maintenance_tickets", indexes = {
+        @Index(name = "idx_tickets_asset_id",    columnList = "asset_id"),
+        @Index(name = "idx_tickets_assignee_id", columnList = "assignee_id"),
+        @Index(name = "idx_tickets_created_at",  columnList = "created_at")
+})
 @Getter
 @Setter
 @NoArgsConstructor

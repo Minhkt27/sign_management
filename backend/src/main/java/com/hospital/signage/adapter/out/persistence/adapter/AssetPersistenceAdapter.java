@@ -66,6 +66,16 @@ public class AssetPersistenceAdapter implements AssetDatabasePort {
     }
 
     @Override
+    public boolean existsByLocationId(Long locationId) {
+        return repository.existsByLocationId(locationId);
+    }
+
+    @Override
+    public boolean existsBySignTypeId(Long signTypeId) {
+        return repository.existsBySignTypeId(signTypeId);
+    }
+
+    @Override
     public void deleteById(UUID id) {
         repository.deleteById(id);
     }

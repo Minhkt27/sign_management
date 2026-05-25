@@ -13,4 +13,6 @@ public interface AssetRepository extends JpaRepository<AssetEntity, UUID> {
     Optional<AssetEntity> findByAssetCode(String assetCode);
     List<AssetEntity> findByLocationId(Long locationId);
     List<AssetEntity> findBySignTypeId(Long signTypeId);
+    boolean existsByLocationId(Long locationId);
+    boolean existsBySignTypeId(Long signTypeId);
 }
