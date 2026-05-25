@@ -153,9 +153,9 @@ export default function AssetDetailPage() {
         material,
         size,
         supplier,
-        installedAt: installedAt || undefined,
+        installedAt: installedAt ? `${installedAt}T00:00:00` : undefined,
         status,
-        imageUrl: uploadedUrl,
+        imageUrl: uploadedUrl || undefined,
       });
     } catch (err) {
       alert('Lỗi tải ảnh lên. Vui lòng thử lại.');
