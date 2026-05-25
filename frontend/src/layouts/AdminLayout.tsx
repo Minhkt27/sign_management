@@ -10,7 +10,6 @@ export default function AdminLayout() {
   const location = useLocation();
   const user = authStore.getUser();
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
-  const [hovered, setHovered] = useState(false);
 
   const handleLogout = () => {
     authService.logout().then(() => navigate('/login'));
@@ -28,18 +27,15 @@ export default function AdminLayout() {
 
   return (
     <div className="flex h-screen bg-slate-100 font-sans antialiased overflow-hidden">
-      {/* Sidebar */}
-      <aside
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        className={`${hovered ? 'w-56' : 'w-16'} transition-[width] duration-300 ease-in-out bg-white border-r border-slate-200 flex flex-col shadow-sm overflow-hidden shrink-0`}
-      >
+      {/* Sidebar — pure CSS group hover, no JS state in animation path */}
+      <aside className="group w-16 hover:w-56 transition-[width] duration-300 ease-in-out bg-white border-r border-slate-200 flex flex-col shadow-sm overflow-hidden shrink-0">
+
         {/* Brand */}
-        <div className="h-16 border-b border-slate-100 flex items-center px-4 shrink-0">
+        <div className="h-16 border-b border-slate-100 flex items-center pl-[14px] shrink-0">
           <div className="bg-blue-600 text-white p-2 rounded-lg shadow-sm shrink-0">
             <Signpost size={20} />
           </div>
-          <div className={`overflow-hidden transition-all duration-200 ${hovered ? 'max-w-[200px] opacity-100 delay-150' : 'max-w-0 opacity-0 delay-0'}`}>
+          <div className="max-w-0 opacity-0 overflow-hidden group-hover:max-w-[200px] group-hover:opacity-100 transition-all duration-200 group-hover:delay-150">
             <div className="ml-3 min-w-0">
               <p className="text-sm font-bold text-slate-800 whitespace-nowrap">Hospital Signage</p>
               <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest whitespace-nowrap">Admin Control</p>
@@ -49,11 +45,11 @@ export default function AdminLayout() {
 
         {/* User avatar */}
         {user && (
-          <div className={`border-b border-slate-100 flex items-center bg-slate-50 shrink-0 px-4 py-3 ${hovered ? '' : 'justify-center'}`}>
+          <div className="border-b border-slate-100 flex items-center bg-slate-50 shrink-0 py-3 pl-[14px]">
             <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm shrink-0">
               {user.fullName.charAt(0)}
             </div>
-            <div className={`overflow-hidden transition-all duration-200 ${hovered ? 'max-w-[200px] opacity-100 delay-150' : 'max-w-0 opacity-0 delay-0'}`}>
+            <div className="max-w-0 opacity-0 overflow-hidden group-hover:max-w-[200px] group-hover:opacity-100 transition-all duration-200 group-hover:delay-150">
               <div className="ml-3 min-w-0">
                 <p className="text-sm font-semibold text-slate-800 truncate">{user.fullName}</p>
                 <button
@@ -69,7 +65,7 @@ export default function AdminLayout() {
         )}
 
         {/* Navigation */}
-        <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto overflow-x-hidden">
+        <nav className="flex-1 py-2 px-2 space-y-0.5 overflow-y-auto overflow-x-hidden">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -77,18 +73,20 @@ export default function AdminLayout() {
                 key={item.to}
                 to={item.to}
                 end={item.end}
-                title={!hovered ? item.label : undefined}
+                title={item.label}
                 className={({ isActive }) =>
-                  `flex items-center py-2.5 px-3 rounded-xl transition-colors duration-150 ${hovered ? '' : 'justify-center'} ${
+                  `flex items-center py-2.5 rounded-xl transition-colors duration-150 ${
                     isActive
                       ? 'bg-blue-600 text-white shadow-sm shadow-blue-200'
                       : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
                   }`
                 }
               >
-                <Icon size={19} className="shrink-0" />
-                <div className={`overflow-hidden transition-all duration-200 ${hovered ? 'max-w-[200px] opacity-100 delay-150' : 'max-w-0 opacity-0 delay-0'}`}>
-                  <span className="ml-3 text-sm font-semibold whitespace-nowrap">{item.label}</span>
+                <div className="w-10 flex items-center justify-center shrink-0">
+                  <Icon size={19} />
+                </div>
+                <div className="max-w-0 opacity-0 overflow-hidden group-hover:max-w-[160px] group-hover:opacity-100 transition-all duration-200 group-hover:delay-150">
+                  <span className="text-sm font-semibold whitespace-nowrap pr-3">{item.label}</span>
                 </div>
               </NavLink>
             );
@@ -96,15 +94,17 @@ export default function AdminLayout() {
         </nav>
 
         {/* Footer */}
-        <div className="p-2 border-t border-slate-100 shrink-0">
+        <div className="py-2 px-2 border-t border-slate-100 shrink-0">
           <button
             onClick={handleLogout}
-            title={!hovered ? 'Đăng xuất' : undefined}
-            className={`w-full flex items-center py-2.5 px-3 rounded-xl text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors duration-150 text-sm font-medium ${hovered ? '' : 'justify-center'}`}
+            title="Đăng xuất"
+            className="w-full flex items-center py-2.5 rounded-xl text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors duration-150 text-sm font-medium"
           >
-            <LogOut size={17} className="shrink-0" />
-            <div className={`overflow-hidden transition-all duration-200 ${hovered ? 'max-w-[200px] opacity-100 delay-150' : 'max-w-0 opacity-0 delay-0'}`}>
-              <span className="ml-2 whitespace-nowrap">Đăng xuất</span>
+            <div className="w-10 flex items-center justify-center shrink-0">
+              <LogOut size={17} />
+            </div>
+            <div className="max-w-0 opacity-0 overflow-hidden group-hover:max-w-[160px] group-hover:opacity-100 transition-all duration-200 group-hover:delay-150">
+              <span className="whitespace-nowrap pr-3">Đăng xuất</span>
             </div>
           </button>
         </div>
