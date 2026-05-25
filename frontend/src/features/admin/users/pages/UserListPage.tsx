@@ -32,10 +32,14 @@ export default function UserListPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [formError, setFormError] = useState('');
 
-  const { data: users = [], isLoading } = useQuery({
-    queryKey: ['users'],
-    queryFn: userService.getAll,
+  const { data: pagedUsers, isLoading } = useQuery({
+    queryKey: ['users', page, search],
+    queryFn: () => userService.getPage(page, PAGE_SIZE, search),
   });
+
+  const users = pagedUsers?.content ?? [];
+  const totalPages = pagedUsers?.totalPages ?? 0;
+  const totalElements = pagedUsers?.totalElements ?? 0;
 
   const createMutation = useMutation({
     mutationFn: userService.createTechnician,
@@ -89,19 +93,12 @@ export default function UserListPage() {
     createMutation.mutate({ username, fullName, password });
   };
 
-  const filtered = users.filter(u =>
-    u.fullName.toLowerCase().includes(search.toLowerCase()) ||
-    u.username.toLowerCase().includes(search.toLowerCase())
-  );
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-slate-800">Quản lý Nhân viên</h2>
-          <p className="text-sm text-slate-500 mt-1">{users.length} tài khoản</p>
+          <p className="text-sm text-slate-500 mt-1">{totalElements} tài khoản</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setIsChangePasswordOpen(true)}>
@@ -173,7 +170,7 @@ export default function UserListPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginated.map((user: User) => (
+              {users.map((user: User) => (
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">{user.fullName}</TableCell>
                   <TableCell className="text-slate-500">{user.username}</TableCell>
@@ -220,7 +217,7 @@ export default function UserListPage() {
                   </TableCell>
                 </TableRow>
               ))}
-              {paginated.length === 0 && (
+              {users.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-slate-400 py-8">
                     Không tìm thấy tài khoản nào

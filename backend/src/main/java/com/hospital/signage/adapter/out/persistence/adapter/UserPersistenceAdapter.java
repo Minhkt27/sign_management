@@ -6,6 +6,8 @@ import com.hospital.signage.adapter.out.persistence.repository.UserRepository;
 import com.hospital.signage.application.port.out.UserDatabasePort;
 import com.hospital.signage.domain.model.User;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -45,5 +47,12 @@ public class UserPersistenceAdapter implements UserDatabasePort {
     @Override
     public List<User> findAll() {
         return repository.findAll().stream().map(mapper::toDomain).toList();
+    }
+
+    @Override
+    public Page<User> findPage(String search, Pageable pageable) {
+        String s = search == null ? "" : search;
+        return repository.findByUsernameContainingIgnoreCaseOrFullNameContainingIgnoreCase(s, s, pageable)
+                .map(mapper::toDomain);
     }
 }

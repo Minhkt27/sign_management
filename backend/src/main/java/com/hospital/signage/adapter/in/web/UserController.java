@@ -20,8 +20,12 @@ public class UserController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<UserResponse>> getAllUsers() {
-        return ResponseEntity.ok(userUseCase.getAllUsers().stream().map(UserResponse::from).toList());
+    public ResponseEntity<PagedResponse<UserResponse>> getAllUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "") String search) {
+        var result = userUseCase.getUsersPage(page, size, search).map(UserResponse::from);
+        return ResponseEntity.ok(PagedResponse.from(result));
     }
 
     @GetMapping("/technicians")

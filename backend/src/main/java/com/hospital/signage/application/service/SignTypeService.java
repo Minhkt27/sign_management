@@ -5,6 +5,9 @@ import com.hospital.signage.application.port.out.AssetDatabasePort;
 import com.hospital.signage.application.port.out.SignTypeDatabasePort;
 import com.hospital.signage.domain.model.SignType;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -57,6 +60,12 @@ public class SignTypeService implements SignTypeUseCase {
     @Override
     public List<SignType> getAllSignTypes() {
         return signTypeDatabasePort.findAll();
+    }
+
+    @Override
+    public Page<SignType> getSignTypesPage(int page, int size, String search) {
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        return signTypeDatabasePort.findPage(search, pageRequest);
     }
 
     @Override
