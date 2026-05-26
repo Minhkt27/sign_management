@@ -66,7 +66,7 @@ public class AssetControllerTest {
         asset2.setMaterial(Material.INOX);
         asset2.setStatus(AssetStatus.DAMAGED);
 
-        when(assetUseCase.getAssetsPage(0, 10))
+        when(assetUseCase.getAssetsPage(0, 10, ""))
                 .thenReturn(new PageImpl<>(Arrays.asList(asset1, asset2)));
 
         mockMvc.perform(get("/api/assets")

@@ -14,6 +14,7 @@ public interface AssetDatabasePort {
     Optional<Asset> findByAssetCode(String assetCode);
     List<Asset> findAll();
     Page<Asset> findAll(Pageable pageable);
+    Page<Asset> search(String search, Pageable pageable);
     List<Asset> findByLocationId(Long locationId);
     List<Asset> findBySignTypeId(Long signTypeId);
     boolean existsByLocationId(Long locationId);

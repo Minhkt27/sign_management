@@ -9,6 +9,7 @@ import com.hospital.signage.domain.model.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,7 @@ public class DataInitializer implements CommandLineRunner {
     private final AssetUseCase assetUseCase;
     private final TicketUseCase ticketUseCase;
     private final PasswordEncoder passwordEncoder;
+    private final JdbcTemplate jdbcTemplate;
 
     @Value("${app.admin-initial-password}")
     private String adminInitialPassword;
@@ -36,6 +38,8 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) throws Exception {
+        jdbcTemplate.execute("CREATE EXTENSION IF NOT EXISTS unaccent");
+
         // Only seed if there are no users in the database
         if (userDatabasePort.findByUsername("admin").isPresent()) {
             return;

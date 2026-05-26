@@ -52,7 +52,6 @@ public class UserPersistenceAdapter implements UserDatabasePort {
     @Override
     public Page<User> findPage(String search, Pageable pageable) {
         String s = search == null ? "" : search;
-        return repository.findByUsernameContainingIgnoreCaseOrFullNameContainingIgnoreCase(s, s, pageable)
-                .map(mapper::toDomain);
+        return repository.search(s, pageable).map(mapper::toDomain);
     }
 }

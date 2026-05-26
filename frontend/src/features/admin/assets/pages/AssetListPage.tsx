@@ -60,8 +60,8 @@ export default function AssetListPage() {
 
   // Fetch Data using React Query
   const { data: assetData, isLoading: isAssetsLoading } = useQuery<PagedResponse<Asset>>({
-    queryKey: ['assets'],
-    queryFn: () => assetService.getAssetsPage(0, 200),
+    queryKey: ['assets', page, search],
+    queryFn: () => assetService.getAssetsPage(page, PAGE_SIZE, search),
   });
   const assets = assetData?.content ?? [];
 
@@ -179,31 +179,21 @@ export default function AssetListPage() {
     }
   };
 
-  // Dashboard calculations
-  const totalCount = assets.length;
+  // Dashboard calculations (from current page — status/material filter applied client-side)
+  const totalCount = assetData?.totalElements ?? 0;
   const activeCount = assets.filter(a => a.status === 'ACTIVE').length;
   const damagedCount = assets.filter(a => a.status === 'DAMAGED').length;
   const repairingCount = assets.filter(a => a.status === 'REPAIRING').length;
 
-  // Filter assets
-  const filteredAssets = assets
-    .filter(asset => {
-      const matchesSearch = asset.assetCode.toLowerCase().includes(search.toLowerCase()) ||
-                            (asset.name && asset.name.toLowerCase().includes(search.toLowerCase())) ||
-                            (asset.description && asset.description.toLowerCase().includes(search.toLowerCase())) ||
-                            (asset.locationDescription && asset.locationDescription.toLowerCase().includes(search.toLowerCase())) ||
-                            getLocationName(asset).toLowerCase().includes(search.toLowerCase());
-      const matchesStatus = statusFilter === 'ALL' || asset.status === statusFilter;
-      const matchesMaterial = materialFilter === 'ALL' || asset.material === materialFilter;
-      
-      return matchesSearch && matchesStatus && matchesMaterial;
-    })
-    .sort((a, b) => {
-      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-    });
+  // Status and material filters are client-side on top of server search results
+  const filteredAssets = assets.filter(asset => {
+    const matchesStatus = statusFilter === 'ALL' || asset.status === statusFilter;
+    const matchesMaterial = materialFilter === 'ALL' || asset.material === materialFilter;
+    return matchesStatus && matchesMaterial;
+  });
 
-  const totalPages = Math.ceil(filteredAssets.length / PAGE_SIZE);
-  const pagedAssets = filteredAssets.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const totalPages = assetData?.totalPages ?? 1;
+  const pagedAssets = filteredAssets;
 
   return (
     <div className="space-y-8">
@@ -657,10 +647,10 @@ export default function AssetListPage() {
         </div>
 
         {/* Pagination */}
-        {filteredAssets.length > 0 && (
+        {totalCount > 0 && (
           <div className="flex items-center justify-between pt-2">
             <span className="text-sm text-slate-500">
-              {filteredAssets.length === 0 ? '0' : `${page * PAGE_SIZE + 1}–${Math.min((page + 1) * PAGE_SIZE, filteredAssets.length)}`} / <strong>{filteredAssets.length}</strong> biển báo
+              {`${page * PAGE_SIZE + 1}–${Math.min((page + 1) * PAGE_SIZE, totalCount)}`} / <strong>{totalCount}</strong> biển báo
             </span>
             <div className="flex items-center space-x-2">
               <Button
@@ -678,7 +668,7 @@ export default function AssetListPage() {
               <Button
                 variant="outline"
                 size="sm"
-                disabled={page >= totalPages - 1}
+                disabled={page >= (totalPages ?? 1) - 1}
                 onClick={() => setPage(p => p + 1)}
                 className="text-sm px-4 py-2 rounded-lg disabled:opacity-40"
               >
