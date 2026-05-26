@@ -98,69 +98,37 @@ frontend/src/
 
 ---
 
-## 5. Chạy local (Development)
+## 5. Chạy dự án
 
 ### Yêu cầu
 - Docker & Docker Compose
-- JDK 21+, Maven 3.9+
-- Node.js 20+, npm 10+
 
-### Bước 1 — Tạo file `.env`
-
-Sao chép file mẫu và điều chỉnh nếu cần:
+### 1 lệnh duy nhất
 
 ```bash
-cp .env.example .env   # hoặc tạo thủ công theo mẫu bên dưới
+docker compose up --build
 ```
 
-Nội dung tối thiểu:
+Tất cả service sẽ tự khởi động. Lần đầu chạy mất vài phút để build image. Các lần sau bỏ `--build`.
 
-```env
-POSTGRES_DB=signage_db
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=change_me_in_production
+> Truy cập tại **`http://localhost`**
 
-JWT_SECRET=hospital-signage-super-secret-key-replace-this-now-2024
+### Tuỳ chỉnh (không bắt buộc)
 
-MINIO_ACCESS_KEY=minioadmin
-MINIO_SECRET_KEY=change_me_strong_password
-MINIO_BUCKET=signage-assets
-MINIO_PUBLIC_URL=http://localhost:9000
-```
-
-### Bước 2 — Khởi động PostgreSQL và MinIO bằng Docker
+Để đổi mật khẩu, JWT secret hoặc các giá trị khác, tạo file `.env` từ mẫu:
 
 ```bash
-docker compose up -d postgres minio
+cp .env.example .env
 ```
 
-Kiểm tra sẵn sàng:
+Rồi chỉnh các biến cần thiết trước khi chạy `docker compose up --build`.
+
+### Dừng và reset
 
 ```bash
-docker compose ps   # postgres và minio phải ở trạng thái healthy
+docker compose down        # dừng, giữ data
+docker compose down -v     # dừng và xoá toàn bộ data
 ```
-
-### Bước 3 — Khởi động Backend
-
-```bash
-cd backend
-POSTGRES_PASSWORD=change_me_in_production mvn spring-boot:run
-# Windows PowerShell:
-# $env:POSTGRES_PASSWORD = 'change_me_in_production'; mvn spring-boot:run
-```
-
-> Profile `dev` được kích hoạt tự động. Backend lắng nghe tại `http://localhost:8080`.  
-> Lần đầu chạy, `DataInitializer` tự seed dữ liệu mẫu và tạo tài khoản mặc định (xem mục 6).
-
-### Bước 4 — Khởi động Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-> Frontend chạy tại `http://localhost:5173`.
 
 ---
 
@@ -168,21 +136,12 @@ npm run dev
 
 | Username | Password | Vai trò |
 |----------|----------|---------|
-| `admin` | `Admin@Dev#2024` | Quản trị viên |
-| `tech` | `Tech@Dev#2024` | Kỹ thuật viên |
-
-> Mật khẩu seed được đọc từ `ADMIN_INITIAL_PASSWORD` / `TECH_INITIAL_PASSWORD` trong biến môi trường (fallback theo profile: `Admin@Dev#2024` cho dev, bắt buộc đặt trong `.env` cho prod).
+| `admin` | `Admin@Docker#2024` | Quản trị viên |
+| `tech` | `Tech@Docker#2024` | Kỹ thuật viên |
 
 ---
 
-## 7. Chạy toàn bộ bằng Docker (Production-like)
-
-```bash
-cp .env .env.prod   # chỉnh POSTGRES_PASSWORD, JWT_SECRET, MINIO_SECRET_KEY thành giá trị thực
-docker compose up -d
-```
-
-Các service:
+## 7. Các service
 
 | Service | Port | Mô tả |
 |---------|------|-------|
