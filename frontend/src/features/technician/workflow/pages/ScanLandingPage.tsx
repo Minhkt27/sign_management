@@ -126,7 +126,7 @@ export default function ScanLandingPage() {
           { icon: Package, label: 'Chất liệu', value: asset.material },
           { icon: Ruler, label: 'Kích thước', value: asset.size },
           { icon: Building, label: 'Nhà cung cấp', value: asset.supplier },
-          { icon: Calendar, label: 'Ngày lắp đặt', value: asset.installedAt ? new Date(asset.installedAt + 'Z').toLocaleDateString('vi-VN') : undefined },
+          { icon: Calendar, label: 'Ngày lắp đặt', value: asset.installedAt ? new Date(asset.installedAt).toLocaleDateString('vi-VN') : undefined },
         ].filter(r => r.value).map(({ icon: Icon, label, value }) => (
           <div key={label} className="flex items-start gap-3">
             <Icon size={15} className="text-slate-400 mt-0.5 shrink-0" />

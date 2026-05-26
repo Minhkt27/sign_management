@@ -11,7 +11,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,8 +30,8 @@ public class SignTypeService implements SignTypeUseCase {
             throw new IllegalArgumentException("Mã loại biển '" + signType.getCode() + "' đã tồn tại.");
         });
 
-        signType.setCreatedAt(LocalDateTime.now());
-        signType.setUpdatedAt(LocalDateTime.now());
+        signType.setCreatedAt(Instant.now());
+        signType.setUpdatedAt(Instant.now());
         return signTypeDatabasePort.save(signType);
     }
 
@@ -51,7 +51,7 @@ public class SignTypeService implements SignTypeUseCase {
         existing.setCode(signTypeDetails.getCode());
         existing.setName(signTypeDetails.getName());
         existing.setDescription(signTypeDetails.getDescription());
-        existing.setUpdatedAt(LocalDateTime.now());
+        existing.setUpdatedAt(Instant.now());
         return signTypeDatabasePort.save(existing);
     }
 

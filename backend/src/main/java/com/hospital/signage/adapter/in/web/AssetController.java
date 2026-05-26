@@ -12,7 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -83,7 +83,7 @@ public class AssetController {
             @NotNull(message = "Material không được để trống") Material material,
             String size,
             @NotNull(message = "Status không được để trống") AssetStatus status,
-            LocalDateTime installedAt,
+            Instant installedAt,
             String supplier,
             String imageUrl
     ) {

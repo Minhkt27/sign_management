@@ -93,7 +93,7 @@ export default function TechDashboardPage() {
                 </div>
                 <div className="text-xs text-slate-400 flex items-center space-x-1">
                   <Clock size={12} />
-                  <span>{new Date(task.createdAt + 'Z').toLocaleDateString('vi-VN')}</span>
+                  <span>{new Date(task.createdAt).toLocaleDateString('vi-VN')}</span>
                 </div>
               </div>
 

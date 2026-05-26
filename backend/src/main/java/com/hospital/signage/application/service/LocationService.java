@@ -9,7 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -23,8 +23,8 @@ public class LocationService implements LocationUseCase {
     @Override
     @Transactional
     public Location createLocation(Location location) {
-        location.setCreatedAt(LocalDateTime.now());
-        location.setUpdatedAt(LocalDateTime.now());
+        location.setCreatedAt(Instant.now());
+        location.setUpdatedAt(Instant.now());
 
         if (location.getLocationCode() == null || location.getLocationCode().trim().isEmpty()) {
             String base = "LOC_" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
@@ -97,7 +97,7 @@ public class LocationService implements LocationUseCase {
         String oldPath = existing.getPath();
         existing.setName(locationDetails.getName());
         existing.setDescription(locationDetails.getDescription());
-        existing.setUpdatedAt(LocalDateTime.now());
+        existing.setUpdatedAt(Instant.now());
 
         if (locationDetails.getLocationCode() != null && !locationDetails.getLocationCode().equals(existing.getLocationCode())) {
             existing.setLocationCode(locationDetails.getLocationCode());

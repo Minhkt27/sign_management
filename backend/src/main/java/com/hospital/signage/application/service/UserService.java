@@ -12,7 +12,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -50,8 +50,8 @@ public class UserService implements UserUseCase {
                 .password(passwordEncoder.encode(command.password()))
                 .role(Role.TECHNICAL)
                 .isActive(true)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
                 .build();
         return userDatabasePort.save(user);
     }
@@ -62,7 +62,7 @@ public class UserService implements UserUseCase {
         User user = userDatabasePort.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại"));
         user.setIsActive(active);
-        user.setUpdatedAt(LocalDateTime.now());
+        user.setUpdatedAt(Instant.now());
         if (!active) {
             user.setRefreshToken(null);
         }
@@ -79,7 +79,7 @@ public class UserService implements UserUseCase {
         }
         user.setPassword(passwordEncoder.encode("12345678"));
         user.setRefreshToken(null);
-        user.setUpdatedAt(LocalDateTime.now());
+        user.setUpdatedAt(Instant.now());
         userDatabasePort.save(user);
     }
 
@@ -92,7 +92,7 @@ public class UserService implements UserUseCase {
             throw new IllegalArgumentException("Mật khẩu hiện tại không đúng");
         }
         user.setPassword(passwordEncoder.encode(command.newPassword()));
-        user.setUpdatedAt(LocalDateTime.now());
+        user.setUpdatedAt(Instant.now());
         userDatabasePort.save(user);
     }
 }

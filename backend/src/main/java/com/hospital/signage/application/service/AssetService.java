@@ -16,7 +16,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -48,8 +48,8 @@ public class AssetService implements AssetUseCase {
             asset.setLocation(location);
         }
 
-        asset.setCreatedAt(LocalDateTime.now());
-        asset.setUpdatedAt(LocalDateTime.now());
+        asset.setCreatedAt(Instant.now());
+        asset.setUpdatedAt(Instant.now());
         return assetDatabasePort.save(asset);
     }
 
@@ -82,7 +82,7 @@ public class AssetService implements AssetUseCase {
             existing.setLocation(null);
         }
 
-        existing.setUpdatedAt(LocalDateTime.now());
+        existing.setUpdatedAt(Instant.now());
         return assetDatabasePort.save(existing);
     }
 

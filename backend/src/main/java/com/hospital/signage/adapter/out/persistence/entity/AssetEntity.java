@@ -20,7 +20,7 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -66,7 +66,7 @@ public class AssetEntity {
     private AssetStatus status;
 
     @Column(name = "installed_at")
-    private LocalDateTime installedAt;
+    private Instant installedAt;
 
     @Column(name = "image_url", length = 500)
     private String imageUrl;
@@ -75,11 +75,11 @@ public class AssetEntity {
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @UpdateTimestamp
     @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    private Instant updatedAt;
 
     @Column(name = "created_by")
     private Long createdBy;
