@@ -262,7 +262,7 @@ export default function AssetTreePage() {
               <FolderOpen size={18} className="text-blue-500" />
               <span className="text-sm font-semibold text-slate-800">{loc.name}</span>
               {loc.type && (
-                <Badge variant="outline" className={`text-xs ml-2 font-semibold px-1.5 py-0 ${
+                <Badge variant="outline" className={`text-xs ml-2 font-semibold px-1.5 py-0 hidden sm:inline-flex ${
                   loc.type === 'BUILDING' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
                   loc.type === 'FLOOR' ? 'bg-amber-50 text-amber-700 border-amber-200' :
                   loc.type === 'DEPARTMENT' ? 'bg-purple-50 text-purple-700 border-purple-200' :
@@ -275,11 +275,11 @@ export default function AssetTreePage() {
                 </Badge>
               )}
               {loc.description && (
-                <span className="text-xs text-slate-400 font-normal"> - {loc.description}</span>
+                <span className="text-xs text-slate-400 font-normal hidden sm:inline truncate max-w-[120px]"> - {loc.description}</span>
               )}
             </div>
 
-            <div className="flex items-center space-x-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex items-center space-x-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shrink-0">
               {loc.type !== 'ROOM' && (
                 <Button
                   variant="ghost"
@@ -400,7 +400,7 @@ export default function AssetTreePage() {
   };
 
   return (
-    <div className="bg-white p-8 rounded-2xl border border-slate-200/80 shadow-sm space-y-6">
+    <div className="bg-white p-4 md:p-8 rounded-2xl border border-slate-200/80 shadow-sm space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-100 pb-5">
         <div>
           <p className="text-sm text-slate-500">Duyệt biển báo theo mô hình phân cấp Tòa nhà - Tầng - Phòng ban.</p>
@@ -425,9 +425,9 @@ export default function AssetTreePage() {
         />
       </div>
 
-      <div className="flex gap-4 items-start">
+      <div className="flex flex-col md:flex-row gap-4 items-start">
         {/* Tree panel */}
-        <div className={`bg-slate-50 p-6 rounded-xl border border-slate-200/50 min-h-[300px] space-y-3 transition-all duration-300 ${selectedAsset ? 'flex-1' : 'w-full'}`}>
+        <div className={`bg-slate-50 p-3 md:p-6 rounded-xl border border-slate-200/50 min-h-[200px] space-y-3 transition-all duration-300 ${selectedAsset ? 'md:flex-1' : 'w-full'}`}>
           {locations.length > 0 ? (
             renderTreeNodes(null)
           ) : (
@@ -437,7 +437,7 @@ export default function AssetTreePage() {
 
         {/* Asset detail panel */}
         {selectedAsset && (
-          <div className="w-[420px] shrink-0 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="w-full md:w-[420px] md:shrink-0 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50">
               <div className="flex items-center gap-2.5">
