@@ -64,7 +64,7 @@ public class TicketControllerTest {
         ticket2.setPriority(Priority.LOW);
         ticket2.setTicketStatus(TicketStatus.IN_PROGRESS);
 
-        when(ticketUseCase.getTicketsPage(0, 10, null, null))
+        when(ticketUseCase.getTicketsPage(0, 10, null, null, null, null))
                 .thenReturn(new PageImpl<>(Arrays.asList(ticket1, ticket2)));
 
         mockMvc.perform(get("/api/tickets")

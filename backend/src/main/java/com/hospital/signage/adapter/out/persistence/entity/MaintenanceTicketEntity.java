@@ -29,6 +29,7 @@ import java.time.Instant;
 @Table(name = "maintenance_tickets", indexes = {
         @Index(name = "idx_tickets_asset_id",    columnList = "asset_id"),
         @Index(name = "idx_tickets_assignee_id", columnList = "assignee_id"),
+        @Index(name = "idx_tickets_reporter_id", columnList = "reporter_id"),
         @Index(name = "idx_tickets_created_at",  columnList = "created_at")
 })
 @Getter

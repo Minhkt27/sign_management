@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ticketService } from '@/services/ticketService';
+import { ticketService, TicketSummary } from '@/services/ticketService';
 import { PagedResponse } from '@/services/assetService';
 import { MaintenanceTicket, User } from '@/shared/types';
 import { Button } from '@/components/ui/button';
@@ -23,10 +23,17 @@ export default function TicketListPage() {
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 10;
 
-  // Query
+  // Summary query — always global, unaffected by filters
+  const { data: summary } = useQuery<TicketSummary>({
+    queryKey: ['tickets-summary'],
+    queryFn: ticketService.getTicketsSummary,
+    staleTime: 60 * 1000,
+  });
+
+  // Paginated list query — server-side status + priority filters
   const { data: ticketData, isLoading } = useQuery<PagedResponse<MaintenanceTicket>>({
-    queryKey: ['tickets'],
-    queryFn: () => ticketService.getTickets(undefined, 0, 200),
+    queryKey: ['tickets', page, statusFilter, priorityFilter],
+    queryFn: () => ticketService.getTickets({ status: statusFilter, priority: priorityFilter }, page, PAGE_SIZE),
   });
   const tickets = ticketData?.content ?? [];
 
@@ -67,21 +74,14 @@ export default function TicketListPage() {
     }
   };
 
-  // Ticket stats
-  const totalCount = tickets.length;
-  const openCount = tickets.filter(t => t.ticketStatus === 'OPEN').length;
-  const inProgressCount = tickets.filter(t => t.ticketStatus === 'IN_PROGRESS').length;
-  const resolvedCount = tickets.filter(t => t.ticketStatus === 'RESOLVED').length;
+  // Stats from summary endpoint (global counts, unaffected by filter)
+  const totalCount = summary?.total ?? 0;
+  const openCount = summary?.OPEN ?? 0;
+  const inProgressCount = summary?.IN_PROGRESS ?? 0;
+  const resolvedCount = summary?.RESOLVED ?? 0;
 
-  // Filtered tickets
-  const filteredTickets = tickets.filter(t => {
-    const matchesStatus = statusFilter === 'ALL' || t.ticketStatus === statusFilter;
-    const matchesPriority = priorityFilter === 'ALL' || t.priority === priorityFilter;
-    return matchesStatus && matchesPriority;
-  });
-
-  const totalPages = Math.ceil(filteredTickets.length / PAGE_SIZE);
-  const pagedTickets = filteredTickets.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const totalPages = ticketData?.totalPages ?? 1;
+  const pagedTickets = tickets;
 
   if (isLoading) {
     return <div className="text-center py-12 text-slate-500 font-medium">Đang tải danh sách phiếu bảo trì...</div>;
@@ -185,7 +185,7 @@ export default function TicketListPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredTickets.length > 0 ? (
+              {pagedTickets.length > 0 ? (
                 pagedTickets.map((t) => (
                   <TableRow key={t.id} className="hover:bg-slate-50/50">
                     <TableCell className="text-sm font-bold text-slate-800 text-left">
@@ -252,10 +252,10 @@ export default function TicketListPage() {
         </div>
 
         {/* Pagination */}
-        {filteredTickets.length > 0 && (
+        {(ticketData?.totalElements ?? 0) > 0 && (
           <div className="flex items-center justify-between pt-2">
             <span className="text-sm text-slate-500">
-              {`${page * PAGE_SIZE + 1}–${Math.min((page + 1) * PAGE_SIZE, filteredTickets.length)}`} / <strong>{filteredTickets.length}</strong> phiếu
+              {`${page * PAGE_SIZE + 1}–${Math.min((page + 1) * PAGE_SIZE, ticketData?.totalElements ?? 0)}`} / <strong>{ticketData?.totalElements ?? 0}</strong> phiếu
             </span>
             <div className="flex items-center space-x-2">
               <Button
@@ -268,7 +268,7 @@ export default function TicketListPage() {
                 ← Trước
               </Button>
               <span className="text-sm font-semibold text-slate-700 px-2">
-                Trang {page + 1} / {totalPages || 1}
+                Trang {page + 1} / {totalPages}
               </span>
               <Button
                 variant="outline"

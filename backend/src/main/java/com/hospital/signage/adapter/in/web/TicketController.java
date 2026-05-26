@@ -15,6 +15,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -28,9 +29,17 @@ public class TicketController {
     public ResponseEntity<PagedResponse<MaintenanceTicket>> getTickets(
             @RequestParam(required = false) Long assigneeId,
             @RequestParam(required = false) UUID assetId,
+            @RequestParam(required = false) TicketStatus status,
+            @RequestParam(required = false) Priority priority,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(PagedResponse.from(ticketUseCase.getTicketsPage(Math.max(0, page), Math.min(Math.max(1, size), 100), assigneeId, assetId)));
+        return ResponseEntity.ok(PagedResponse.from(ticketUseCase.getTicketsPage(
+                Math.max(0, page), Math.min(Math.max(1, size), 100), assigneeId, assetId, status, priority)));
+    }
+
+    @GetMapping("/summary")
+    public ResponseEntity<Map<String, Long>> getTicketsSummary() {
+        return ResponseEntity.ok(ticketUseCase.getTicketsSummary());
     }
 
     @GetMapping("/{id}")

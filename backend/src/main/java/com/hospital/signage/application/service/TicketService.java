@@ -4,6 +4,7 @@ import com.hospital.signage.application.port.in.TicketUseCase;
 import com.hospital.signage.application.port.out.AssetDatabasePort;
 import com.hospital.signage.application.port.out.TicketDatabasePort;
 import com.hospital.signage.application.port.out.UserDatabasePort;
+import com.hospital.signage.domain.enums.Priority;
 import com.hospital.signage.domain.enums.TicketStatus;
 import com.hospital.signage.domain.model.Asset;
 import com.hospital.signage.domain.model.MaintenanceTicket;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -152,11 +154,13 @@ public class TicketService implements TicketUseCase {
     }
 
     @Override
-    public Page<MaintenanceTicket> getTicketsPage(int page, int size, Long assigneeId, UUID assetId) {
-        PageRequest pageRequest = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        if (assigneeId != null) return ticketDatabasePort.findByAssigneeId(assigneeId, pageRequest);
-        if (assetId != null) return ticketDatabasePort.findByAssetId(assetId, pageRequest);
-        return ticketDatabasePort.findAll(pageRequest);
+    public Page<MaintenanceTicket> getTicketsPage(int page, int size, Long assigneeId, UUID assetId, TicketStatus status, Priority priority) {
+        return ticketDatabasePort.findByFilters(assigneeId, assetId, status, priority, PageRequest.of(page, size));
+    }
+
+    @Override
+    public Map<String, Long> getTicketsSummary() {
+        return ticketDatabasePort.countByStatus();
     }
 
     @Override
@@ -166,6 +170,7 @@ public class TicketService implements TicketUseCase {
 
     @Override
     public List<MaintenanceTicket> getTicketsByAssignee(Long assigneeId) {
-        return ticketDatabasePort.findByAssigneeId(assigneeId);
+        return ticketDatabasePort.findByFilters(assigneeId, null, null, null, PageRequest.of(0, 200))
+                .getContent();
     }
 }
