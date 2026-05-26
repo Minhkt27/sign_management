@@ -29,6 +29,7 @@ public class UserController {
     }
 
     @GetMapping("/technicians")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TECHNICAL')")
     public ResponseEntity<List<UserResponse>> getTechnicians() {
         return ResponseEntity.ok(userUseCase.getTechnicians().stream().map(UserResponse::from).toList());
     }
