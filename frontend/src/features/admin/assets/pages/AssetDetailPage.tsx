@@ -718,7 +718,7 @@ export default function AssetDetailPage() {
                 </div>
 
                 <div className="text-right text-xs text-slate-600">
-                  <span>Khởi tạo: {new Date(t.createdAt).toLocaleDateString()}</span>
+                  <span>Khởi tạo: {new Date(t.createdAt + 'Z').toLocaleDateString('vi-VN')}</span>
                 </div>
               </div>
             ))

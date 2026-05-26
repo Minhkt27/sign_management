@@ -208,11 +208,11 @@ export default function TicketListPage() {
                     <TableCell className="text-sm text-left">{renderStatusBadge(t.ticketStatus)}</TableCell>
                     <TableCell className="text-sm text-left">{getAssigneeName(t.assignee)}</TableCell>
                     <TableCell className="text-sm text-slate-700 text-left">
-                      {new Date(t.createdAt).toLocaleDateString('vi-VN')}
+                      {new Date(t.createdAt + 'Z').toLocaleDateString('vi-VN')}
                     </TableCell>
                     <TableCell className="text-sm text-left">
                       {t.completedAt
-                        ? <span className="text-emerald-600 font-medium">{new Date(t.completedAt).toLocaleDateString('vi-VN')}</span>
+                        ? <span className="text-emerald-600 font-medium">{new Date(t.completedAt + 'Z').toLocaleDateString('vi-VN')}</span>
                         : <span className="text-slate-300">—</span>}
                     </TableCell>
                     <TableCell className="text-left">
