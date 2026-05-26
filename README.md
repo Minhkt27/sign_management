@@ -115,99 +115,55 @@ frontend/src/
 
 ---
 
-## 5. Chạy local (Development)
+## 5. Chạy dự án bằng Docker
 
 ### Yêu cầu
 - Docker & Docker Compose
-- JDK 21+, Maven 3.9+
-- Node.js 20+, npm 10+
 
-### Cách nhanh (Windows) — 1 lệnh
+### Bước 1 — Tạo file `.env`
 
-```powershell
-.\dev.ps1
-```
-
-Script tự động: khởi động Docker (postgres + minio), mở terminal backend (`mvn spring-boot:run`) và terminal frontend (`npm run dev`) trong 2 cửa sổ riêng.
-
-### Cách thủ công
-
-#### Bước 1 — Tạo file `.env`
-
-Sao chép file mẫu và điều chỉnh nếu cần:
+Sao chép file mẫu:
 
 ```bash
-cp .env.example .env   # hoặc tạo thủ công theo mẫu bên dưới
+cp .env.example .env
 ```
 
-Nội dung tối thiểu:
+Điền các giá trị bắt buộc:
 
 ```env
-POSTGRES_DB=signage_db
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=change_me_in_production
+# Bắt buộc — đổi thành chuỗi ngẫu nhiên đủ mạnh (>= 32 ký tự)
+JWT_SECRET=your-strong-random-secret-key-here
 
-JWT_SECRET=hospital-signage-super-secret-key-replace-this-now-2024
+# Bắt buộc — đổi thành mật khẩu thực
+POSTGRES_PASSWORD=your_db_password
+MINIO_SECRET_KEY=your_minio_password
 
-MINIO_ACCESS_KEY=minioadmin
-MINIO_SECRET_KEY=change_me_strong_password
-MINIO_BUCKET=signage-assets
-MINIO_PUBLIC_URL=http://localhost:9000
+# Tuỳ chọn — nếu muốn truy cập qua URL công khai (xem mục ngrok bên dưới)
+NGROK_AUTHTOKEN=your_ngrok_token
 ```
 
-#### Bước 2 — Khởi động PostgreSQL và MinIO bằng Docker
+### Bước 2 — Build và khởi động
 
 ```bash
-docker compose up -d postgres minio
+docker compose up --build
 ```
 
-Kiểm tra sẵn sàng:
+> Lần đầu chạy sẽ mất vài phút để build image. Các lần sau chạy `docker compose up` là đủ.
+
+### Bước 3 — Truy cập
+
+| Địa chỉ | Mô tả |
+|---------|-------|
+| `http://localhost` | Ứng dụng chính (React) |
+| `http://localhost:8080` | Backend API |
+| `http://localhost:9001` | MinIO Console |
+| `http://localhost:4040` | Ngrok dashboard (xem URL public) |
+
+### Dừng và xoá
 
 ```bash
-docker compose ps   # postgres và minio phải ở trạng thái healthy
-```
-
-#### Bước 3 — Khởi động Backend
-
-```bash
-cd backend
-POSTGRES_PASSWORD=change_me_in_production mvn spring-boot:run
-# Windows PowerShell:
-# $env:POSTGRES_PASSWORD = 'change_me_in_production'; mvn spring-boot:run
-```
-
-> Profile `dev` được kích hoạt tự động. Backend lắng nghe tại `http://localhost:8080`.  
-> Lần đầu chạy, `DataInitializer` tự seed dữ liệu mẫu và tạo tài khoản mặc định (xem mục 6).
-
-#### Bước 4 — Khởi động Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-> Frontend chạy tại `http://localhost:5173`.
-
-### Truy cập từ điện thoại (ngrok)
-
-Để test tính năng QR scan trên điện thoại thật (yêu cầu HTTPS):
-
-```bash
-ngrok http 5173
-```
-
-Cập nhật URL ngrok vào `backend/src/main/resources/application-dev.yml`:
-
-```yaml
-cors:
-  allowed-origins: http://localhost:5173,https://<your-ngrok-url>
-```
-
-Và vào `frontend/vite.config.ts`:
-
-```ts
-allowedHosts: ['<your-ngrok-url>']
+docker compose down          # dừng, giữ lại data
+docker compose down -v       # dừng và xoá toàn bộ volume (reset DB)
 ```
 
 ---
@@ -216,21 +172,14 @@ allowedHosts: ['<your-ngrok-url>']
 
 | Username | Password | Vai trò |
 |----------|----------|---------|
-| `admin` | `Admin@Dev#2024` | Quản trị viên |
-| `tech` | `Tech@Dev#2024` | Kỹ thuật viên |
+| `admin` | `Admin@Docker#2024` | Quản trị viên |
+| `tech` | `Tech@Docker#2024` | Kỹ thuật viên |
 
-> Mật khẩu seed được đọc từ `ADMIN_INITIAL_PASSWORD` / `TECH_INITIAL_PASSWORD` trong biến môi trường (fallback theo profile: `Admin@Dev#2024` cho dev, bắt buộc đặt trong `.env` cho prod).
+> Thay đổi bằng cách đặt `ADMIN_INITIAL_PASSWORD` / `TECH_INITIAL_PASSWORD` trong `.env` trước lần chạy đầu tiên.
 
 ---
 
-## 7. Chạy toàn bộ bằng Docker (Production-like)
-
-```bash
-cp .env .env.prod   # chỉnh POSTGRES_PASSWORD, JWT_SECRET, MINIO_SECRET_KEY thành giá trị thực
-docker compose up -d
-```
-
-Các service:
+## 7. Các service trong Docker Compose
 
 | Service | Port | Mô tả |
 |---------|------|-------|
@@ -238,7 +187,16 @@ Các service:
 | `minio` | 9000 / 9001 | Object storage / MinIO Console |
 | `backend` | 8080 | Spring Boot API |
 | `frontend` | 80 | React app (Nginx) |
+| `ngrok` | 4040 | Tunnel public URL (cần `NGROK_AUTHTOKEN`) |
 | `backup` | — | Cronjob backup DB mỗi Chủ nhật 02:00 |
+
+### Truy cập từ điện thoại qua ngrok
+
+1. Đăng ký miễn phí tại [ngrok.com](https://ngrok.com) và lấy auth token
+2. Đặt `NGROK_AUTHTOKEN=<token>` trong `.env`
+3. Chạy `docker compose up --build`
+4. Vào `http://localhost:4040` → lấy URL dạng `https://xxxx.ngrok-free.app`
+5. Mở URL đó trên điện thoại để test QR scan
 
 ---
 
