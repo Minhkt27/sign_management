@@ -103,7 +103,7 @@ public class AssetService implements AssetUseCase {
 
     @Override
     public Page<Asset> getAssetsPage(int page, int size, String search) {
-        return assetDatabasePort.search(search, PageRequest.of(page, size, Sort.by("createdAt").descending()));
+        return assetDatabasePort.search(search, PageRequest.of(page, size));
     }
 
     @Override

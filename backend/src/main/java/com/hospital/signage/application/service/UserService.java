@@ -29,8 +29,7 @@ public class UserService implements UserUseCase {
 
     @Override
     public Page<User> getUsersPage(int page, int size, String search) {
-        PageRequest pageRequest = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        return userDatabasePort.findPage(search, pageRequest);
+        return userDatabasePort.findPage(search, PageRequest.of(page, size));
     }
 
     @Override

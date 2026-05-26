@@ -67,8 +67,7 @@ public class SignTypeService implements SignTypeUseCase {
 
     @Override
     public Page<SignType> getSignTypesPage(int page, int size, String search) {
-        PageRequest pageRequest = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        return signTypeDatabasePort.findPage(search, pageRequest);
+        return signTypeDatabasePort.findPage(search, PageRequest.of(page, size));
     }
 
     @Override

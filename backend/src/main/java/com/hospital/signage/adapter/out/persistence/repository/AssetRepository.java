@@ -20,7 +20,7 @@ public interface AssetRepository extends JpaRepository<AssetEntity, UUID> {
     boolean existsByLocationId(Long locationId);
     boolean existsBySignTypeId(Long signTypeId);
 
-    @Query(value = "SELECT * FROM assets WHERE unaccent(asset_code) ILIKE unaccent('%' || :search || '%') OR unaccent(COALESCE(name, '')) ILIKE unaccent('%' || :search || '%')",
+    @Query(value = "SELECT * FROM assets WHERE unaccent(asset_code) ILIKE unaccent('%' || :search || '%') OR unaccent(COALESCE(name, '')) ILIKE unaccent('%' || :search || '%') ORDER BY created_at DESC",
            countQuery = "SELECT count(*) FROM assets WHERE unaccent(asset_code) ILIKE unaccent('%' || :search || '%') OR unaccent(COALESCE(name, '')) ILIKE unaccent('%' || :search || '%')",
            nativeQuery = true)
     Page<AssetEntity> search(@Param("search") String search, Pageable pageable);

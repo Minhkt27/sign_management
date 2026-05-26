@@ -17,7 +17,7 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
     Optional<UserEntity> findByUsername(String username);
     List<UserEntity> findByRole(Role role);
 
-    @Query(value = "SELECT * FROM users WHERE unaccent(username) ILIKE unaccent('%' || :search || '%') OR unaccent(full_name) ILIKE unaccent('%' || :search || '%')",
+    @Query(value = "SELECT * FROM users WHERE unaccent(username) ILIKE unaccent('%' || :search || '%') OR unaccent(full_name) ILIKE unaccent('%' || :search || '%') ORDER BY created_at DESC",
            countQuery = "SELECT count(*) FROM users WHERE unaccent(username) ILIKE unaccent('%' || :search || '%') OR unaccent(full_name) ILIKE unaccent('%' || :search || '%')",
            nativeQuery = true)
     Page<UserEntity> search(@Param("search") String search, Pageable pageable);
