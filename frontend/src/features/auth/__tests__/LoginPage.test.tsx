@@ -42,7 +42,7 @@ describe('LoginPage', () => {
     await userEvent.type(screen.getByPlaceholderText('••••••••'), 'password');
     await userEvent.click(screen.getByRole('button', { name: /đăng nhập/i }));
 
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/admin/assets'));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/admin/assets/tree'));
   });
 
   it('navigates to /tech/dashboard after TECHNICAL login', async () => {

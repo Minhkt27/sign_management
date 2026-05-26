@@ -14,7 +14,7 @@ export default function LoginPage() {
     setError('');
     try {
       const res = await authService.login(u, p);
-      navigate(res.user.role === 'ADMIN' ? '/admin/assets' : '/tech/dashboard');
+      navigate(res.user.role === 'ADMIN' ? '/admin/assets/tree' : '/tech/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Tên đăng nhập hoặc mật khẩu không chính xác!');
     } finally {
