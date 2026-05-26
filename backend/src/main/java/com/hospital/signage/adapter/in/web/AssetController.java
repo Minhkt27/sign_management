@@ -27,7 +27,7 @@ public class AssetController {
     public ResponseEntity<PagedResponse<Asset>> getAllAssets(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(PagedResponse.from(assetUseCase.getAssetsPage(page, size)));
+        return ResponseEntity.ok(PagedResponse.from(assetUseCase.getAssetsPage(Math.max(0, page), Math.min(Math.max(1, size), 100))));
     }
 
     @GetMapping("/all")

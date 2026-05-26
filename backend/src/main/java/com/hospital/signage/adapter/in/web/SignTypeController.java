@@ -27,7 +27,7 @@ public class SignTypeController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "") String search) {
-        var result = signTypeUseCase.getSignTypesPage(page, size, search);
+        var result = signTypeUseCase.getSignTypesPage(Math.max(0, page), Math.min(Math.max(1, size), 100), search);
         return ResponseEntity.ok(PagedResponse.from(result));
     }
 

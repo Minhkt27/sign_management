@@ -30,7 +30,7 @@ public class TicketController {
             @RequestParam(required = false) UUID assetId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(PagedResponse.from(ticketUseCase.getTicketsPage(page, size, assigneeId, assetId)));
+        return ResponseEntity.ok(PagedResponse.from(ticketUseCase.getTicketsPage(Math.max(0, page), Math.min(Math.max(1, size), 100), assigneeId, assetId)));
     }
 
     @GetMapping("/{id}")

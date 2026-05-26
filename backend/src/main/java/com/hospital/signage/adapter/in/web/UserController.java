@@ -24,7 +24,7 @@ public class UserController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "") String search) {
-        var result = userUseCase.getUsersPage(page, size, search).map(UserResponse::from);
+        var result = userUseCase.getUsersPage(Math.max(0, page), Math.min(Math.max(1, size), 100), search).map(UserResponse::from);
         return ResponseEntity.ok(PagedResponse.from(result));
     }
 
