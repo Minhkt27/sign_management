@@ -193,7 +193,7 @@ export default function SignTypeListPage() {
         </div>
 
         {/* Table */}
-        <div className="border border-slate-200 rounded-xl overflow-hidden">
+        <div className="border border-slate-200 rounded-xl overflow-x-auto">
           <Table>
             <TableHeader className="bg-slate-50">
               <TableRow>

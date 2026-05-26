@@ -156,6 +156,7 @@ export default function UserListPage() {
         {isLoading ? (
           <div className="p-8 text-center text-slate-400">Đang tải...</div>
         ) : (
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -223,6 +224,7 @@ export default function UserListPage() {
               )}
             </TableBody>
           </Table>
+          </div>
         )}
 
         {totalPages > 1 && (
