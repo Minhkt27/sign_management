@@ -12,7 +12,6 @@ import com.hospital.signage.domain.model.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -173,4 +172,5 @@ public class TicketService implements TicketUseCase {
         return ticketDatabasePort.findByFilters(assigneeId, null, null, null, PageRequest.of(0, 200))
                 .getContent();
     }
+
 }

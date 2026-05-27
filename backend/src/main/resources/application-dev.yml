@@ -16,7 +16,7 @@ minio:
   secret-key: change_me_strong_password
 
 jwt:
-  secret: hospital-signage-secret-key-must-be-at-least-256-bits-long-for-hs256
+  secret: ${JWT_SECRET:change_me_in_dev_must_be_at_least_256_bits_long_for_hs256}
   expiration: 28800000
   refresh-expiration: 2592000000
 

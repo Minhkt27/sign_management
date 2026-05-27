@@ -13,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -69,8 +68,9 @@ public class AssetService implements AssetUseCase {
         existing.setStatus(updatedAsset.getStatus());
         existing.setSupplier(updatedAsset.getSupplier());
         existing.setInstalledAt(updatedAsset.getInstalledAt());
+        String oldImageUrl = null;
         if (updatedAsset.getImageUrl() != null && !updatedAsset.getImageUrl().equals(existing.getImageUrl())) {
-            deleteImageQuietly(existing.getImageUrl());
+            oldImageUrl = existing.getImageUrl();
         }
         existing.setImageUrl(updatedAsset.getImageUrl());
 
@@ -83,7 +83,9 @@ public class AssetService implements AssetUseCase {
         }
 
         existing.setUpdatedAt(Instant.now());
-        return assetDatabasePort.save(existing);
+        Asset saved = assetDatabasePort.save(existing);
+        deleteImageQuietly(oldImageUrl);
+        return saved;
     }
 
     @Override

@@ -7,6 +7,7 @@ import com.hospital.signage.application.port.out.AssetDatabasePort;
 import com.hospital.signage.domain.model.Asset;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
@@ -41,7 +42,7 @@ public class AssetPersistenceAdapter implements AssetDatabasePort {
 
     @Override
     public List<Asset> findAll() {
-        return repository.findAll().stream()
+        return repository.findAll(PageRequest.of(0, 1000)).stream()
                 .map(mapper::toDomain)
                 .collect(Collectors.toList());
     }

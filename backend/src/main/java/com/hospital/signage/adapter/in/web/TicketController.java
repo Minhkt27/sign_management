@@ -6,6 +6,8 @@ import com.hospital.signage.domain.enums.TicketSource;
 import com.hospital.signage.domain.enums.TicketStatus;
 import com.hospital.signage.domain.model.MaintenanceTicket;
 import com.hospital.signage.domain.model.User;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 import java.util.UUID;
 
+@Tag(name = "Phiếu bảo trì")
 @RestController
 @RequestMapping("/api/tickets")
 @RequiredArgsConstructor
@@ -25,6 +28,7 @@ public class TicketController {
 
     private final TicketUseCase ticketUseCase;
 
+    @Operation(summary = "Danh sách phiếu bảo trì (phân trang, có lọc)")
     @GetMapping
     public ResponseEntity<PagedResponse<MaintenanceTicket>> getTickets(
             @RequestParam(required = false) Long assigneeId,
@@ -37,11 +41,13 @@ public class TicketController {
                 Math.max(0, page), Math.min(Math.max(1, size), 100), assigneeId, assetId, status, priority)));
     }
 
+    @Operation(summary = "Thống kê số lượng phiếu theo trạng thái")
     @GetMapping("/summary")
     public ResponseEntity<Map<String, Long>> getTicketsSummary() {
         return ResponseEntity.ok(ticketUseCase.getTicketsSummary());
     }
 
+    @Operation(summary = "Chi tiết phiếu bảo trì theo ID")
     @GetMapping("/{id}")
     public ResponseEntity<MaintenanceTicket> getTicketById(@PathVariable Long id) {
         return ticketUseCase.getTicketById(id)
@@ -49,6 +55,7 @@ public class TicketController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @Operation(summary = "Tạo phiếu bảo trì mới (báo hỏng)")
     @PostMapping
     public ResponseEntity<MaintenanceTicket> createTicket(@Valid @RequestBody CreateTicketRequest request) {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -67,6 +74,7 @@ public class TicketController {
         return ResponseEntity.ok(ticketUseCase.createTicket(command));
     }
 
+    @Operation(summary = "Phân công kỹ thuật viên xử lý phiếu")
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}/assign")
     public ResponseEntity<MaintenanceTicket> assignTicket(
@@ -79,6 +87,7 @@ public class TicketController {
         }
     }
 
+    @Operation(summary = "Kỹ thuật viên tự nhận phiếu")
     @PreAuthorize("hasRole('TECHNICAL')")
     @PutMapping("/{id}/take")
     public ResponseEntity<MaintenanceTicket> takeTicket(@PathVariable Long id) {
@@ -95,6 +104,7 @@ public class TicketController {
         }
     }
 
+    @Operation(summary = "Cập nhật trạng thái phiếu (xử lý, hoàn thành, đóng, từ chối)")
     @PreAuthorize("hasRole('ADMIN') or hasRole('TECHNICAL')")
     @PutMapping("/{id}/status")
     public ResponseEntity<MaintenanceTicket> updateTicketStatus(
