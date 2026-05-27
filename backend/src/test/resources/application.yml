@@ -1,3 +1,7 @@
+spring:
+  flyway:
+    enabled: false  # unit tests have no database — Flyway disabled
+
 jwt:
   secret: test-jwt-secret-key-for-unit-tests-only-must-be-at-least-256-bits-long
   expiration: 3600000
