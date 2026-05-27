@@ -80,7 +80,7 @@ public class LocationController {
     }
 
     public record LocationRequest(
-            @NotBlank @Size(max = 50) String locationCode,
+            @Size(max = 50) String locationCode,
             @NotBlank @Size(max = 200) String name,
             Long parentId,
             @Size(max = 500) String description,

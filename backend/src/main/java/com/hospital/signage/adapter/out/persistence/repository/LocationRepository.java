@@ -13,6 +13,7 @@ import java.util.List;
 public interface LocationRepository extends JpaRepository<LocationEntity, Long> {
     List<LocationEntity> findByParentId(Long parentId);
     boolean existsByParentId(Long parentId);
+    boolean existsByLocationCode(String locationCode);
 
     @Modifying(clearAutomatically = true)
     @Query("UPDATE LocationEntity l SET l.path = CONCAT(:newPath, SUBSTRING(l.path, LENGTH(:oldPath) + 1)) WHERE l.path LIKE CONCAT(:oldPath, '.%')")
