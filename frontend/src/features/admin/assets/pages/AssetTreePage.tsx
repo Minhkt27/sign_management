@@ -253,7 +253,7 @@ export default function AssetTreePage() {
       return (
         <div key={loc.id} style={{ marginLeft: `${depth * 20}px` }} className="space-y-1 select-none">
           <div className="flex items-center justify-between group p-2 hover:bg-slate-100 rounded-xl transition-all duration-150">
-            <div className="flex items-center space-x-2 cursor-pointer flex-1" onClick={() => toggleExpand(loc.id)}>
+            <div className="flex items-center space-x-2 cursor-pointer flex-1 min-w-0 overflow-hidden" onClick={() => toggleExpand(loc.id)}>
               {hasChildren ? (
                 isExpanded ? <ChevronDown size={16} className="text-slate-500" /> : <ChevronRight size={16} className="text-slate-500" />
               ) : (
@@ -336,28 +336,28 @@ export default function AssetTreePage() {
               {childAssets.map(asset => (
                 <div
                   key={asset.id}
-                  style={{ marginLeft: `${(depth + 1) * 20}px` }}
+                  style={{ marginLeft: `${Math.min((depth + 1) * 20, 48)}px` }}
                   onClick={() => setSelectedAsset(asset)}
-                  className={`flex items-center justify-between p-2 rounded-xl border border-dashed transition-all duration-150 text-left cursor-pointer ${
+                  className={`flex items-center justify-between gap-2 p-2 rounded-xl border border-dashed transition-all duration-150 text-left cursor-pointer ${
                     selectedAsset?.id === asset.id
                       ? 'bg-blue-50 border-blue-300'
                       : 'hover:bg-blue-50/50 border-transparent hover:border-blue-200/50'
                   }`}
                 >
-                  <div className="flex items-center space-x-2.5">
-                    <Tag size={16} className="text-emerald-500" />
-                    <span className="text-xs font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{asset.assetCode}</span>
+                  <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
+                    <Tag size={16} className="text-emerald-500 shrink-0" />
+                    <span className="text-xs font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 shrink-0">{asset.assetCode}</span>
                     {asset.name && (
-                      <span className="text-xs font-semibold text-slate-600">{asset.name}</span>
+                      <span className="text-xs font-semibold text-slate-600 hidden sm:inline truncate">{asset.name}</span>
                     )}
                     {asset.signTypeId && signTypeMap.has(asset.signTypeId) && (
-                      <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-xs px-1.5 py-0 font-semibold">
+                      <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-xs px-1.5 py-0 font-semibold hidden sm:inline-flex shrink-0">
                         {signTypeMap.get(asset.signTypeId)}
                       </Badge>
                     )}
-                    <span className="text-xs font-medium text-slate-400">{asset.material} ({asset.size})</span>
+                    <span className="text-xs font-medium text-slate-400 hidden sm:inline truncate">{asset.material} ({asset.size})</span>
                   </div>
-                  <div className="flex items-center space-x-1.5">
+                  <div className="flex items-center shrink-0">
                     {asset.status === 'ACTIVE' ? (
                       <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border border-emerald-250 text-xs px-1.5 py-0">Hoạt động</Badge>
                     ) : (
@@ -416,18 +416,18 @@ export default function AssetTreePage() {
 
       {/* Search Bar */}
       <div className="relative max-w-md">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
         <Input
           placeholder="Tìm nhanh biển hiệu (mã, mô tả, chất liệu...) hoặc vị trí..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-11 pr-4 py-3 border-slate-200 hover:border-slate-350 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-base text-slate-500"
+          className="pl-11 pr-4 py-3 text-base text-slate-800 placeholder:text-slate-400 border-slate-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl"
         />
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 items-start">
         {/* Tree panel */}
-        <div className={`bg-slate-50 p-3 md:p-6 rounded-xl border border-slate-200/50 min-h-[200px] space-y-3 transition-all duration-300 ${selectedAsset ? 'md:flex-1' : 'w-full'}`}>
+        <div className={`bg-slate-50 p-3 md:p-6 rounded-xl border border-slate-200/50 min-h-[200px] space-y-3 transition-all duration-300 overflow-x-hidden ${selectedAsset ? 'md:flex-1' : 'w-full'}`}>
           {locations.length > 0 ? (
             renderTreeNodes(null)
           ) : (

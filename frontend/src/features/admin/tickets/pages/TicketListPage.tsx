@@ -5,7 +5,6 @@ import { ticketService, TicketSummary } from '@/services/ticketService';
 import { PagedResponse } from '@/services/assetService';
 import { MaintenanceTicket, User } from '@/shared/types';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -14,12 +13,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { AlertCircle, Wrench, CheckCircle2, UserCheck, Eye, Clock, ShieldCheck, QrCode } from 'lucide-react';
+import { UserCheck, Eye, Clock, AlertCircle, Wrench, CheckCircle2 } from 'lucide-react';
+import { renderPriorityBadge, renderTicketStatusBadge } from '@/shared/helpers/ticketBadges';
 
 export default function TicketListPage() {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [priorityFilter, setPriorityFilter] = useState('ALL');
+  const [assigneeFilter, setAssigneeFilter] = useState('ALL');
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 10;
 
@@ -30,48 +31,26 @@ export default function TicketListPage() {
     staleTime: 60 * 1000,
   });
 
-  // Paginated list query — server-side status + priority filters
+  const { data: technicians = [] } = useQuery<User[]>({
+    queryKey: ['technicians'],
+    queryFn: ticketService.getTechnicians,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Paginated list query — server-side filters
   const { data: ticketData, isLoading } = useQuery<PagedResponse<MaintenanceTicket>>({
-    queryKey: ['tickets', page, statusFilter, priorityFilter],
-    queryFn: () => ticketService.getTickets({ status: statusFilter, priority: priorityFilter }, page, PAGE_SIZE),
+    queryKey: ['tickets', page, statusFilter, priorityFilter, assigneeFilter],
+    queryFn: () => ticketService.getTickets({
+      status: statusFilter,
+      priority: priorityFilter,
+      assigneeId: assigneeFilter !== 'ALL' ? Number(assigneeFilter) : undefined,
+    }, page, PAGE_SIZE),
   });
   const tickets = ticketData?.content ?? [];
 
   const getAssigneeName = (assignee: User | null) => {
     if (!assignee) return <span className="text-slate-400 text-sm font-medium italic">Chưa phân công</span>;
     return <span className="text-sm font-semibold text-slate-700">{assignee.fullName}</span>;
-  };
-
-  // Helper: Render priority badge
-  const renderPriorityBadge = (priority: MaintenanceTicket['priority']) => {
-    switch (priority) {
-      case 'CRITICAL':
-        return <Badge className="bg-red-50 text-red-700 hover:bg-red-50 border border-red-200 text-xs px-2 py-0.5">Khẩn cấp</Badge>;
-      case 'HIGH':
-        return <Badge className="bg-orange-50 text-orange-700 hover:bg-orange-50 border border-orange-200 text-xs px-2 py-0.5">Cao</Badge>;
-      case 'MEDIUM':
-        return <Badge className="bg-blue-50 text-blue-700 hover:bg-blue-50 border border-blue-200 text-xs px-2 py-0.5">Trung bình</Badge>;
-      case 'LOW':
-        return <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border border-slate-200 text-xs px-2 py-0.5">Thấp</Badge>;
-      default:
-        return <Badge>{priority}</Badge>;
-    }
-  };
-
-  // Helper: Render status badge
-  const renderStatusBadge = (status: MaintenanceTicket['ticketStatus']) => {
-    switch (status) {
-      case 'OPEN':
-        return <Badge className="bg-rose-50 text-rose-700 hover:bg-rose-50 border border-rose-200 flex items-center space-x-1 w-fit text-xs px-2 py-0.5"><AlertCircle size={11} /> <span>Chờ tiếp nhận</span></Badge>;
-      case 'IN_PROGRESS':
-        return <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-50 border border-amber-200 flex items-center space-x-1 w-fit text-xs px-2 py-0.5"><Wrench size={11} /> <span>Đang xử lý</span></Badge>;
-      case 'RESOLVED':
-        return <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border border-emerald-200 flex items-center space-x-1 w-fit text-xs px-2 py-0.5"><CheckCircle2 size={11} /> <span>Đã sửa xong</span></Badge>;
-      case 'CLOSED':
-        return <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border border-slate-200 flex items-center space-x-1 w-fit text-xs px-2 py-0.5"><ShieldCheck size={11} /> <span>Đã đóng phiếu</span></Badge>;
-      default:
-        return <Badge>{status}</Badge>;
-    }
   };
 
   // Stats from summary endpoint (global counts, unaffected by filter)
@@ -81,12 +60,6 @@ export default function TicketListPage() {
   const resolvedCount = summary?.RESOLVED ?? 0;
 
   const totalPages = ticketData?.totalPages ?? 1;
-  const pagedTickets = tickets;
-
-  if (isLoading) {
-    return <div className="text-center py-12 text-slate-500 font-medium">Đang tải danh sách phiếu bảo trì...</div>;
-  }
-
 
   return (
     <div className="space-y-8 text-left">
@@ -138,7 +111,6 @@ export default function TicketListPage() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h2 className="text-xl font-bold text-slate-800">Danh sách Phiếu Bảo trì</h2>
-            <p className="text-sm text-slate-500 mt-1">Quản lý và điều phối khắc phục sự cố hỏng hóc biển báo.</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -165,6 +137,17 @@ export default function TicketListPage() {
               <option value="MEDIUM">Trung bình</option>
               <option value="LOW">Thấp</option>
             </select>
+
+            <select
+              value={assigneeFilter}
+              onChange={(e) => { setAssigneeFilter(e.target.value); setPage(0); }}
+              className="border border-slate-200 bg-white text-slate-700 px-3.5 py-2.5 rounded-xl text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="ALL">Tất cả KTV</option>
+              {technicians.map(t => (
+                <option key={t.id} value={t.id}>{t.fullName}</option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -173,7 +156,7 @@ export default function TicketListPage() {
           <Table>
             <TableHeader className="bg-slate-50">
               <TableRow>
-                <TableHead className="text-sm font-bold text-slate-700 text-left">Mã phiếu</TableHead>
+                <TableHead className="text-sm font-bold text-slate-700 text-left">STT</TableHead>
                 <TableHead className="text-sm font-bold text-slate-700 text-left">Biển hiệu</TableHead>
                 <TableHead className="text-sm font-bold text-slate-700 text-left">Mô tả sự cố</TableHead>
                 <TableHead className="text-sm font-bold text-slate-700 text-left">Độ ưu tiên</TableHead>
@@ -185,27 +168,29 @@ export default function TicketListPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pagedTickets.length > 0 ? (
-                pagedTickets.map((t) => (
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="h-24 text-center text-sm text-slate-400 font-medium">
+                    Đang tải...
+                  </TableCell>
+                </TableRow>
+              ) : tickets.length > 0 ? (
+                tickets.map((t, idx) => (
                   <TableRow key={t.id} className="hover:bg-slate-50/50">
                     <TableCell className="text-sm font-bold text-slate-800 text-left">
-                      <div className="flex items-center gap-1.5">
-                        <span>#{t.id}</span>
-                        {t.source === 'QR_SCAN' && (
-                          <Badge className="bg-violet-50 text-violet-700 border border-violet-200 text-[10px] px-1.5 py-0 flex items-center gap-1 font-bold">
-                            <QrCode size={9} />QR
-                          </Badge>
-                        )}
-                      </div>
+                      {page * PAGE_SIZE + idx + 1}
                     </TableCell>
-                    <TableCell className="text-sm font-bold text-blue-600 text-left cursor-pointer hover:underline" onClick={() => navigate(`/admin/assets/${t.asset?.id}`)}>
-                      {t.asset?.assetCode || 'N/A'}
+                    <TableCell className="text-sm text-left cursor-pointer hover:underline" onClick={() => navigate(`/admin/assets/${t.asset?.id}`)}>
+                      <span className="font-bold text-blue-600">{t.asset?.name || t.asset?.assetCode || 'N/A'}</span>
+                      {t.asset?.name && t.asset?.assetCode && (
+                        <span className="block text-xs text-slate-400 font-normal">{t.asset.assetCode}</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm text-slate-800 max-w-xs truncate text-left" title={t.description}>
                       {t.description}
                     </TableCell>
                     <TableCell className="text-sm text-left">{renderPriorityBadge(t.priority)}</TableCell>
-                    <TableCell className="text-sm text-left">{renderStatusBadge(t.ticketStatus)}</TableCell>
+                    <TableCell className="text-sm text-left">{renderTicketStatusBadge(t.ticketStatus)}</TableCell>
                     <TableCell className="text-sm text-left">{getAssigneeName(t.assignee)}</TableCell>
                     <TableCell className="text-sm text-slate-700 text-left">
                       {new Date(t.createdAt).toLocaleDateString('vi-VN')}

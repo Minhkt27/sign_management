@@ -78,7 +78,7 @@ export default function AdminLayout() {
               }
             >
               <Icon size={19} className="shrink-0" />
-              <span className="text-sm font-semibold whitespace-nowrap">{item.label}</span>
+              <span className="text-base font-semibold whitespace-nowrap">{item.label}</span>
             </NavLink>
           );
         })}
@@ -98,7 +98,7 @@ export default function AdminLayout() {
   );
 
   return (
-    <div className="flex h-screen bg-slate-100 font-sans antialiased overflow-hidden">
+    <div className="flex h-screen bg-slate-100 font-sans overflow-hidden">
 
       {/* ── Desktop sidebar (hover-to-expand, hidden on mobile) ── */}
       <div className="hidden md:block w-16 shrink-0 h-full" />
@@ -157,7 +157,7 @@ export default function AdminLayout() {
                   <Icon size={19} />
                 </div>
                 <div className="max-w-0 opacity-0 overflow-hidden group-hover:max-w-[160px] group-hover:opacity-100 transition-all duration-200 group-hover:delay-150">
-                  <span className="text-sm font-semibold whitespace-nowrap pr-3">{item.label}</span>
+                  <span className="text-base font-semibold whitespace-nowrap pr-3">{item.label}</span>
                 </div>
               </NavLink>
             );

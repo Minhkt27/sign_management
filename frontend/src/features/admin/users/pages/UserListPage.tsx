@@ -143,12 +143,12 @@ export default function UserListPage() {
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
         <div className="p-4 border-b border-slate-100">
           <div className="relative max-w-sm">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
             <Input
               placeholder="Tìm theo tên hoặc tên đăng nhập..."
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(0); }}
-              className="pl-11 pr-4 py-3 text-base text-slate-500 border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              className="pl-11 pr-4 py-3 text-base text-slate-800 placeholder:text-slate-400 border-slate-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
         </div>

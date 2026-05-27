@@ -112,10 +112,6 @@ export default function AssetListPage() {
     },
   });
 
-  if (isAssetsLoading) {
-    return <div className="text-center py-12 text-slate-500 font-medium">Đang tải danh sách biển hiệu...</div>;
-  }
-
   const handleCreateAsset = async (e: React.FormEvent) => {
     e.preventDefault();
     const finalLocationId = selectedSubRoomId || selectedRoomId || selectedFloorId || selectedBuildingId;
@@ -245,12 +241,12 @@ export default function AssetListPage() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center space-x-3 flex-1 max-w-md">
             <div className="relative w-full">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
               <Input
-                placeholder="Tìm mã hoặc vị trí..."
+                placeholder="Tìm mã hoặc tên biển..."
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-                className="pl-11 pr-4 py-3 text-base text-slate-500 border-slate-200 hover:border-slate-350 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                className="pl-11 pr-4 py-3 text-base text-slate-800 placeholder:text-slate-400 border-slate-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
           </div>
@@ -597,7 +593,13 @@ export default function AssetListPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredAssets.length > 0 ? (
+              {isAssetsLoading ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="h-24 text-center text-sm text-slate-400 font-medium">
+                    Đang tải...
+                  </TableCell>
+                </TableRow>
+              ) : filteredAssets.length > 0 ? (
                 pagedAssets.map((asset, index) => (
                   <TableRow key={asset.id} className="hover:bg-slate-50/50">
                     <TableCell className="text-sm text-left font-medium text-slate-500">{page * PAGE_SIZE + index + 1}</TableCell>
