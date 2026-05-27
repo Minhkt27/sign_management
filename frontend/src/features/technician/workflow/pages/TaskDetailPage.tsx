@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, CheckCircle2, Wrench, Camera, ShieldCheck, Image as ImageIcon, Plus, RotateCcw, FolderOpen } from 'lucide-react';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { PRIORITY_LABELS } from '@/shared/helpers/ticketBadges';
 
 export default function TaskDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -45,12 +46,12 @@ export default function TaskDetailPage() {
     },
   });
 
-  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
-  const MAX_SIZE_MB = 10;
+  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  const MAX_SIZE_MB = 5;
 
   const validateImage = (file: File): string | null => {
-    if (!ALLOWED_TYPES.includes(file.type) && !file.type.startsWith('image/')) {
-      return 'Chỉ chấp nhận file ảnh (JPG, PNG, WEBP, HEIC).';
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      return 'Chỉ chấp nhận file ảnh JPG, PNG, GIF, WEBP.';
     }
     if (file.size > MAX_SIZE_MB * 1024 * 1024) {
       return `Ảnh không được vượt quá ${MAX_SIZE_MB}MB.`;
@@ -154,9 +155,7 @@ export default function TaskDetailPage() {
             task.priority === 'HIGH' ? 'bg-orange-50 text-orange-600 border border-orange-200 text-xs px-2 py-0.5' :
             'bg-blue-50 text-blue-600 border border-blue-200 text-xs px-2 py-0.5'
           }>
-            {task.priority === 'CRITICAL' ? 'Khẩn cấp' :
-             task.priority === 'HIGH' ? 'Cao' :
-             task.priority === 'MEDIUM' ? 'Trung bình' : 'Thấp'}
+            {PRIORITY_LABELS[task.priority] ?? task.priority}
           </Badge>
         </div>
         <h2 className="text-lg font-bold text-slate-800 leading-snug">{task.asset?.assetCode}</h2>

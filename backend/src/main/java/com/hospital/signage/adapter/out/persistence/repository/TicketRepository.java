@@ -16,7 +16,8 @@ import java.util.UUID;
 @Repository
 public interface TicketRepository extends JpaRepository<MaintenanceTicketEntity, Long> {
 
-    List<MaintenanceTicketEntity> findByAssetId(UUID assetId);
+    @Query("SELECT t FROM MaintenanceTicketEntity t LEFT JOIN FETCH t.reporter LEFT JOIN FETCH t.assignee WHERE t.asset.id = :assetId ORDER BY t.createdAt DESC")
+    List<MaintenanceTicketEntity> findByAssetId(@Param("assetId") UUID assetId);
     boolean existsByAssetId(UUID assetId);
 
     @Query(value = "SELECT t FROM MaintenanceTicketEntity t " +
