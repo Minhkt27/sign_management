@@ -45,7 +45,7 @@ public class MaintenanceTicketEntity {
     private Long id;
 
     @Version
-    @Column(nullable = false)
+    @Column(name = "version", columnDefinition = "integer default 0 not null")
     private int version;
 
     @ManyToOne(fetch = FetchType.LAZY)
