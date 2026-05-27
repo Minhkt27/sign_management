@@ -12,6 +12,13 @@ spring:
       hibernate:
         format_sql: true
 
+  flyway:
+    # Dev DB was previously created by Hibernate (no flyway_schema_history).
+    # baseline-on-migrate marks V1 as already applied so Flyway doesn't re-run it.
+    # Remove these two lines on a fresh DB (let Flyway create schema from scratch).
+    baseline-on-migrate: true
+    baseline-version: 1
+
 minio:
   secret-key: change_me_strong_password
 
