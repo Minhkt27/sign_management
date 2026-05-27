@@ -14,6 +14,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 import java.util.Optional;
@@ -80,7 +82,7 @@ public class AssetService implements AssetUseCase {
         }
 
         Asset saved = assetDatabasePort.save(existing);
-        deleteImageQuietly(oldImageUrl);
+        scheduleImageDeletion(oldImageUrl);
         return saved;
     }
 
@@ -118,7 +120,19 @@ public class AssetService implements AssetUseCase {
             throw new IllegalArgumentException("Không thể xóa biển báo này vì đang có phiếu bảo trì liên kết.");
         }
         assetDatabasePort.deleteById(id);
-        deleteImageQuietly(asset.getImageUrl());
+        scheduleImageDeletion(asset.getImageUrl());
+    }
+
+    // Registers a post-commit hook so MinIO deletion only happens after DB commits.
+    // If the transaction rolls back, the file is untouched.
+    private void scheduleImageDeletion(String imageUrl) {
+        if (imageUrl == null || imageUrl.isBlank()) return;
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                deleteImageQuietly(imageUrl);
+            }
+        });
     }
 
     private void deleteImageQuietly(String imageUrl) {
