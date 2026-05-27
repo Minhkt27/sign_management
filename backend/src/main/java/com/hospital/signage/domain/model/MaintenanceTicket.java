@@ -17,6 +17,7 @@ import java.time.Instant;
 @AllArgsConstructor
 public class MaintenanceTicket {
     private Long id;
+    private int version;
     private Asset asset;
     private User reporter;
     private User assignee;
