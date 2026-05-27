@@ -5,6 +5,7 @@ import { MaintenanceTicket, User } from '@/shared/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, UserCheck } from 'lucide-react';
+import { PRIORITY_LABELS } from '@/shared/helpers/ticketBadges';
 
 export default function TicketAssignPage() {
   const { id } = useParams<{ id: string }>();
@@ -73,7 +74,7 @@ export default function TicketAssignPage() {
               ticket.priority === 'HIGH' ? 'bg-orange-50 text-orange-600 hover:bg-orange-50 border border-orange-200' :
               'bg-blue-50 text-blue-600 hover:bg-blue-50 border border-blue-200'
             }>
-              Độ ưu tiên: {ticket.priority}
+              Độ ưu tiên: {PRIORITY_LABELS[ticket.priority] ?? ticket.priority}
             </Badge>
           </div>
           <span className="text-xs text-slate-400">Khởi tạo: {new Date(ticket.createdAt).toLocaleString()}</span>

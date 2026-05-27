@@ -10,6 +10,7 @@ import com.hospital.signage.domain.model.Asset;
 import com.hospital.signage.domain.model.MaintenanceTicket;
 import com.hospital.signage.domain.model.User;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TicketService implements TicketUseCase {
@@ -46,14 +48,14 @@ public class TicketService implements TicketUseCase {
                 .priority(command.priority())
                 .ticketStatus(TicketStatus.OPEN)
                 .source(command.source())
-                .createdAt(Instant.now())
-                .updatedAt(Instant.now())
                 .build();
 
         asset.setStatus(com.hospital.signage.domain.enums.AssetStatus.DAMAGED);
         assetDatabasePort.save(asset);
 
-        return ticketDatabasePort.save(ticket);
+        MaintenanceTicket saved = ticketDatabasePort.save(ticket);
+        log.info("Ticket {} created for asset {} by user {}", saved.getId(), command.assetId(), command.reporter().getId());
+        return saved;
     }
 
     @Override
@@ -66,8 +68,9 @@ public class TicketService implements TicketUseCase {
                 .orElseThrow(() -> new IllegalArgumentException("Assignee user not found"));
 
         ticket.setAssignee(assignee);
-        ticket.setUpdatedAt(Instant.now());
-        return ticketDatabasePort.save(ticket);
+        MaintenanceTicket saved = ticketDatabasePort.save(ticket);
+        log.info("Ticket {} assigned to user {}", ticketId, assigneeId);
+        return saved;
     }
 
     @Override
@@ -110,8 +113,8 @@ public class TicketService implements TicketUseCase {
             ticket.setRejectionNote(rejectionNote);
             ticket.setRejectionCount(ticket.getRejectionCount() + 1);
             ticket.setCompletedAt(null);
+            log.warn("Ticket {} rejected (count={}/3): {}", ticketId, ticket.getRejectionCount(), rejectionNote);
         }
-        ticket.setUpdatedAt(Instant.now());
 
         Asset asset = ticket.getAsset();
         if (asset != null && asset.getStatus() != com.hospital.signage.domain.enums.AssetStatus.SCRAPPED) {
@@ -138,8 +141,9 @@ public class TicketService implements TicketUseCase {
         User technician = userDatabasePort.findById(technicianId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         ticket.setAssignee(technician);
-        ticket.setUpdatedAt(Instant.now());
-        return ticketDatabasePort.save(ticket);
+        MaintenanceTicket saved = ticketDatabasePort.save(ticket);
+        log.info("Ticket {} self-taken by technician {}", ticketId, technicianId);
+        return saved;
     }
 
     @Override

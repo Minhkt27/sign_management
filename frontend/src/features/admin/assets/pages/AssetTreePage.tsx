@@ -5,6 +5,7 @@ import { locationService } from '@/services/locationService';
 import { assetService } from '@/services/assetService';
 import { signTypeService } from '@/services/signTypeService';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
+import { getApiError } from '@/shared/helpers/apiError';
 import { Location, Asset, SignType } from '@/shared/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -164,10 +165,7 @@ export default function AssetTreePage() {
       setEditLocCode('');
       setEditLocId(null);
     },
-    onError: (error: any) => {
-      const errMsg = error?.response?.data?.message || 'Có lỗi xảy ra khi cập nhật vị trí.';
-      alert(errMsg);
-    }
+    onError: (error: unknown) => alert(getApiError(error, 'Có lỗi xảy ra khi cập nhật vị trí.')),
   });
 
   const deleteLocMutation = useMutation({
@@ -175,10 +173,7 @@ export default function AssetTreePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['locations'] });
     },
-    onError: (error: any) => {
-      const errMsg = error?.response?.data?.message || 'Có lỗi xảy ra khi xóa vị trí.';
-      alert(errMsg);
-    }
+    onError: (error: unknown) => alert(getApiError(error, 'Có lỗi xảy ra khi xóa vị trí.')),
   });
 
   const toggleExpand = (locId: number) => {

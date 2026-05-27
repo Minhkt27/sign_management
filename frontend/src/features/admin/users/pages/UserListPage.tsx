@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { KeyRound, Plus, Search } from 'lucide-react';
 import { Pagination } from '@/shared/components/Pagination';
+import { getApiError } from '@/shared/helpers/apiError';
 import { UserTable } from '../components/UserTable';
 import { CreateUserDialog } from '../components/CreateUserDialog';
 import ChangePasswordModal from '@/components/ChangePasswordModal';
@@ -39,7 +40,7 @@ export default function UserListPage() {
       setIsCreateOpen(false);
       setCreateError('');
     },
-    onError: (err: any) => setCreateError(err.response?.data?.message || 'Tạo tài khoản thất bại'),
+    onError: (err: unknown) => setCreateError(getApiError(err, 'Tạo tài khoản thất bại')),
   });
 
   const toggleActiveMutation = useMutation({

@@ -5,15 +5,16 @@ import com.hospital.signage.application.port.out.UserDatabasePort;
 import com.hospital.signage.domain.enums.Role;
 import com.hospital.signage.domain.model.User;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserService implements UserUseCase {
@@ -48,10 +49,10 @@ public class UserService implements UserUseCase {
                 .password(passwordEncoder.encode(command.password()))
                 .role(Role.TECHNICAL)
                 .isActive(true)
-                .createdAt(Instant.now())
-                .updatedAt(Instant.now())
                 .build();
-        return userDatabasePort.save(user);
+        User saved = userDatabasePort.save(user);
+        log.info("Technician account '{}' created with id {}", saved.getUsername(), saved.getId());
+        return saved;
     }
 
     @Override
@@ -60,7 +61,6 @@ public class UserService implements UserUseCase {
         User user = userDatabasePort.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại"));
         user.setIsActive(active);
-        user.setUpdatedAt(Instant.now());
         if (!active) {
             user.setRefreshToken(null);
         }
@@ -77,8 +77,8 @@ public class UserService implements UserUseCase {
         }
         user.setPassword(passwordEncoder.encode("12345678"));
         user.setRefreshToken(null);
-        user.setUpdatedAt(Instant.now());
         userDatabasePort.save(user);
+        log.warn("Password reset to default for user '{}'", user.getUsername());
     }
 
     @Override
@@ -90,7 +90,6 @@ public class UserService implements UserUseCase {
             throw new IllegalArgumentException("Mật khẩu hiện tại không đúng");
         }
         user.setPassword(passwordEncoder.encode(command.newPassword()));
-        user.setUpdatedAt(Instant.now());
         userDatabasePort.save(user);
     }
 }

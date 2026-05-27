@@ -9,6 +9,7 @@ import { AssetFilters } from '../components/AssetFilters';
 import { AssetTable } from '../components/AssetTable';
 import { CreateAssetDialog } from '../components/CreateAssetDialog';
 import { Pagination } from '@/shared/components/Pagination';
+import { getApiError } from '@/shared/helpers/apiError';
 
 const PAGE_SIZE = 10;
 
@@ -39,12 +40,7 @@ export default function AssetListPage() {
   const deleteMutation = useMutation({
     mutationFn: assetService.deleteAsset,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['assets'] }),
-    onError: (error: any) => {
-      const msg = error?.response?.data?.message
-        ?? error?.response?.data
-        ?? 'Không thể xóa biển báo này vì đang có phiếu bảo trì liên kết.';
-      alert(msg);
-    },
+    onError: (error: unknown) => alert(getApiError(error, 'Không thể xóa biển báo này vì đang có phiếu bảo trì liên kết.')),
   });
 
   const handleDeleteAsset = (id: string) => {

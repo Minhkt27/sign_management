@@ -15,7 +15,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -47,8 +46,6 @@ public class AssetService implements AssetUseCase {
             asset.setLocation(location);
         }
 
-        asset.setCreatedAt(Instant.now());
-        asset.setUpdatedAt(Instant.now());
         return assetDatabasePort.save(asset);
     }
 
@@ -82,7 +79,6 @@ public class AssetService implements AssetUseCase {
             existing.setLocation(null);
         }
 
-        existing.setUpdatedAt(Instant.now());
         Asset saved = assetDatabasePort.save(existing);
         deleteImageQuietly(oldImageUrl);
         return saved;

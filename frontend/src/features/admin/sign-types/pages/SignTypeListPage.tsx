@@ -9,6 +9,7 @@ import { StatCard } from '@/shared/components/StatCard';
 import { Pagination } from '@/shared/components/Pagination';
 import { SignTypeTable } from '../components/SignTypeTable';
 import { SignTypeFormDialog } from '../components/SignTypeFormDialog';
+import { getApiError } from '@/shared/helpers/apiError';
 
 const PAGE_SIZE = 10;
 
@@ -32,19 +33,19 @@ export default function SignTypeListPage() {
   const createMutation = useMutation({
     mutationFn: signTypeService.createSignType,
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['signTypes'] }); setIsDialogOpen(false); },
-    onError: (e: any) => alert(e?.response?.data?.message || 'Có lỗi xảy ra khi tạo loại biển.'),
+    onError: (e: unknown) => alert(getApiError(e, 'Có lỗi xảy ra khi tạo loại biển.')),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<SignType> }) => signTypeService.updateSignType(id, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['signTypes'] }); setIsDialogOpen(false); },
-    onError: (e: any) => alert(e?.response?.data?.message || 'Có lỗi xảy ra khi cập nhật loại biển.'),
+    onError: (e: unknown) => alert(getApiError(e, 'Có lỗi xảy ra khi cập nhật loại biển.')),
   });
 
   const deleteMutation = useMutation({
     mutationFn: signTypeService.deleteSignType,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['signTypes'] }),
-    onError: (e: any) => alert(e?.response?.data?.message || 'Có lỗi xảy ra khi xóa loại biển.'),
+    onError: (e: unknown) => alert(getApiError(e, 'Có lỗi xảy ra khi xóa loại biển.')),
   });
 
   const handleOpenCreate = () => { setEditingItem(null); setIsDialogOpen(true); };
