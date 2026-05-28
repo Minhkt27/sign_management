@@ -7,6 +7,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -17,6 +18,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -27,24 +29,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        
+
         final String authHeader = request.getHeader("Authorization");
-        final String jwt;
-        final String username;
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        jwt = authHeader.substring(7);
+        String jwt = authHeader.substring(7);
         try {
-            username = jwtTokenProvider.extractUsername(jwt);
+            String username = jwtTokenProvider.extractUsername(jwt);
 
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 User user = userDatabasePort.findByUsername(username).orElse(null);
 
-                if (user != null && user.getIsActive()) {
+                if (user == null) {
+                    log.warn("JWT references unknown user '{}'", username);
+                } else if (!user.getIsActive()) {
+                    log.warn("JWT rejected — account '{}' is inactive", username);
+                } else {
                     UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
                             .username(user.getUsername())
                             .password(user.getPassword())
@@ -53,17 +57,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                     if (jwtTokenProvider.validateToken(jwt, userDetails)) {
                         UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                                user, // Store the domain User object as principal for easy access in controllers
-                                null,
-                                userDetails.getAuthorities()
-                        );
+                                user, null, userDetails.getAuthorities());
                         authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                         SecurityContextHolder.getContext().setAuthentication(authToken);
                     }
                 }
             }
         } catch (Exception e) {
-            // Log/ignore token parsing errors (expired, signature invalid, etc.) so that filterChain continues
+            log.warn("Invalid JWT from {}: {}", request.getRemoteAddr(), e.getMessage());
         }
 
         filterChain.doFilter(request, response);

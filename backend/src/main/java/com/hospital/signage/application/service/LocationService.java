@@ -6,6 +6,7 @@ import com.hospital.signage.application.port.out.LocationDatabasePort;
 import com.hospital.signage.domain.enums.LocationType;
 import com.hospital.signage.domain.model.Location;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,6 +14,7 @@ import java.text.Normalizer;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class LocationService implements LocationUseCase {
@@ -47,7 +49,10 @@ public class LocationService implements LocationUseCase {
         String label = cleanForLtree(location.getLocationCode());
         location.setPath(parent != null ? parent.getPath() + "." + label : label);
 
-        return locationDatabasePort.save(location);
+        Location saved = locationDatabasePort.save(location);
+        log.info("Location '{}' (id={}, code={}) created under parent {}",
+                saved.getName(), saved.getId(), saved.getLocationCode(), saved.getParentId());
+        return saved;
     }
 
     @Override
@@ -75,6 +80,7 @@ public class LocationService implements LocationUseCase {
             throw new IllegalArgumentException("Không thể xóa vị trí này vì đang có biển báo liên kết.");
         }
         locationDatabasePort.deleteById(id);
+        log.info("Location {} deleted", id);
     }
 
     @Override
@@ -103,6 +109,7 @@ public class LocationService implements LocationUseCase {
 
         if (!updated.getPath().equals(oldPath)) {
             locationDatabasePort.bulkUpdatePathPrefix(oldPath, updated.getPath());
+            log.info("Location {} path updated: {} → {}", id, oldPath, updated.getPath());
         }
 
         return updated;
