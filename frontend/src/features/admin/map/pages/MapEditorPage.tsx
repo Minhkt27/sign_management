@@ -10,6 +10,7 @@ import { NodePanel } from '../components/NodePanel';
 import { MousePointer, Plus, GitBranch, Trash2, ArrowLeft } from 'lucide-react';
 import { getApiError } from '@/shared/helpers/apiError';
 import { NODE_TYPE_OPTIONS } from '../constants';
+import { toast } from 'sonner';
 
 const TOOL_BUTTONS: { tool: EditorTool; icon: React.ReactNode; label: string }[] = [
   { tool: 'select',  icon: <MousePointer size={18} />, label: 'Chọn / Kéo' },
@@ -49,13 +50,13 @@ export default function MapEditorPage() {
   const createNodeMutation = useMutation({
     mutationFn: mapService.createNode,
     onSuccess: invalidate,
-    onError: (e: unknown) => alert(getApiError(e, 'Không thể thêm node')),
+    onError: (e: unknown) => toast.error(getApiError(e, 'Không thể thêm node')),
   });
 
   const updateNodeMutation = useMutation({
     mutationFn: ({ id, ...data }: { id: number } & Partial<MapNode>) => mapService.updateNode(id, data),
-    onSuccess: invalidate,
-    onError: (e: unknown) => alert(getApiError(e, 'Không thể cập nhật node')),
+    onSuccess: () => { invalidate(); toast.success('Đã lưu node'); },
+    onError: (e: unknown) => toast.error(getApiError(e, 'Không thể cập nhật node')),
   });
 
   const deleteNodeMutation = useMutation({
@@ -67,7 +68,7 @@ export default function MapEditorPage() {
   const createEdgeMutation = useMutation({
     mutationFn: ({ from, to }: { from: number; to: number }) => mapService.createEdge(from, to),
     onSuccess: invalidate,
-    onError: (e: unknown) => alert(getApiError(e, 'Không thể tạo đường nối')),
+    onError: (e: unknown) => toast.error(getApiError(e, 'Không thể tạo đường nối')),
   });
 
   const deleteEdgeMutation = useMutation({
