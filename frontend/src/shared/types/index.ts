@@ -50,7 +50,7 @@ export interface User {
   isActive: boolean;
 }
 
-export type NodeType = 'ROOM' | 'JUNCTION' | 'STAIRS' | 'ELEVATOR' | 'ENTRANCE';
+export type NodeType = 'ROOM' | 'DEPARTMENT' | 'JUNCTION' | 'STAIRS' | 'ELEVATOR' | 'ENTRANCE';
 
 export interface MapFloor {
   id: number;

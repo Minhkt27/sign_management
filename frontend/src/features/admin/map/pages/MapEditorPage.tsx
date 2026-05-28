@@ -164,7 +164,7 @@ export default function MapEditorPage() {
           <span>·</span>
           <span>{floorData.edges.length} đường nối</span>
           <div className="flex items-center gap-3 ml-3">
-            {([['ROOM','Phòng','bg-blue-500'],['JUNCTION','Hành lang','bg-slate-400'],['STAIRS','Cầu thang','bg-orange-500'],['ELEVATOR','Thang máy','bg-purple-500'],['ENTRANCE','Lối vào','bg-emerald-500']] as const).map(([,label,color]) => (
+            {([['ROOM','Phòng','bg-blue-500'],['DEPARTMENT','Khoa','bg-teal-500'],['JUNCTION','Hành lang','bg-slate-400'],['STAIRS','Cầu thang','bg-orange-500'],['ELEVATOR','Thang máy','bg-purple-500'],['ENTRANCE','Lối vào','bg-emerald-500']] as const).map(([,label,color]) => (
               <span key={label} className="flex items-center gap-1">
                 <span className={`w-2.5 h-2.5 rounded-full ${color}`} />
                 {label}

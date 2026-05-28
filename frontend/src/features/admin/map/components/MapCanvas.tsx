@@ -18,15 +18,16 @@ interface Props {
 }
 
 const NODE_COLORS: Record<NodeType, string> = {
-  ROOM:     'bg-blue-500',
-  JUNCTION: 'bg-slate-400',
-  STAIRS:   'bg-orange-500',
-  ELEVATOR: 'bg-purple-500',
-  ENTRANCE: 'bg-emerald-500',
+  ROOM:       'bg-blue-500',
+  DEPARTMENT: 'bg-teal-500',
+  JUNCTION:   'bg-slate-400',
+  STAIRS:     'bg-orange-500',
+  ELEVATOR:   'bg-purple-500',
+  ENTRANCE:   'bg-emerald-500',
 };
 
 const NODE_LABELS: Record<NodeType, string> = {
-  ROOM: 'P', JUNCTION: '●', STAIRS: '▲', ELEVATOR: 'E', ENTRANCE: '→',
+  ROOM: 'P', DEPARTMENT: 'K', JUNCTION: '●', STAIRS: '▲', ELEVATOR: 'E', ENTRANCE: '→',
 };
 
 export function MapCanvas({

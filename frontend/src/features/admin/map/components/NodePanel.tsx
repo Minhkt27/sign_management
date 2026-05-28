@@ -11,9 +11,14 @@ interface Props {
   onClose: () => void;
 }
 
+const LOCATION_TYPES: Partial<Record<NodeType, 'DEPARTMENT' | 'ROOM'>> = {
+  DEPARTMENT: 'DEPARTMENT',
+  ROOM: 'ROOM',
+};
+
 export function NodePanel({ node, locations, onUpdate, onDelete, onClose }: Props) {
-  const [label, setLabel]       = useState('');
-  const [type, setType]         = useState<NodeType>('JUNCTION');
+  const [label, setLabel]           = useState('');
+  const [type, setType]             = useState<NodeType>('JUNCTION');
   const [locationId, setLocationId] = useState<string>('');
 
   useEffect(() => {
@@ -25,6 +30,13 @@ export function NodePanel({ node, locations, onUpdate, onDelete, onClose }: Prop
   }, [node]);
 
   if (!node) return null;
+
+  const locationType = LOCATION_TYPES[type];
+
+  const handleTypeChange = (newType: NodeType) => {
+    setType(newType);
+    if (!LOCATION_TYPES[newType]) setLocationId('');
+  };
 
   const handleSave = () => {
     onUpdate(node.id, {
@@ -58,7 +70,7 @@ export function NodePanel({ node, locations, onUpdate, onDelete, onClose }: Prop
           <label className="block text-xs font-medium text-slate-600 mb-1">Loại</label>
           <select
             value={type}
-            onChange={e => setType(e.target.value as NodeType)}
+            onChange={e => handleTypeChange(e.target.value as NodeType)}
             className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             {NODE_TYPE_OPTIONS.map(opt => (
@@ -67,32 +79,28 @@ export function NodePanel({ node, locations, onUpdate, onDelete, onClose }: Prop
           </select>
         </div>
 
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">
-            Gắn với Khoa/Phòng <span className="text-slate-400">(cho bệnh nhân tìm)</span>
-          </label>
-          <select
-            value={locationId}
-            onChange={e => setLocationId(e.target.value)}
-            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">— Không gắn —</option>
-            <optgroup label="Khoa / Phòng ban">
-              {locations.filter(l => l.type === 'DEPARTMENT').map(loc => (
+        {locationType && (
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              Gắn với {locationType === 'DEPARTMENT' ? 'Khoa' : 'Phòng'}
+              <span className="text-slate-400 ml-1">(cho bệnh nhân tìm)</span>
+            </label>
+            <select
+              value={locationId}
+              onChange={e => setLocationId(e.target.value)}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">— Không gắn —</option>
+              {locations.filter(l => l.type === locationType).map(loc => (
                 <option key={loc.id} value={loc.id}>{loc.name}</option>
               ))}
-            </optgroup>
-            <optgroup label="Phòng">
-              {locations.filter(l => l.type === 'ROOM').map(loc => (
-                <option key={loc.id} value={loc.id}>{loc.name}</option>
-              ))}
-            </optgroup>
-          </select>
-        </div>
+            </select>
+          </div>
+        )}
 
         <div className="text-xs text-slate-400 space-y-1">
           <div>ID: {node.id}</div>
-          <div>x: {node.x.toFixed(3)}, y: {node.y.toFixed(3)}</div>
+          <div>x: {node.x?.toFixed(3)}, y: {node.y?.toFixed(3)}</div>
         </div>
       </div>
 
