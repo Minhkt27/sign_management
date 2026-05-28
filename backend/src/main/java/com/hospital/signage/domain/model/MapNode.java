@@ -16,8 +16,8 @@ import java.util.UUID;
 public class MapNode {
     private Long id;
     private Long floorId;
-    private double x;
-    private double y;
+    private Double x;
+    private Double y;
     private NodeType type;
     private String label;
     private Long locationId;
