@@ -1,5 +1,75 @@
+import { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { mapService } from '@/services/mapService';
+import { locationService } from '@/services/locationService';
+import { fileService } from '@/services/fileService';
+import { MapFloor } from '@/shared/types';
+import { Map, Plus, Pencil, Trash2, Upload, Loader2 } from 'lucide-react';
+import { getApiError } from '@/shared/helpers/apiError';
 
-imgHeight: uploadedImage.height,
+export default function MapListPage() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [buildingId, setBuildingId]         = useState('');
+  const [locationId, setLocationId]         = useState('');
+  const [uploading, setUploading]           = useState(false);
+  const [uploadedImage, setUploadedImage]   = useState<{ url: string; width: number; height: number } | null>(null);
+
+  const { data: floors = [], isLoading } = useQuery({
+    queryKey: ['mapFloors'],
+    queryFn: mapService.getAllFloors,
+  });
+
+  const { data: locations = [] } = useQuery({
+    queryKey: ['locations'],
+    queryFn: locationService.getAllLocations,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: mapService.createFloor,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['mapFloors'] });
+      setShowCreateForm(false);
+      setBuildingId('');
+      setLocationId('');
+      setUploadedImage(null);
+    },
+    onError: (e: unknown) => alert(getApiError(e, 'Không thể tạo sơ đồ')),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: mapService.deleteFloor,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['mapFloors'] }),
+    onError: (e: unknown) => alert(getApiError(e, 'Không thể xóa sơ đồ')),
+  });
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const url = await fileService.uploadFile(file);
+      const img = new Image();
+      img.onload = () => setUploadedImage({ url, width: img.naturalWidth, height: img.naturalHeight });
+      img.src = url;
+    } catch (err) {
+      alert(getApiError(err, 'Upload ảnh thất bại'));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleCreate = () => {
+    if (!locationId || !uploadedImage) return;
+    createMutation.mutate({
+      locationId: Number(locationId),
+      imageUrl: uploadedImage.url,
+      imgWidth: uploadedImage.width,
+      imgHeight: uploadedImage.height,
     });
   };
 
