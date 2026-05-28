@@ -71,10 +71,6 @@ export default function MapEditorPage() {
     onError: (e: unknown) => toast.error(getApiError(e, 'Không thể tạo đường nối')),
   });
 
-  const deleteEdgeMutation = useMutation({
-    mutationFn: mapService.deleteEdge,
-    onSuccess: invalidate,
-  });
 
   const handleCanvasClick = (x: number, y: number) => {
     createNodeMutation.mutate({ floorId: Number(floorId), x, y, type: pendingType });
@@ -183,13 +179,14 @@ export default function MapEditorPage() {
 
       {/* Canvas + Panel */}
       <div className="flex flex-1 min-h-0">
-        <div className="flex-1 p-4 min-h-0 flex items-start justify-center overflow-auto">
+        <div className="flex-1 p-4 min-h-0 overflow-auto flex items-start justify-center">
           <MapCanvas
             imageUrl={floorData.floor.imageUrl}
+
             nodes={floorData.nodes}
             edges={floorData.edges}
             tool={tool}
-            pendingNodeType={pendingType}
+
             selectedNodeId={selectedNodeId}
             edgeStartId={edgeStartId}
             onCanvasClick={handleCanvasClick}

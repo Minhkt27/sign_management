@@ -8,7 +8,7 @@ interface Props {
   nodes: MapNode[];
   edges: MapEdge[];
   tool: EditorTool;
-  pendingNodeType: NodeType;
+
   selectedNodeId: number | null;
   edgeStartId: number | null;
   pathNodeIds?: Set<number>;
@@ -31,7 +31,7 @@ const NODE_LABELS: Record<NodeType, string> = {
 };
 
 export function MapCanvas({
-  imageUrl, nodes, edges, tool, pendingNodeType,
+  imageUrl, nodes, edges, tool,
   selectedNodeId, edgeStartId, pathNodeIds,
   onCanvasClick, onNodeClick, onNodeDragEnd,
 }: Props) {
@@ -86,17 +86,16 @@ export function MapCanvas({
   return (
     <div
       ref={containerRef}
-      className={`relative w-full overflow-hidden rounded-xl bg-slate-100 select-none ${
+      className={`relative w-full h-full overflow-hidden rounded-xl bg-slate-100 select-none ${
         tool === 'addNode' ? 'cursor-crosshair' : tool === 'delete' ? 'cursor-not-allowed' : 'cursor-default'
       }`}
-      style={{ maxHeight: '70vh' }}
       onClick={handleContainerClick}
     >
       {/* Floor plan image */}
       <img
         src={imageUrl}
         alt="Mặt bằng tầng"
-        className="w-full h-full object-contain pointer-events-none"
+        className="w-full h-full object-fill pointer-events-none"
         draggable={false}
       />
 
