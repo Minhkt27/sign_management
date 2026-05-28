@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { AxiosError } from 'axios';
 import { MemoryRouter } from 'react-router-dom';
 import { vi } from 'vitest';
 import LoginPage from '@/features/auth/pages/LoginPage';
@@ -61,9 +62,9 @@ describe('LoginPage', () => {
   });
 
   it('shows error message from API on failed login', async () => {
-    vi.mocked(authServiceModule.authService.login).mockRejectedValueOnce({
-      response: { data: { message: 'Sai mật khẩu' } },
-    });
+    const err = new AxiosError('Sai mật khẩu');
+    err.response = { data: { message: 'Sai mật khẩu' }, status: 401, statusText: '', headers: {}, config: {} as never };
+    vi.mocked(authServiceModule.authService.login).mockRejectedValueOnce(err);
 
     renderPage();
     await userEvent.type(screen.getByPlaceholderText(/nhập tên đăng nhập/i), 'admin');
