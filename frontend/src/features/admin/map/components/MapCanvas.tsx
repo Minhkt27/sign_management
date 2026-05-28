@@ -86,9 +86,10 @@ export function MapCanvas({
   return (
     <div
       ref={containerRef}
-      className={`relative w-full h-full overflow-hidden rounded-xl bg-slate-100 select-none ${
+      className={`relative w-full overflow-hidden rounded-xl bg-slate-100 select-none ${
         tool === 'addNode' ? 'cursor-crosshair' : tool === 'delete' ? 'cursor-not-allowed' : 'cursor-default'
       }`}
+      style={{ maxHeight: '70vh' }}
       onClick={handleContainerClick}
     >
       {/* Floor plan image */}

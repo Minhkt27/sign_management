@@ -183,7 +183,7 @@ export default function MapEditorPage() {
 
       {/* Canvas + Panel */}
       <div className="flex flex-1 min-h-0">
-        <div className="flex-1 p-4 min-h-0">
+        <div className="flex-1 p-4 min-h-0 flex items-start justify-center overflow-auto">
           <MapCanvas
             imageUrl={floorData.floor.imageUrl}
             nodes={floorData.nodes}
