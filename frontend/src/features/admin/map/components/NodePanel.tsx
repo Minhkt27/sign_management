@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { MapNode, NodeType, Location, Asset } from '@/shared/types';
-import { X, Trash2, Tag, Search } from 'lucide-react';
+import { X, Trash2, Tag, Search, MapPin } from 'lucide-react';
 import { NODE_TYPE_OPTIONS } from '../constants';
 
 interface Props {
@@ -17,14 +17,27 @@ const LOCATION_TYPES: Partial<Record<NodeType, 'DEPARTMENT' | 'ROOM'>> = {
   ROOM: 'ROOM',
 };
 
+function buildPath(loc: Location, allLocations: Location[]): string {
+  const parts: string[] = [loc.name];
+  let current = loc;
+  while (current.parentId) {
+    const parent = allLocations.find(l => l.id === current.parentId);
+    if (!parent) break;
+    parts.unshift(parent.name);
+    current = parent;
+  }
+  return parts.join(' / ');
+}
+
 export function NodePanel({ node, locations, assets, onUpdate, onDelete, onClose }: Props) {
-  const [label, setLabel]           = useState('');
-  const [type, setType]             = useState<NodeType>('JUNCTION');
-  const [locationId, setLocationId] = useState<string>('');
-  const [assetId, setAssetId]       = useState<string>('');
-  const [assetSearch, setAssetSearch] = useState('');
+  const [label, setLabel]               = useState('');
+  const [type, setType]                 = useState<NodeType>('JUNCTION');
+  const [locationId, setLocationId]     = useState<string>('');
+  const [locSearch, setLocSearch]       = useState('');
+  const [locDropdownOpen, setLocDropdownOpen] = useState(false);
+  const [assetId, setAssetId]           = useState<string>('');
+  const [assetSearch, setAssetSearch]   = useState('');
   const [assetDropdownOpen, setAssetDropdownOpen] = useState(false);
-  const assetSearchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (node) {
@@ -32,7 +45,9 @@ export function NodePanel({ node, locations, assets, onUpdate, onDelete, onClose
       setType(node.type);
       setLocationId(node.locationId?.toString() ?? '');
       setAssetId(node.assetId ?? '');
+      setLocSearch('');
       setAssetSearch('');
+      setLocDropdownOpen(false);
       setAssetDropdownOpen(false);
     }
   }, [node]);
@@ -43,9 +58,31 @@ export function NodePanel({ node, locations, assets, onUpdate, onDelete, onClose
 
   const handleTypeChange = (newType: NodeType) => {
     setType(newType);
-    if (!LOCATION_TYPES[newType]) setLocationId('');
+    if (!LOCATION_TYPES[newType]) { setLocationId(''); setLocSearch(''); }
   };
 
+  // Location search — filter by type + search term, show full path
+  const filteredLocations = locSearch.trim()
+    ? locations
+        .filter(l => l.type === locationType)
+        .filter(l => {
+          const path = buildPath(l, locations).toLowerCase();
+          return path.includes(locSearch.toLowerCase());
+        })
+        .slice(0, 15)
+    : [];
+
+  const linkedLocation = locationId
+    ? locations.find(l => l.id === Number(locationId))
+    : undefined;
+
+  const handleSelectLocation = (loc: Location) => {
+    setLocationId(loc.id.toString());
+    setLocSearch('');
+    setLocDropdownOpen(false);
+  };
+
+  // Asset search
   const filteredAssets = assetSearch.trim()
     ? assets.filter(a =>
         a.assetCode.toLowerCase().includes(assetSearch.toLowerCase()) ||
@@ -80,6 +117,8 @@ export function NodePanel({ node, locations, assets, onUpdate, onDelete, onClose
       </div>
 
       <div className="flex-1 p-4 space-y-4 overflow-y-auto">
+
+        {/* Label */}
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-1">Tên hiển thị</label>
           <input
@@ -90,6 +129,7 @@ export function NodePanel({ node, locations, assets, onUpdate, onDelete, onClose
           />
         </div>
 
+        {/* Type */}
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-1">Loại</label>
           <select
@@ -103,22 +143,55 @@ export function NodePanel({ node, locations, assets, onUpdate, onDelete, onClose
           </select>
         </div>
 
+        {/* Location search (chỉ cho ROOM / DEPARTMENT) */}
         {locationType && (
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">
               Gắn với {locationType === 'DEPARTMENT' ? 'Khoa' : 'Phòng'}
               <span className="text-slate-400 ml-1">(cho bệnh nhân tìm)</span>
             </label>
-            <select
-              value={locationId}
-              onChange={e => setLocationId(e.target.value)}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">— Không gắn —</option>
-              {locations.filter(l => l.type === locationType).map(loc => (
-                <option key={loc.id} value={loc.id}>{loc.name}</option>
-              ))}
-            </select>
+
+            {linkedLocation ? (
+              <div className="flex items-center gap-2 border border-blue-200 bg-blue-50 rounded-lg px-3 py-2">
+                <MapPin size={13} className="text-blue-500 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-slate-700 truncate">{linkedLocation.name}</p>
+                  <p className="text-xs text-slate-400 truncate">{buildPath(linkedLocation, locations)}</p>
+                </div>
+                <button
+                  onClick={() => setLocationId('')}
+                  className="text-slate-400 hover:text-red-500 shrink-0"
+                >
+                  <X size={13} />
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  value={locSearch}
+                  onChange={e => { setLocSearch(e.target.value); setLocDropdownOpen(true); }}
+                  onFocus={() => setLocDropdownOpen(true)}
+                  onBlur={() => setTimeout(() => setLocDropdownOpen(false), 150)}
+                  placeholder={`Tìm ${locationType === 'DEPARTMENT' ? 'khoa' : 'phòng'}...`}
+                  className="w-full border border-slate-300 rounded-lg pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {locDropdownOpen && filteredLocations.length > 0 && (
+                  <div className="absolute z-10 w-full bg-white border border-slate-200 rounded-lg shadow-lg mt-1 max-h-44 overflow-y-auto">
+                    {filteredLocations.map(loc => (
+                      <button
+                        key={loc.id}
+                        onMouseDown={() => handleSelectLocation(loc)}
+                        className="w-full text-left px-3 py-2 hover:bg-blue-50 flex flex-col gap-0.5"
+                      >
+                        <span className="text-xs font-semibold text-slate-700">{loc.name}</span>
+                        <span className="text-xs text-slate-400 truncate">{buildPath(loc, locations)}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -137,27 +210,21 @@ export function NodePanel({ node, locations, assets, onUpdate, onDelete, onClose
                   <p className="text-xs text-slate-500 truncate">{linkedAsset.name}</p>
                 )}
               </div>
-              <button
-                onClick={() => setAssetId('')}
-                className="text-slate-400 hover:text-red-500 shrink-0"
-              >
+              <button onClick={() => setAssetId('')} className="text-slate-400 hover:text-red-500 shrink-0">
                 <X size={13} />
               </button>
             </div>
           ) : (
             <div className="relative">
-              <div className="relative">
-                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  ref={assetSearchRef}
-                  value={assetSearch}
-                  onChange={e => { setAssetSearch(e.target.value); setAssetDropdownOpen(true); }}
-                  onFocus={() => setAssetDropdownOpen(true)}
-                  onBlur={() => setTimeout(() => setAssetDropdownOpen(false), 150)}
-                  placeholder="Tìm mã hoặc tên biển..."
-                  className="w-full border border-slate-300 rounded-lg pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                value={assetSearch}
+                onChange={e => { setAssetSearch(e.target.value); setAssetDropdownOpen(true); }}
+                onFocus={() => setAssetDropdownOpen(true)}
+                onBlur={() => setTimeout(() => setAssetDropdownOpen(false), 150)}
+                placeholder="Tìm mã hoặc tên biển..."
+                className="w-full border border-slate-300 rounded-lg pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
               {assetDropdownOpen && filteredAssets.length > 0 && (
                 <div className="absolute z-10 w-full bg-white border border-slate-200 rounded-lg shadow-lg mt-1 max-h-40 overflow-y-auto">
                   {filteredAssets.map(asset => (
