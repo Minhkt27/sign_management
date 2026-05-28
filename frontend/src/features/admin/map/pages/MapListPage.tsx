@@ -184,7 +184,7 @@ export default function MapListPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {floors.map(floor => (
             <div key={floor.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden hover:shadow-md transition-shadow">
-              <div className="aspect-video bg-slate-100 overflow-hidden">
+              <div className="h-32 bg-slate-100 overflow-hidden">
                 <img src={floor.imageUrl} alt="Mặt bằng" className="w-full h-full object-cover" />
               </div>
               <div className="p-4">
