@@ -1,14 +1,16 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ticketService } from '@/services/ticketService';
 import { fileService } from '@/services/fileService';
 import { MaintenanceTicket } from '@/shared/types';
+import { authStore } from '@/app/store/authStore';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, CheckCircle2, Wrench, Camera, ShieldCheck, Image as ImageIcon, Plus, RotateCcw } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Wrench, Camera, ShieldCheck, Image as ImageIcon, Plus, RotateCcw, FolderOpen } from 'lucide-react';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { PRIORITY_LABELS } from '@/shared/helpers/ticketBadges';
 
 export default function TaskDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -20,6 +22,11 @@ export default function TaskDetailPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+
+  const cameraBeforeRef = useRef<HTMLInputElement>(null);
+  const galleryBeforeRef = useRef<HTMLInputElement>(null);
+  const cameraAfterRef = useRef<HTMLInputElement>(null);
+  const galleryAfterRef = useRef<HTMLInputElement>(null);
 
   const { data: task, isLoading: isTaskLoading } = useQuery<MaintenanceTicket>({
     queryKey: ['task', id],
@@ -34,14 +41,17 @@ export default function TaskDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['task', id] });
       queryClient.invalidateQueries({ queryKey: ['techTickets'] });
     },
+    onError: () => {
+      setUploadError('Cập nhật thất bại. Vui lòng thử lại hoặc đăng nhập lại.');
+    },
   });
 
-  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
-  const MAX_SIZE_MB = 10;
+  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  const MAX_SIZE_MB = 5;
 
   const validateImage = (file: File): string | null => {
-    if (!ALLOWED_TYPES.includes(file.type) && !file.type.startsWith('image/')) {
-      return 'Chỉ chấp nhận file ảnh (JPG, PNG, WEBP, HEIC).';
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      return 'Chỉ chấp nhận file ảnh JPG, PNG, GIF, WEBP.';
     }
     if (file.size > MAX_SIZE_MB * 1024 * 1024) {
       return `Ảnh không được vượt quá ${MAX_SIZE_MB}MB.`;
@@ -104,6 +114,8 @@ export default function TaskDetailPage() {
   }
 
   const locationName = task.asset?.location?.name || 'Vị trí lắp đặt';
+  const currentUser = authStore.getUser();
+  const isAssignee = !task.assignee || task.assignee.id === currentUser?.id;
 
   return (
     <div className="space-y-5 pb-12 text-left">
@@ -143,9 +155,7 @@ export default function TaskDetailPage() {
             task.priority === 'HIGH' ? 'bg-orange-50 text-orange-600 border border-orange-200 text-xs px-2 py-0.5' :
             'bg-blue-50 text-blue-600 border border-blue-200 text-xs px-2 py-0.5'
           }>
-            {task.priority === 'CRITICAL' ? 'Khẩn cấp' :
-             task.priority === 'HIGH' ? 'Cao' :
-             task.priority === 'MEDIUM' ? 'Trung bình' : 'Thấp'}
+            {PRIORITY_LABELS[task.priority] ?? task.priority}
           </Badge>
         </div>
         <h2 className="text-lg font-bold text-slate-800 leading-snug">{task.asset?.assetCode}</h2>
@@ -203,49 +213,75 @@ export default function TaskDetailPage() {
       {/* Action Buttons */}
       <div className="space-y-3">
         {task.ticketStatus === 'OPEN' && (
-          <div className="space-y-3">
-            <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm space-y-2">
-              <label className="block text-sm font-semibold text-slate-600 mb-1">Hình ảnh trước khi sửa (tùy chọn)</label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setBeforeFile(e.target.files?.[0] || null)}
-                className="w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
-              />
+          isAssignee ? (
+            <div className="space-y-3">
+              <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm space-y-3">
+                <p className="text-sm font-semibold text-slate-600">Hình ảnh trước khi sửa (tùy chọn)</p>
+                <input ref={cameraBeforeRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => setBeforeFile(e.target.files?.[0] || null)} />
+                <input ref={galleryBeforeRef} type="file" accept="image/*" hidden onChange={(e) => setBeforeFile(e.target.files?.[0] || null)} />
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => cameraBeforeRef.current?.click()} className="flex items-center justify-center gap-2 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 hover:bg-slate-100 active:bg-slate-200">
+                    <Camera size={16} />
+                    <span>Chụp ảnh</span>
+                  </button>
+                  <button type="button" onClick={() => galleryBeforeRef.current?.click()} className="flex items-center justify-center gap-2 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 hover:bg-slate-100 active:bg-slate-200">
+                    <FolderOpen size={16} />
+                    <span>Thư viện</span>
+                  </button>
+                </div>
+                {beforeFile && <p className="text-xs text-emerald-600 font-semibold truncate">Đã chọn: {beforeFile.name}</p>}
+              </div>
+              {uploadError && <p className="text-red-500 text-sm font-semibold">{uploadError}</p>}
+              <Button
+                onClick={handleStartWork}
+                disabled={isUploading}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-4 font-bold text-base flex items-center justify-center space-x-2"
+              >
+                <Wrench size={18} />
+                <span>{isUploading ? 'Đang xử lý...' : 'Tiếp nhận và Bắt đầu sửa'}</span>
+              </Button>
             </div>
-            {uploadError && <p className="text-red-500 text-sm font-semibold">{uploadError}</p>}
-            <Button
-              onClick={handleStartWork}
-              disabled={isUploading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-4 font-bold text-base flex items-center justify-center space-x-2"
-            >
-              <Wrench size={18} />
-              <span>{isUploading ? 'Đang xử lý...' : 'Tiếp nhận và Bắt đầu sửa'}</span>
-            </Button>
-          </div>
+          ) : (
+            <div className="bg-slate-50 text-slate-500 p-4 rounded-xl border border-slate-200 text-sm font-medium">
+              Phiếu này đã được giao cho <span className="font-bold text-slate-700">{task.assignee?.fullName}</span>. Bạn chỉ có thể xem.
+            </div>
+          )
         )}
 
         {task.ticketStatus === 'IN_PROGRESS' && (
-          <div className="space-y-3">
-            <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm space-y-2">
-              <label className="block text-sm font-semibold text-slate-600 mb-1">Hình ảnh sau khi sửa (bắt buộc)</label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setAfterFile(e.target.files?.[0] || null)}
-                className="w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 cursor-pointer"
-              />
+          isAssignee ? (
+            <div className="space-y-3">
+              <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm space-y-3">
+                <p className="text-sm font-semibold text-slate-600">Hình ảnh sau khi sửa <span className="text-red-500">(bắt buộc)</span></p>
+                <input ref={cameraAfterRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => setAfterFile(e.target.files?.[0] || null)} />
+                <input ref={galleryAfterRef} type="file" accept="image/*" hidden onChange={(e) => setAfterFile(e.target.files?.[0] || null)} />
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => cameraAfterRef.current?.click()} className="flex items-center justify-center gap-2 py-2.5 rounded-lg border border-green-200 bg-green-50 text-sm font-semibold text-green-700 hover:bg-green-100 active:bg-green-200">
+                    <Camera size={16} />
+                    <span>Chụp ảnh</span>
+                  </button>
+                  <button type="button" onClick={() => galleryAfterRef.current?.click()} className="flex items-center justify-center gap-2 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 hover:bg-slate-100 active:bg-slate-200">
+                    <FolderOpen size={16} />
+                    <span>Thư viện</span>
+                  </button>
+                </div>
+                {afterFile && <p className="text-xs text-emerald-600 font-semibold truncate">Đã chọn: {afterFile.name}</p>}
+              </div>
+              {uploadError && <p className="text-red-500 text-sm font-semibold">{uploadError}</p>}
+              <Button
+                onClick={handleCompleteWork}
+                disabled={isUploading}
+                className="w-full bg-green-600 hover:bg-green-700 text-white rounded-xl py-4 font-bold text-base flex items-center justify-center space-x-2"
+              >
+                <Camera size={18} />
+                <span>{isUploading ? 'Đang tải lên...' : 'Hoàn thành sửa chữa'}</span>
+              </Button>
             </div>
-            {uploadError && <p className="text-red-500 text-sm font-semibold">{uploadError}</p>}
-            <Button
-              onClick={handleCompleteWork}
-              disabled={isUploading}
-              className="w-full bg-green-600 hover:bg-green-700 text-white rounded-xl py-4 font-bold text-base flex items-center justify-center space-x-2"
-            >
-              <Camera size={18} />
-              <span>{isUploading ? 'Đang tải lên...' : 'Chụp ảnh và Hoàn thành sửa'}</span>
-            </Button>
-          </div>
+          ) : (
+            <div className="bg-slate-50 text-slate-500 p-4 rounded-xl border border-slate-200 text-sm font-medium">
+              Phiếu này đang được xử lý bởi <span className="font-bold text-slate-700">{task.assignee?.fullName}</span>. Bạn chỉ có thể xem.
+            </div>
+          )
         )}
 
         {task.ticketStatus === 'RESOLVED' && (

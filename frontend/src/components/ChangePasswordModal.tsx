@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { KeyRound } from 'lucide-react';
+import { getApiError } from '@/shared/helpers/apiError';
 
 interface Props {
   open: boolean;
@@ -32,9 +33,7 @@ export default function ChangePasswordModal({ open, onClose }: Props) {
       setConfirm('');
       setTimeout(() => { setSuccess(false); onClose(); }, 1200);
     },
-    onError: (err: any) => {
-      setError(err.response?.data?.message || 'Đổi mật khẩu thất bại');
-    },
+    onError: (err: unknown) => setError(getApiError(err, 'Đổi mật khẩu thất bại')),
   });
 
   const handleSubmit = (e: React.FormEvent) => {

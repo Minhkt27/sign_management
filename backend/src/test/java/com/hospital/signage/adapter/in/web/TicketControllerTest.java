@@ -64,7 +64,7 @@ public class TicketControllerTest {
         ticket2.setPriority(Priority.LOW);
         ticket2.setTicketStatus(TicketStatus.IN_PROGRESS);
 
-        when(ticketUseCase.getTicketsPage(0, 20, null, null))
+        when(ticketUseCase.getTicketsPage(0, 10, null, null, null, null))
                 .thenReturn(new PageImpl<>(Arrays.asList(ticket1, ticket2)));
 
         mockMvc.perform(get("/api/tickets")
@@ -121,7 +121,7 @@ public class TicketControllerTest {
         ticket.setId(1L);
         ticket.setTicketStatus(TicketStatus.RESOLVED);
 
-        when(ticketUseCase.updateTicketStatus(eq(1L), eq(TicketStatus.RESOLVED), eq("before.jpg"), eq("after.jpg"), eq(null)))
+        when(ticketUseCase.updateTicketStatus(eq(1L), eq(TicketStatus.RESOLVED), eq("before.jpg"), eq("after.jpg"), eq(null), eq(null)))
                 .thenReturn(ticket);
 
         TicketController.UpdateStatusRequest request = new TicketController.UpdateStatusRequest(

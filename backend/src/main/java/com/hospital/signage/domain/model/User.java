@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 
 import com.hospital.signage.domain.enums.Role;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Data
 @Builder
@@ -21,6 +21,6 @@ public class User {
     private Role role;
     private Boolean isActive;
     private String refreshToken;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private Instant createdAt;
+    private Instant updatedAt;
 }

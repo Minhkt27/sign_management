@@ -51,6 +51,11 @@ public class LocationPersistenceAdapter implements LocationDatabasePort {
     }
 
     @Override
+    public boolean existsByLocationCode(String locationCode) {
+        return repository.existsByLocationCode(locationCode);
+    }
+
+    @Override
     public void bulkUpdatePathPrefix(String oldPath, String newPath) {
         repository.bulkUpdatePathPrefix(oldPath, newPath);
     }

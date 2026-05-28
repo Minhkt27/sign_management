@@ -19,9 +19,9 @@ server:
 
 jwt:
   secret: ${JWT_SECRET}
-  expiration: ${JWT_EXPIRATION:3600000}
-  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+  expiration: ${JWT_EXPIRATION:28800000}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:2592000000}
 
 app:
-  admin-initial-password: ${ADMIN_INITIAL_PASSWORD}
-  tech-initial-password: ${TECH_INITIAL_PASSWORD}
+  admin-initial-password: ${ADMIN_INITIAL_PASSWORD:Admin@Docker#2024}
+  tech-initial-password: ${TECH_INITIAL_PASSWORD:Tech@Docker#2024}

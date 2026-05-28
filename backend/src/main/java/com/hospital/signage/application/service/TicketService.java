@@ -4,22 +4,25 @@ import com.hospital.signage.application.port.in.TicketUseCase;
 import com.hospital.signage.application.port.out.AssetDatabasePort;
 import com.hospital.signage.application.port.out.TicketDatabasePort;
 import com.hospital.signage.application.port.out.UserDatabasePort;
+import com.hospital.signage.domain.enums.Priority;
 import com.hospital.signage.domain.enums.TicketStatus;
 import com.hospital.signage.domain.model.Asset;
 import com.hospital.signage.domain.model.MaintenanceTicket;
 import com.hospital.signage.domain.model.User;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TicketService implements TicketUseCase {
@@ -45,14 +48,14 @@ public class TicketService implements TicketUseCase {
                 .priority(command.priority())
                 .ticketStatus(TicketStatus.OPEN)
                 .source(command.source())
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
 
         asset.setStatus(com.hospital.signage.domain.enums.AssetStatus.DAMAGED);
         assetDatabasePort.save(asset);
 
-        return ticketDatabasePort.save(ticket);
+        MaintenanceTicket saved = ticketDatabasePort.save(ticket);
+        log.info("Ticket {} created for asset {} by user {}", saved.getId(), command.assetId(), command.reporter().getId());
+        return saved;
     }
 
     @Override
@@ -65,14 +68,15 @@ public class TicketService implements TicketUseCase {
                 .orElseThrow(() -> new IllegalArgumentException("Assignee user not found"));
 
         ticket.setAssignee(assignee);
-        ticket.setUpdatedAt(LocalDateTime.now());
-        return ticketDatabasePort.save(ticket);
+        MaintenanceTicket saved = ticketDatabasePort.save(ticket);
+        log.info("Ticket {} assigned to user {}", ticketId, assigneeId);
+        return saved;
     }
 
     @Override
     @Transactional
     public MaintenanceTicket updateTicketStatus(Long ticketId, TicketStatus status, String imageBefore,
-            String imageAfter, String rejectionNote) {
+            String imageAfter, String rejectionNote, Long technicianId) {
         MaintenanceTicket ticket = ticketDatabasePort.findById(ticketId)
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
 
@@ -83,6 +87,18 @@ public class TicketService implements TicketUseCase {
             throw new IllegalStateException("Phiếu này đã bị từ chối tối đa 3 lần.");
         }
 
+        if (technicianId != null) {
+            if (ticket.getAssignee() == null) {
+                if (status == TicketStatus.IN_PROGRESS && !isRejection) {
+                    User technician = userDatabasePort.findById(technicianId)
+                            .orElseThrow(() -> new IllegalArgumentException("Technician not found"));
+                    ticket.setAssignee(technician);
+                }
+            } else if (!ticket.getAssignee().getId().equals(technicianId)) {
+                throw new IllegalStateException("Bạn không được phép cập nhật phiếu này.");
+            }
+        }
+
         ticket.setTicketStatus(status);
         if (imageBefore != null && !imageBefore.isBlank()) {
             ticket.setImageBefore(imageBefore);
@@ -91,14 +107,14 @@ public class TicketService implements TicketUseCase {
             ticket.setImageAfter(imageAfter);
         }
         if (status == TicketStatus.RESOLVED) {
-            ticket.setCompletedAt(LocalDateTime.now());
+            ticket.setCompletedAt(Instant.now());
         }
         if (isRejection) {
             ticket.setRejectionNote(rejectionNote);
             ticket.setRejectionCount(ticket.getRejectionCount() + 1);
             ticket.setCompletedAt(null);
+            log.warn("Ticket {} rejected (count={}/3): {}", ticketId, ticket.getRejectionCount(), rejectionNote);
         }
-        ticket.setUpdatedAt(LocalDateTime.now());
 
         Asset asset = ticket.getAsset();
         if (asset != null && asset.getStatus() != com.hospital.signage.domain.enums.AssetStatus.SCRAPPED) {
@@ -125,8 +141,9 @@ public class TicketService implements TicketUseCase {
         User technician = userDatabasePort.findById(technicianId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         ticket.setAssignee(technician);
-        ticket.setUpdatedAt(LocalDateTime.now());
-        return ticketDatabasePort.save(ticket);
+        MaintenanceTicket saved = ticketDatabasePort.save(ticket);
+        log.info("Ticket {} self-taken by technician {}", ticketId, technicianId);
+        return saved;
     }
 
     @Override
@@ -140,11 +157,13 @@ public class TicketService implements TicketUseCase {
     }
 
     @Override
-    public Page<MaintenanceTicket> getTicketsPage(int page, int size, Long assigneeId, UUID assetId) {
-        PageRequest pageRequest = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        if (assigneeId != null) return ticketDatabasePort.findByAssigneeId(assigneeId, pageRequest);
-        if (assetId != null) return ticketDatabasePort.findByAssetId(assetId, pageRequest);
-        return ticketDatabasePort.findAll(pageRequest);
+    public Page<MaintenanceTicket> getTicketsPage(int page, int size, Long assigneeId, UUID assetId, TicketStatus status, Priority priority) {
+        return ticketDatabasePort.findByFilters(assigneeId, assetId, status, priority, PageRequest.of(page, size));
+    }
+
+    @Override
+    public Map<String, Long> getTicketsSummary() {
+        return ticketDatabasePort.countByStatus();
     }
 
     @Override
@@ -154,6 +173,8 @@ public class TicketService implements TicketUseCase {
 
     @Override
     public List<MaintenanceTicket> getTicketsByAssignee(Long assigneeId) {
-        return ticketDatabasePort.findByAssigneeId(assigneeId);
+        return ticketDatabasePort.findByFilters(assigneeId, null, null, null, PageRequest.of(0, 200))
+                .getContent();
     }
+
 }

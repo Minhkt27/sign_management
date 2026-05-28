@@ -6,22 +6,31 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: true
     properties:
       hibernate:
         format_sql: true
 
+  flyway:
+    # Dev DB was previously created by Hibernate (no flyway_schema_history).
+    # baseline-on-migrate marks V1 as already applied so Flyway doesn't re-run it.
+    # Remove these two lines on a fresh DB (let Flyway create schema from scratch).
+    baseline-on-migrate: true
+    baseline-version: 1
+
 minio:
   secret-key: change_me_strong_password
 
 jwt:
-  secret: hospital-signage-secret-key-must-be-at-least-256-bits-long-for-hs256
-  expiration: 3600000
-  refresh-expiration: 604800000
+  secret: ${JWT_SECRET:change_me_in_dev_must_be_at_least_256_bits_long_for_hs256}
+  expiration: 28800000
+  refresh-expiration: 2592000000
 
 cors:
-  allowed-origins: http://localhost:5173,http://localhost:3000,https://preset-unedited-lesser.ngrok-free.dev
+  # Wildcard ngrok URLs are intentional for mobile testing in dev only.
+  # Production must set CORS_ALLOWED_ORIGINS env var explicitly.
+  allowed-origins: http://localhost:5173,http://localhost:3000,https://*.ngrok-free.app,https://*.ngrok-free.dev
 
 app:
   admin-initial-password: ${ADMIN_INITIAL_PASSWORD:Admin@Dev#2024}

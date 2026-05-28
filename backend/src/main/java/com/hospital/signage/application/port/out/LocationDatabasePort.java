@@ -11,6 +11,7 @@ public interface LocationDatabasePort {
     List<Location> findAll();
     List<Location> findByParentId(Long parentId);
     boolean existsByParentId(Long parentId);
+    boolean existsByLocationCode(String locationCode);
     void bulkUpdatePathPrefix(String oldPath, String newPath);
     void deleteById(Long id);
 }

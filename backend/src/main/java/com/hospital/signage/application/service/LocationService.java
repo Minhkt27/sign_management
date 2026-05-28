@@ -6,13 +6,15 @@ import com.hospital.signage.application.port.out.LocationDatabasePort;
 import com.hospital.signage.domain.enums.LocationType;
 import com.hospital.signage.domain.model.Location;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.text.Normalizer;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class LocationService implements LocationUseCase {
@@ -23,19 +25,14 @@ public class LocationService implements LocationUseCase {
     @Override
     @Transactional
     public Location createLocation(Location location) {
-        location.setCreatedAt(LocalDateTime.now());
-        location.setUpdatedAt(LocalDateTime.now());
-
-        if (location.getLocationCode() == null || location.getLocationCode().trim().isEmpty()) {
-            String base = "LOC_" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-            location.setLocationCode(base);
-        }
-
-        // Fetch parent once, reuse for type inference and path building
         Location parent = location.getParentId() != null
                 ? locationDatabasePort.findById(location.getParentId())
                         .orElseThrow(() -> new IllegalArgumentException("Parent location not found"))
                 : null;
+
+        if (location.getLocationCode() == null || location.getLocationCode().trim().isEmpty()) {
+            location.setLocationCode(generateLocationCode(location.getName(), parent));
+        }
 
         if (location.getType() == null) {
             if (parent == null) {
@@ -52,13 +49,10 @@ public class LocationService implements LocationUseCase {
         String label = cleanForLtree(location.getLocationCode());
         location.setPath(parent != null ? parent.getPath() + "." + label : label);
 
-        return locationDatabasePort.save(location);
-    }
-
-    private String cleanForLtree(String input) {
-        if (input == null) return "";
-        // Replace non-alphanumeric/non-underscore characters with underscore
-        return input.replaceAll("[^a-zA-Z0-9_]", "_");
+        Location saved = locationDatabasePort.save(location);
+        log.info("Location '{}' (id={}, code={}) created under parent {}",
+                saved.getName(), saved.getId(), saved.getLocationCode(), saved.getParentId());
+        return saved;
     }
 
     @Override
@@ -86,6 +80,7 @@ public class LocationService implements LocationUseCase {
             throw new IllegalArgumentException("Không thể xóa vị trí này vì đang có biển báo liên kết.");
         }
         locationDatabasePort.deleteById(id);
+        log.info("Location {} deleted", id);
     }
 
     @Override
@@ -97,7 +92,6 @@ public class LocationService implements LocationUseCase {
         String oldPath = existing.getPath();
         existing.setName(locationDetails.getName());
         existing.setDescription(locationDetails.getDescription());
-        existing.setUpdatedAt(LocalDateTime.now());
 
         if (locationDetails.getLocationCode() != null && !locationDetails.getLocationCode().equals(existing.getLocationCode())) {
             existing.setLocationCode(locationDetails.getLocationCode());
@@ -115,6 +109,7 @@ public class LocationService implements LocationUseCase {
 
         if (!updated.getPath().equals(oldPath)) {
             locationDatabasePort.bulkUpdatePathPrefix(oldPath, updated.getPath());
+            log.info("Location {} path updated: {} → {}", id, oldPath, updated.getPath());
         }
 
         return updated;
@@ -123,13 +118,11 @@ public class LocationService implements LocationUseCase {
     @Override
     public List<LocationTreeNode> getLocationTree() {
         List<Location> allLocations = locationDatabasePort.findAll();
-        
-        // Group by parentId
+
         Map<Long, List<Location>> parentGroup = allLocations.stream()
                 .filter(l -> l.getParentId() != null)
                 .collect(Collectors.groupingBy(Location::getParentId));
 
-        // Find root nodes
         List<Location> roots = allLocations.stream()
                 .filter(l -> l.getParentId() == null)
                 .collect(Collectors.toList());
@@ -145,14 +138,37 @@ public class LocationService implements LocationUseCase {
     private LocationTreeNode buildTreeNode(Location node, Map<Long, List<Location>> parentGroup) {
         List<Location> children = parentGroup.getOrDefault(node.getId(), Collections.emptyList());
         List<LocationTreeNode> childNodes = new ArrayList<>();
-        
         for (Location child : children) {
             childNodes.add(buildTreeNode(child, parentGroup));
         }
-
-        // Sort children by code or name
         childNodes.sort(Comparator.comparing(LocationTreeNode::getLocationCode));
-
         return new LocationTreeNode(node, childNodes);
+    }
+
+    // Generates a readable code like "TANG_1" or "B_A_TANG_1" based on parent code + name.
+    // Appends a numeric suffix (_2, _3 ...) if the base code already exists.
+    private String generateLocationCode(String name, Location parent) {
+        String segment = normalizeToSegment(name);
+        String base = parent != null ? parent.getLocationCode() + "_" + segment : segment;
+        if (!locationDatabasePort.existsByLocationCode(base)) return base;
+        int counter = 2;
+        while (locationDatabasePort.existsByLocationCode(base + "_" + counter)) counter++;
+        return base + "_" + counter;
+    }
+
+    // Removes Vietnamese diacritics, keeps alphanumeric + underscore, uppercases.
+    private String normalizeToSegment(String name) {
+        if (name == null || name.isBlank()) return "LOC";
+        String nfd = Normalizer.normalize(name, Normalizer.Form.NFD);
+        String ascii = nfd.replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
+                          .replaceAll("đ", "d").replaceAll("Đ", "D");
+        return ascii.trim().toUpperCase()
+                    .replaceAll("[^A-Z0-9]+", "_")
+                    .replaceAll("^_+|_+$", "");
+    }
+
+    private String cleanForLtree(String input) {
+        if (input == null) return "";
+        return input.replaceAll("[^a-zA-Z0-9_]", "_");
     }
 }

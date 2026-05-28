@@ -48,8 +48,7 @@ public class SignTypePersistenceAdapter implements SignTypeDatabasePort {
     @Override
     public Page<SignType> findPage(String search, Pageable pageable) {
         String s = search == null ? "" : search;
-        return repository.findByCodeContainingIgnoreCaseOrNameContainingIgnoreCase(s, s, pageable)
-                .map(mapper::toDomain);
+        return repository.search(s, pageable).map(mapper::toDomain);
     }
 
     @Override

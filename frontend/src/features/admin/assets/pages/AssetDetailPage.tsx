@@ -8,6 +8,7 @@ import { ticketService } from '@/services/ticketService';
 import { signTypeService } from '@/services/signTypeService';
 import { fileService } from '@/services/fileService';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
+import { PRIORITY_LABELS, TICKET_STATUS_LABELS } from '@/shared/helpers/ticketBadges';
 import { getFullLocationPath, resolveLocationLevels } from '@/shared/helpers/locationHelper';
 import { Asset, Location, SignType } from '@/shared/types';
 import { Button } from '@/components/ui/button';
@@ -220,7 +221,7 @@ export default function AssetDetailPage() {
       case 'ACTIVE':
         return <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border border-emerald-200 flex items-center space-x-1 w-fit text-xs px-2 py-0.5"><CheckCircle2 size={12} /> <span>Hoạt động</span></Badge>;
       case 'DAMAGED':
-        return <Badge className="bg-rose-50 text-rose-700 hover:bg-rose-50 border border-rose-200 flex items-center space-x-1 w-fit text-xs px-2 py-0.5"><AlertCircle size={12} /> <span>Gặp sự cố (Báo hỏng)</span></Badge>;
+        return <Badge className="bg-rose-50 text-rose-700 hover:bg-rose-50 border border-rose-200 flex items-center space-x-1 w-fit text-xs px-2 py-0.5"><AlertCircle size={12} /> <span>Báo hỏng</span></Badge>;
       case 'REPAIRING':
         return <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-50 border border-amber-200 flex items-center space-x-1 w-fit text-xs px-2 py-0.5"><Wrench size={12} /> <span>Đang sửa chữa</span></Badge>;
       case 'SCRAPPED':
@@ -566,6 +567,11 @@ export default function AssetDetailPage() {
                 <AlertCircle size={15} className="shrink-0" />
                 Biển đã thanh lý, không thể báo hỏng
               </div>
+            ) : tickets.some(t => t.ticketStatus !== 'CLOSED') ? (
+              <div className="w-full bg-amber-50 border border-amber-200 text-amber-700 text-sm font-medium px-4 py-3 rounded-xl flex items-center gap-2">
+                <AlertCircle size={15} className="shrink-0" />
+                Đang có phiếu bảo trì chưa hoàn thành
+              </div>
             ) : (
             <Dialog open={isTicketDialogOpen} onOpenChange={setIsTicketDialogOpen}>
               <DialogTrigger render={
@@ -704,21 +710,22 @@ export default function AssetDetailPage() {
                       t.priority === 'MEDIUM' ? 'bg-blue-50 text-blue-600 hover:bg-blue-50 border border-blue-200' :
                       'bg-slate-100 text-slate-600 hover:bg-slate-100 border border-slate-200'
                     }>
-                      {t.priority}
+                      {PRIORITY_LABELS[t.priority] ?? t.priority}
                     </Badge>
                     <Badge className={
                       t.ticketStatus === 'RESOLVED' ? 'bg-green-50 text-green-700 hover:bg-green-50' :
                       t.ticketStatus === 'IN_PROGRESS' ? 'bg-amber-50 text-amber-700 hover:bg-amber-50' :
-                      'bg-slate-100 text-slate-700 hover:bg-slate-100'
+                      t.ticketStatus === 'CLOSED' ? 'bg-slate-100 text-slate-700 hover:bg-slate-100' :
+                      'bg-rose-50 text-rose-700 hover:bg-rose-50'
                     }>
-                      {t.ticketStatus}
+                      {TICKET_STATUS_LABELS[t.ticketStatus] ?? t.ticketStatus}
                     </Badge>
                   </div>
                   <p className="text-sm font-medium text-slate-700 truncate max-w-[500px]">{t.description}</p>
                 </div>
 
                 <div className="text-right text-xs text-slate-600">
-                  <span>Khởi tạo: {new Date(t.createdAt).toLocaleDateString()}</span>
+                  <span>Khởi tạo: {new Date(t.createdAt).toLocaleDateString('vi-VN')}</span>
                 </div>
               </div>
             ))

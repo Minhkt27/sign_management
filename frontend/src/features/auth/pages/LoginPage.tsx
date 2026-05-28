@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '@/services/authService';
+import { getApiError } from '@/shared/helpers/apiError';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -14,9 +15,9 @@ export default function LoginPage() {
     setError('');
     try {
       const res = await authService.login(u, p);
-      navigate(res.user.role === 'ADMIN' ? '/admin/assets' : '/tech/dashboard');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Tên đăng nhập hoặc mật khẩu không chính xác!');
+      navigate(res.user.role === 'ADMIN' ? '/admin/assets/tree' : '/tech/dashboard');
+    } catch (err: unknown) {
+      setError(getApiError(err, 'Tên đăng nhập hoặc mật khẩu không chính xác!'));
     } finally {
       setLoading(false);
     }

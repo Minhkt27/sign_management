@@ -1,12 +1,15 @@
 package com.hospital.signage.adapter.in.web;
 
 import com.hospital.signage.application.port.in.FileUploadUseCase;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+@Tag(name = "Tệp tin")
 @RestController
 @RequestMapping("/api/files")
 @RequiredArgsConstructor
@@ -14,6 +17,7 @@ public class FileUploadController {
 
     private final FileUploadUseCase fileUploadUseCase;
 
+    @Operation(summary = "Tải ảnh lên (trả về URL)")
     @PostMapping("/upload")
     @PreAuthorize("hasAnyRole('ADMIN', 'TECHNICAL')")
     public ResponseEntity<UploadResponse> uploadFile(@RequestParam("file") MultipartFile file) {

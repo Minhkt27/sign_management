@@ -8,6 +8,7 @@ import com.hospital.signage.domain.model.User;
 import org.springframework.data.domain.Page;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -15,10 +16,11 @@ public interface TicketUseCase {
     MaintenanceTicket createTicket(CreateTicketCommand command);
     MaintenanceTicket assignTicket(Long ticketId, Long assigneeId);
     MaintenanceTicket takeTicket(Long ticketId, Long technicianId);
-    MaintenanceTicket updateTicketStatus(Long ticketId, TicketStatus status, String imageBefore, String imageAfter, String rejectionNote);
+    MaintenanceTicket updateTicketStatus(Long ticketId, TicketStatus status, String imageBefore, String imageAfter, String rejectionNote, Long technicianId);
     Optional<MaintenanceTicket> getTicketById(Long id);
     List<MaintenanceTicket> getAllTickets();
-    Page<MaintenanceTicket> getTicketsPage(int page, int size, Long assigneeId, UUID assetId);
+    Page<MaintenanceTicket> getTicketsPage(int page, int size, Long assigneeId, UUID assetId, TicketStatus status, Priority priority);
+    Map<String, Long> getTicketsSummary();
     List<MaintenanceTicket> getTicketsByAsset(UUID assetId);
     List<MaintenanceTicket> getTicketsByAssignee(Long assigneeId);
 

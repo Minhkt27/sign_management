@@ -13,10 +13,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -48,8 +48,6 @@ public class AssetService implements AssetUseCase {
             asset.setLocation(location);
         }
 
-        asset.setCreatedAt(LocalDateTime.now());
-        asset.setUpdatedAt(LocalDateTime.now());
         return assetDatabasePort.save(asset);
     }
 
@@ -69,8 +67,9 @@ public class AssetService implements AssetUseCase {
         existing.setStatus(updatedAsset.getStatus());
         existing.setSupplier(updatedAsset.getSupplier());
         existing.setInstalledAt(updatedAsset.getInstalledAt());
+        String oldImageUrl = null;
         if (updatedAsset.getImageUrl() != null && !updatedAsset.getImageUrl().equals(existing.getImageUrl())) {
-            deleteImageQuietly(existing.getImageUrl());
+            oldImageUrl = existing.getImageUrl();
         }
         existing.setImageUrl(updatedAsset.getImageUrl());
 
@@ -82,8 +81,9 @@ public class AssetService implements AssetUseCase {
             existing.setLocation(null);
         }
 
-        existing.setUpdatedAt(LocalDateTime.now());
-        return assetDatabasePort.save(existing);
+        Asset saved = assetDatabasePort.save(existing);
+        scheduleImageDeletion(oldImageUrl);
+        return saved;
     }
 
     @Override
@@ -102,8 +102,8 @@ public class AssetService implements AssetUseCase {
     }
 
     @Override
-    public Page<Asset> getAssetsPage(int page, int size) {
-        return assetDatabasePort.findAll(PageRequest.of(page, size, Sort.by("createdAt").descending()));
+    public Page<Asset> getAssetsPage(int page, int size, String search) {
+        return assetDatabasePort.search(search, PageRequest.of(page, size));
     }
 
     @Override
@@ -120,7 +120,19 @@ public class AssetService implements AssetUseCase {
             throw new IllegalArgumentException("Không thể xóa biển báo này vì đang có phiếu bảo trì liên kết.");
         }
         assetDatabasePort.deleteById(id);
-        deleteImageQuietly(asset.getImageUrl());
+        scheduleImageDeletion(asset.getImageUrl());
+    }
+
+    // Registers a post-commit hook so MinIO deletion only happens after DB commits.
+    // If the transaction rolls back, the file is untouched.
+    private void scheduleImageDeletion(String imageUrl) {
+        if (imageUrl == null || imageUrl.isBlank()) return;
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                deleteImageQuietly(imageUrl);
+            }
+        });
     }
 
     private void deleteImageQuietly(String imageUrl) {

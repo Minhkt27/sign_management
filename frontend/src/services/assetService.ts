@@ -15,8 +15,10 @@ export const assetService = {
     return response.data;
   },
 
-  getAssetsPage: async (page = 0, size = 50): Promise<PagedResponse<Asset>> => {
-    const response = await apiClient.get<PagedResponse<Asset>>(`/assets?page=${page}&size=${size}`);
+  getAssetsPage: async (page = 0, size = 50, search = ''): Promise<PagedResponse<Asset>> => {
+    const params = new URLSearchParams({ page: String(page), size: String(size) });
+    if (search) params.set('search', search);
+    const response = await apiClient.get<PagedResponse<Asset>>(`/assets?${params}`);
     return response.data;
   },
 

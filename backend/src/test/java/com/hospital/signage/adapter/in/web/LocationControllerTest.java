@@ -81,8 +81,7 @@ public class LocationControllerTest {
 
     @Test
     public void testCreateLocation() throws Exception {
-        Location loc = new Location();
-        loc.setName("New Department");
+        var req = new LocationController.LocationRequest("B1-P01", "New Department", null, null, null);
 
         Location savedLoc = new Location();
         savedLoc.setId(3L);
@@ -93,7 +92,7 @@ public class LocationControllerTest {
         mockMvc.perform(post("/api/locations")
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(loc)))
+                .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(3))
                 .andExpect(jsonPath("$.name").value("New Department"));
@@ -101,8 +100,7 @@ public class LocationControllerTest {
 
     @Test
     public void testUpdateLocation() throws Exception {
-        Location loc = new Location();
-        loc.setName("Updated Department");
+        var req = new LocationController.LocationRequest("B1-P01", "Updated Department", null, null, null);
 
         Location updatedLoc = new Location();
         updatedLoc.setId(1L);
@@ -113,7 +111,7 @@ public class LocationControllerTest {
         mockMvc.perform(put("/api/locations/1")
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(loc)))
+                .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("Updated Department"));

@@ -5,6 +5,8 @@ import com.hospital.signage.domain.enums.AssetStatus;
 import com.hospital.signage.domain.enums.Material;
 import com.hospital.signage.domain.model.Asset;
 import com.hospital.signage.domain.model.Location;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -12,10 +14,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+@Tag(name = "Biển báo")
 @RestController
 @RequestMapping("/api/assets")
 @RequiredArgsConstructor
@@ -23,18 +26,22 @@ public class AssetController {
 
     private final AssetUseCase assetUseCase;
 
+    @Operation(summary = "Danh sách biển báo (phân trang)")
     @GetMapping
     public ResponseEntity<PagedResponse<Asset>> getAllAssets(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "50") int size) {
-        return ResponseEntity.ok(PagedResponse.from(assetUseCase.getAssetsPage(page, size)));
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "") String search) {
+        return ResponseEntity.ok(PagedResponse.from(assetUseCase.getAssetsPage(Math.max(0, page), Math.min(Math.max(1, size), 100), search)));
     }
 
+    @Operation(summary = "Toàn bộ biển báo (tối đa 1000, dùng cho cây/bản đồ)")
     @GetMapping("/all")
     public ResponseEntity<List<Asset>> getAllAssetsList() {
         return ResponseEntity.ok(assetUseCase.getAllAssets());
     }
 
+    @Operation(summary = "Chi tiết biển báo theo ID")
     @GetMapping("/{id}")
     public ResponseEntity<Asset> getAssetById(@PathVariable UUID id) {
         return assetUseCase.getAssetById(id)
@@ -42,6 +49,7 @@ public class AssetController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @Operation(summary = "Tìm biển báo theo mã")
     @GetMapping("/code/{code}")
     public ResponseEntity<Asset> getAssetByCode(@PathVariable String code) {
         return assetUseCase.getAssetByCode(code)
@@ -49,23 +57,27 @@ public class AssetController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @Operation(summary = "Biển báo theo vị trí")
     @GetMapping("/location/{locationId}")
     public ResponseEntity<List<Asset>> getAssetsByLocation(@PathVariable Long locationId) {
         return ResponseEntity.ok(assetUseCase.getAssetsByLocation(locationId));
     }
 
+    @Operation(summary = "Tạo biển báo mới")
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<Asset> createAsset(@Valid @RequestBody AssetRequest request) {
         return ResponseEntity.ok(assetUseCase.createAsset(request.toDomain()));
     }
 
+    @Operation(summary = "Cập nhật biển báo")
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<Asset> updateAsset(@PathVariable UUID id, @Valid @RequestBody AssetRequest request) {
         return ResponseEntity.ok(assetUseCase.updateAsset(id, request.toDomain()));
     }
 
+    @Operation(summary = "Xóa biển báo")
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteAsset(@PathVariable UUID id) {
@@ -83,7 +95,7 @@ public class AssetController {
             @NotNull(message = "Material không được để trống") Material material,
             String size,
             @NotNull(message = "Status không được để trống") AssetStatus status,
-            LocalDateTime installedAt,
+            Instant installedAt,
             String supplier,
             String imageUrl
     ) {

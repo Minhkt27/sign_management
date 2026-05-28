@@ -4,6 +4,8 @@ import com.hospital.signage.adapter.out.persistence.entity.MaintenanceTicketEnti
 import com.hospital.signage.adapter.out.persistence.mapper.TicketMapper;
 import com.hospital.signage.adapter.out.persistence.repository.TicketRepository;
 import com.hospital.signage.application.port.out.TicketDatabasePort;
+import com.hospital.signage.domain.enums.Priority;
+import com.hospital.signage.domain.enums.TicketStatus;
 import com.hospital.signage.domain.model.MaintenanceTicket;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -11,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -54,24 +57,22 @@ public class TicketPersistenceAdapter implements TicketDatabasePort {
     }
 
     @Override
-    public Page<MaintenanceTicket> findByAssetId(UUID assetId, Pageable pageable) {
-        return repository.findByAssetId(assetId, pageable).map(mapper::toDomain);
-    }
-
-    @Override
-    public List<MaintenanceTicket> findByAssigneeId(Long assigneeId) {
-        return repository.findByAssigneeId(assigneeId).stream()
-                .map(mapper::toDomain)
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    public Page<MaintenanceTicket> findByAssigneeId(Long assigneeId, Pageable pageable) {
-        return repository.findByAssigneeId(assigneeId, pageable).map(mapper::toDomain);
+    public Page<MaintenanceTicket> findByFilters(Long assigneeId, UUID assetId, TicketStatus status, Priority priority, Pageable pageable) {
+        return repository.findByFilters(assigneeId, assetId, status, priority, pageable)
+                .map(mapper::toDomain);
     }
 
     @Override
     public boolean existsByAssetId(UUID assetId) {
         return repository.existsByAssetId(assetId);
+    }
+
+    @Override
+    public Map<String, Long> countByStatus() {
+        return repository.countByStatus().stream()
+                .collect(Collectors.toMap(
+                        row -> ((Enum<?>) row[0]).name(),
+                        row -> (Long) row[1]
+                ));
     }
 }
