@@ -69,7 +69,7 @@ export function NodePanel({ node, locations, onUpdate, onDelete, onClose }: Prop
 
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-1">
-            Gắn với Location <span className="text-slate-400">(cho bệnh nhân tìm)</span>
+            Gắn với Khoa/Phòng <span className="text-slate-400">(cho bệnh nhân tìm)</span>
           </label>
           <select
             value={locationId}
@@ -77,9 +77,16 @@ export function NodePanel({ node, locations, onUpdate, onDelete, onClose }: Prop
             className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">— Không gắn —</option>
-            {locations.map(loc => (
-              <option key={loc.id} value={loc.id}>{loc.name}</option>
-            ))}
+            <optgroup label="Khoa / Phòng ban">
+              {locations.filter(l => l.type === 'DEPARTMENT').map(loc => (
+                <option key={loc.id} value={loc.id}>{loc.name}</option>
+              ))}
+            </optgroup>
+            <optgroup label="Phòng">
+              {locations.filter(l => l.type === 'ROOM').map(loc => (
+                <option key={loc.id} value={loc.id}>{loc.name}</option>
+              ))}
+            </optgroup>
           </select>
         </div>
 
