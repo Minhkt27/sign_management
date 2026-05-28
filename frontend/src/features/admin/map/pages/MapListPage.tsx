@@ -1,73 +1,5 @@
-import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { mapService } from '@/services/mapService';
-import { locationService } from '@/services/locationService';
-import { fileService } from '@/services/fileService';
-import { MapFloor } from '@/shared/types';
-import { Map, Plus, Pencil, Trash2, Upload, Loader2 } from 'lucide-react';
-import { getApiError } from '@/shared/helpers/apiError';
 
-export default function MapListPage() {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [locationId, setLocationId]         = useState('');
-  const [uploading, setUploading]           = useState(false);
-  const [uploadedImage, setUploadedImage]   = useState<{ url: string; width: number; height: number } | null>(null);
-
-  const { data: floors = [], isLoading } = useQuery({
-    queryKey: ['mapFloors'],
-    queryFn: mapService.getAllFloors,
-  });
-
-  const { data: locations = [] } = useQuery({
-    queryKey: ['locations'],
-    queryFn: locationService.getAllLocations,
-  });
-
-  const createMutation = useMutation({
-    mutationFn: mapService.createFloor,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['mapFloors'] });
-      setShowCreateForm(false);
-      setLocationId('');
-      setUploadedImage(null);
-    },
-    onError: (e: unknown) => alert(getApiError(e, 'Không thể tạo sơ đồ')),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: mapService.deleteFloor,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['mapFloors'] }),
-    onError: (e: unknown) => alert(getApiError(e, 'Không thể xóa sơ đồ')),
-  });
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    try {
-      const url = await fileService.uploadFile(file);
-      const img = new Image();
-      img.onload = () => setUploadedImage({ url, width: img.naturalWidth, height: img.naturalHeight });
-      img.src = url;
-    } catch (err) {
-      alert(getApiError(err, 'Upload ảnh thất bại'));
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleCreate = () => {
-    if (!locationId || !uploadedImage) return;
-    createMutation.mutate({
-      locationId: Number(locationId),
-      imageUrl: uploadedImage.url,
-      imgWidth: uploadedImage.width,
-      imgHeight: uploadedImage.height,
+imgHeight: uploadedImage.height,
     });
   };
 
@@ -100,18 +32,37 @@ export default function MapListPage() {
         <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
           <h2 className="font-semibold text-slate-700">Tạo sơ đồ mới</h2>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-600 mb-1.5">Tầng / Vị trí</label>
-            <select
-              value={locationId}
-              onChange={e => setLocationId(e.target.value)}
-              className="w-full max-w-sm border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">— Chọn vị trí —</option>
-              {locations.map(loc => (
-                <option key={loc.id} value={loc.id}>{loc.name}</option>
-              ))}
-            </select>
+          <div className="flex gap-3 max-w-xl">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-slate-600 mb-1.5">Tòa nhà</label>
+              <select
+                value={buildingId}
+                onChange={e => { setBuildingId(e.target.value); setLocationId(''); }}
+                className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">— Chọn tòa nhà —</option>
+                {locations.filter(l => l.type === 'BUILDING').map(loc => (
+                  <option key={loc.id} value={loc.id}>{loc.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-slate-600 mb-1.5">Tầng</label>
+              <select
+                value={locationId}
+                onChange={e => setLocationId(e.target.value)}
+                disabled={!buildingId}
+                className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-400"
+              >
+                <option value="">— Chọn tầng —</option>
+                {locations
+                  .filter(l => l.type === 'FLOOR' && l.parentId === Number(buildingId))
+                  .map(loc => (
+                    <option key={loc.id} value={loc.id}>{loc.name}</option>
+                  ))}
+              </select>
+            </div>
           </div>
 
           <div>
@@ -142,7 +93,7 @@ export default function MapListPage() {
               {createMutation.isPending ? 'Đang tạo...' : 'Tạo sơ đồ'}
             </button>
             <button
-              onClick={() => { setShowCreateForm(false); setUploadedImage(null); setLocationId(''); }}
+              onClick={() => { setShowCreateForm(false); setUploadedImage(null); setLocationId(''); setBuildingId(''); }}
               className="border border-slate-300 text-slate-600 hover:bg-slate-50 px-5 py-2 rounded-xl text-sm"
             >
               Hủy
