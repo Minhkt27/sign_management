@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { mapService } from '@/services/mapService';
 import { locationService } from '@/services/locationService';
+import { assetService } from '@/services/assetService';
 import { MapNode, NodeType } from '@/shared/types';
 import { MapCanvas, EditorTool } from '../components/MapCanvas';
 import { NodePanel } from '../components/NodePanel';
@@ -36,6 +37,11 @@ export default function MapEditorPage() {
   const { data: locations = [] } = useQuery({
     queryKey: ['locations'],
     queryFn: locationService.getAllLocations,
+  });
+
+  const { data: assets = [] } = useQuery({
+    queryKey: ['assets', 'all'],
+    queryFn: assetService.getAllAssets,
   });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['mapFloor', floorId] });
@@ -195,6 +201,7 @@ export default function MapEditorPage() {
           <NodePanel
             node={selectedNode}
             locations={locations}
+            assets={assets}
             onUpdate={handleUpdateNode}
             onDelete={handleDeleteNode}
             onClose={() => setSelectedNodeId(null)}
