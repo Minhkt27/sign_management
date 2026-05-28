@@ -200,8 +200,8 @@ public class MapController {
     ) {}
 
     public record NodeUpdateRequest(
-            @NotNull Double x,
-            @NotNull Double y,
+            Double x,
+            Double y,
             @NotNull NodeType type,
             String label,
             Long locationId,

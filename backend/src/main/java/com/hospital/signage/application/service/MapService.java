@@ -95,8 +95,8 @@ public class MapService implements MapUseCase {
     public MapNode updateNode(Long id, MapNode node) {
         MapNode existing = mapDatabasePort.findNodeById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Node không tồn tại: " + id));
-        existing.setX(node.getX());
-        existing.setY(node.getY());
+        if (node.getX() != null) existing.setX(node.getX());
+        if (node.getY() != null) existing.setY(node.getY());
         existing.setType(node.getType());
         existing.setLabel(node.getLabel());
         existing.setLocationId(node.getLocationId());
