@@ -171,7 +171,7 @@ export default function MapListPage() {
                 <p className="text-xs text-slate-400 mt-0.5">{floor.imgWidth} × {floor.imgHeight}px</p>
                 <div className="flex gap-2 mt-3">
                   <button
-                    onClick={() => navigate(`/admin/map/${floor.id}/edit`)}
+                    onClick={() => navigate(`/admin/assets/tree/map/${floor.id}/edit`)}
                     className="flex-1 flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium py-2 rounded-lg"
                   >
                     <Pencil size={14} /> Chỉnh sửa

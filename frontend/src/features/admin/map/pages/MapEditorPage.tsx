@@ -119,7 +119,7 @@ export default function MapEditorPage() {
       {/* Toolbar */}
       <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-slate-200 flex-shrink-0">
         <button
-          onClick={() => navigate('/admin/map')}
+          onClick={() => navigate('/admin/assets/tree/map')}
           className="flex items-center gap-1.5 text-slate-500 hover:text-slate-700 text-sm"
         >
           <ArrowLeft size={16} /> Danh sách

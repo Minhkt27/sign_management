@@ -6,6 +6,7 @@ import MobileLayout from '../layouts/MobileLayout';
 import AssetListPage from '../features/admin/assets/pages/AssetListPage';
 import AssetTreePage from '../features/admin/assets/pages/AssetTreePage';
 import AssetDetailPage from '../features/admin/assets/pages/AssetDetailPage';
+import LocationSchemaPage from '../features/admin/assets/pages/LocationSchemaPage';
 import TicketListPage from '../features/admin/tickets/pages/TicketListPage';
 import TicketAssignPage from '../features/admin/tickets/pages/TicketAssignPage';
 import TicketDetailPage from '../features/admin/tickets/pages/TicketDetailPage';
@@ -29,15 +30,17 @@ export default function AppRoutes() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/assets" replace />} />
           <Route path="assets" element={<AssetListPage />} />
-          <Route path="assets/tree" element={<AssetTreePage />} />
+          <Route path="assets/tree" element={<LocationSchemaPage />}>
+            <Route index element={<AssetTreePage />} />
+            <Route path="map" element={<MapListPage />} />
+            <Route path="map/:floorId/edit" element={<MapEditorPage />} />
+          </Route>
           <Route path="assets/:id" element={<AssetDetailPage />} />
           <Route path="sign-types" element={<SignTypeListPage />} />
           <Route path="tickets" element={<TicketListPage />} />
           <Route path="tickets/assign/:id" element={<TicketAssignPage />} />
           <Route path="tickets/:id" element={<TicketDetailPage />} />
           <Route path="users" element={<UserListPage />} />
-          <Route path="map" element={<MapListPage />} />
-          <Route path="map/:floorId/edit" element={<MapEditorPage />} />
         </Route>
       </Route>
 

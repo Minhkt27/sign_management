@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { authStore } from '@/app/store/authStore';
 import { authService } from '@/services/authService';
-import { LayoutDashboard, Signpost, Ticket, LogOut, Tags, Users, KeyRound, Menu, X, Map } from 'lucide-react';
+import { LayoutDashboard, Signpost, Ticket, LogOut, Tags, Users, KeyRound, Menu, X } from 'lucide-react';
 import ChangePasswordModal from '@/components/ChangePasswordModal';
 
 export default function AdminLayout() {
@@ -22,7 +22,6 @@ export default function AdminLayout() {
     { to: '/admin/sign-types', label: 'Quản lý Loại biển', icon: Tags, end: false },
     { to: '/admin/tickets', label: 'Phiếu Bảo trì', icon: Ticket, end: false },
     { to: '/admin/users', label: 'Quản lý Nhân viên', icon: Users, end: false },
-    { to: '/admin/map', label: 'Sơ đồ Wayfinding', icon: Map, end: false },
   ];
 
   const pageTitle = navItems.find(item => location.pathname.startsWith(item.to))?.label ?? 'Bảng điều khiển';
