@@ -8,7 +8,8 @@ import { getBackendUrl } from '@/shared/helpers/imageUrl';
 import { Asset, MaintenanceTicket } from '@/shared/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Package, Ruler, Building, Calendar, AlertCircle, Wrench, ArrowLeft, HandshakeIcon } from 'lucide-react';
+import { MapPin, Package, Ruler, Building, Calendar, AlertCircle, Wrench, ArrowLeft, HandshakeIcon, Map } from 'lucide-react';
+import { MapNodeModal } from '../components/MapNodeModal';
 
 export default function ScanLandingPage() {
   const { assetCode } = useParams<{ assetCode: string }>();
@@ -16,6 +17,7 @@ export default function ScanLandingPage() {
   const queryClient = useQueryClient();
 
   const [showForm, setShowForm] = useState(false);
+  const [showMapModal, setShowMapModal] = useState(false);
   const [desc, setDesc] = useState('');
   const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM');
   const [takeError, setTakeError] = useState('');
@@ -116,8 +118,22 @@ export default function ScanLandingPage() {
             </Badge>
           </div>
           {asset.name && <p className="text-sm text-slate-600 font-medium">{asset.name}</p>}
+          <button
+            onClick={() => setShowMapModal(true)}
+            className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium mt-1"
+          >
+            <Map size={15} /> Xem vị trí trên sơ đồ
+          </button>
         </div>
       </div>
+
+      {showMapModal && (
+        <MapNodeModal
+          assetId={asset.id}
+          assetCode={asset.assetCode}
+          onClose={() => setShowMapModal(false)}
+        />
+      )}
 
       {/* Info */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 space-y-3 text-sm text-slate-700">

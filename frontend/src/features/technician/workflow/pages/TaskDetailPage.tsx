@@ -3,14 +3,16 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ticketService } from '@/services/ticketService';
 import { fileService } from '@/services/fileService';
+import { mapService } from '@/services/mapService';
 import { MaintenanceTicket } from '@/shared/types';
 import { authStore } from '@/app/store/authStore';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, CheckCircle2, Wrench, Camera, ShieldCheck, Image as ImageIcon, Plus, RotateCcw, FolderOpen } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Wrench, Camera, ShieldCheck, Image as ImageIcon, Plus, RotateCcw, FolderOpen, Map } from 'lucide-react';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { PRIORITY_LABELS } from '@/shared/helpers/ticketBadges';
+import { MapNodeModal } from '../components/MapNodeModal';
 
 export default function TaskDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -22,6 +24,7 @@ export default function TaskDetailPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  const [showMapModal, setShowMapModal] = useState(false);
 
   const cameraBeforeRef = useRef<HTMLInputElement>(null);
   const galleryBeforeRef = useRef<HTMLInputElement>(null);
@@ -160,7 +163,21 @@ export default function TaskDetailPage() {
         </div>
         <h2 className="text-lg font-bold text-slate-800 leading-snug">{task.asset?.assetCode}</h2>
         <p className="text-sm text-slate-500">{locationName} — {task.asset?.material} ({task.asset?.size})</p>
+        <button
+          onClick={() => setShowMapModal(true)}
+          className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium"
+        >
+          <Map size={15} /> Xem trên sơ đồ
+        </button>
       </div>
+
+      {showMapModal && task.asset && (
+        <MapNodeModal
+          assetId={task.asset.id}
+          assetCode={task.asset.assetCode}
+          onClose={() => setShowMapModal(false)}
+        />
+      )}
 
       {/* Issue description */}
       <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm space-y-2">

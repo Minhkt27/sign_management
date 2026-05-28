@@ -15,6 +15,9 @@ import AssetBrowsePage from '../features/technician/workflow/pages/AssetBrowsePa
 import ScanLandingPage from '../features/technician/workflow/pages/ScanLandingPage';
 import SignTypeListPage from '../features/admin/sign-types/pages/SignTypeListPage';
 import UserListPage from '../features/admin/users/pages/UserListPage';
+import MapListPage from '../features/admin/map/pages/MapListPage';
+import MapEditorPage from '../features/admin/map/pages/MapEditorPage';
+import WayfindingPage from '../features/map/pages/WayfindingPage';
 
 export default function AppRoutes() {
   return (
@@ -33,6 +36,8 @@ export default function AppRoutes() {
           <Route path="tickets/assign/:id" element={<TicketAssignPage />} />
           <Route path="tickets/:id" element={<TicketDetailPage />} />
           <Route path="users" element={<UserListPage />} />
+          <Route path="map" element={<MapListPage />} />
+          <Route path="map/:floorId/edit" element={<MapEditorPage />} />
         </Route>
       </Route>
 
@@ -46,6 +51,9 @@ export default function AppRoutes() {
           <Route path="assets/:assetCode" element={<ScanLandingPage />} />
         </Route>
       </Route>
+
+      {/* Public map */}
+      <Route path="/map" element={<WayfindingPage />} />
 
       {/* Root redirect */}
       <Route path="/" element={<Navigate to="/admin/assets" replace />} />

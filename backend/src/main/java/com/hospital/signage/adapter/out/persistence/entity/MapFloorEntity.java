@@ -1,0 +1,38 @@
+package com.hospital.signage.adapter.out.persistence.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.time.Instant;
+
+@Entity
+@Table(name = "map_floors")
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+public class MapFloorEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "location_id", nullable = false, unique = true)
+    private Long locationId;
+
+    @Column(name = "image_url", nullable = false, length = 500)
+    private String imageUrl;
+
+    @Column(name = "img_width", nullable = false)
+    private int imgWidth;
+
+    @Column(name = "img_height", nullable = false)
+    private int imgHeight;
+
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private Instant createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private Instant updatedAt;
+}
