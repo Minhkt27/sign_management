@@ -102,7 +102,7 @@ public class MapController {
     @Operation(summary = "Cập nhật node")
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/nodes/{id}")
-    public ResponseEntity<MapNode> updateNode(@PathVariable Long id, @Valid @RequestBody NodeRequest req) {
+    public ResponseEntity<MapNode> updateNode(@PathVariable Long id, @Valid @RequestBody NodeUpdateRequest req) {
         MapNode node = MapNode.builder()
                 .x(req.x())
                 .y(req.y())
@@ -191,6 +191,15 @@ public class MapController {
 
     public record NodeRequest(
             @NotNull Long floorId,
+            @NotNull Double x,
+            @NotNull Double y,
+            @NotNull NodeType type,
+            String label,
+            Long locationId,
+            UUID assetId
+    ) {}
+
+    public record NodeUpdateRequest(
             @NotNull Double x,
             @NotNull Double y,
             @NotNull NodeType type,
