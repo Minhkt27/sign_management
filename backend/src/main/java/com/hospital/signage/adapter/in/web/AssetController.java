@@ -59,26 +59,29 @@ public class AssetController {
 
     @Operation(summary = "Biển báo theo vị trí")
     @GetMapping("/location/{locationId}")
-    public ResponseEntity<List<Asset>> getAssetsByLocation(@PathVariable Long locationId) {
-        return ResponseEntity.ok(assetUseCase.getAssetsByLocation(locationId));
+    public ResponseEntity<PagedResponse<Asset>> getAssetsByLocation(
+            @PathVariable Long locationId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(PagedResponse.from(assetUseCase.getAssetsByLocation(locationId, Math.max(0, page), Math.min(Math.max(1, size), 100))));
     }
 
     @Operation(summary = "Tạo biển báo mới")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ASSET_MANAGE')")
     @PostMapping
     public ResponseEntity<Asset> createAsset(@Valid @RequestBody AssetRequest request) {
         return ResponseEntity.ok(assetUseCase.createAsset(request.toDomain()));
     }
 
     @Operation(summary = "Cập nhật biển báo")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ASSET_MANAGE')")
     @PutMapping("/{id}")
     public ResponseEntity<Asset> updateAsset(@PathVariable UUID id, @Valid @RequestBody AssetRequest request) {
         return ResponseEntity.ok(assetUseCase.updateAsset(id, request.toDomain()));
     }
 
     @Operation(summary = "Xóa biển báo")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ASSET_MANAGE')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteAsset(@PathVariable UUID id) {
         assetUseCase.deleteAsset(id);

@@ -107,8 +107,8 @@ public class AssetService implements AssetUseCase {
     }
 
     @Override
-    public List<Asset> getAssetsByLocation(Long locationId) {
-        return assetDatabasePort.findByLocationId(locationId);
+    public Page<Asset> getAssetsByLocation(Long locationId, int page, int size) {
+        return assetDatabasePort.findByLocationId(locationId, PageRequest.of(page, size));
     }
 
     @Override

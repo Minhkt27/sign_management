@@ -30,7 +30,7 @@ public class SignTypeController {
 
     @Operation(summary = "Danh sách loại biển (phân trang)")
     @GetMapping("/page")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ASSET_MANAGE')")
     public ResponseEntity<PagedResponse<SignType>> getSignTypesPage(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -48,7 +48,7 @@ public class SignTypeController {
     }
 
     @Operation(summary = "Tạo loại biển mới")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ASSET_MANAGE')")
     @PostMapping
     public ResponseEntity<SignType> createSignType(@Valid @RequestBody SignTypeRequest req) {
         SignType signType = SignType.builder()
@@ -60,7 +60,7 @@ public class SignTypeController {
     }
 
     @Operation(summary = "Cập nhật loại biển")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ASSET_MANAGE')")
     @PutMapping("/{id}")
     public ResponseEntity<SignType> updateSignType(@PathVariable Long id, @Valid @RequestBody SignTypeRequest req) {
         SignType signType = SignType.builder()
@@ -72,7 +72,7 @@ public class SignTypeController {
     }
 
     @Operation(summary = "Xóa loại biển")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ASSET_MANAGE')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteSignType(@PathVariable Long id) {
         signTypeUseCase.deleteSignType(id);

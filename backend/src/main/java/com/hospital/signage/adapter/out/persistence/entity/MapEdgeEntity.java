@@ -27,6 +27,7 @@ public class MapEdgeEntity {
     @Column(nullable = false)
     private double weight;
 
+    @Builder.Default
     @Column(nullable = false)
     private boolean bidirectional = true;
 

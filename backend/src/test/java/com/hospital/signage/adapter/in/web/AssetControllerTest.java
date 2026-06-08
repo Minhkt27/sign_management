@@ -34,7 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(AssetController.class)
 @Import({SecurityConfig.class, JwtAuthenticationFilter.class})
-@WithMockUser(username = "admin", roles = {"ADMIN"})
+@WithMockUser(username = "admin", authorities = {"ASSET_MANAGE"})
 public class AssetControllerTest {
 
     @Autowired

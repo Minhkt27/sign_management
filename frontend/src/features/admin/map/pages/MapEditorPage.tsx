@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { mapService } from '@/services/mapService';
 import { locationService } from '@/services/locationService';
@@ -9,6 +9,7 @@ import { MapCanvas, EditorTool } from '../components/MapCanvas';
 import { NodePanel } from '../components/NodePanel';
 import { MousePointer, Plus, GitBranch, Trash2, ArrowLeft } from 'lucide-react';
 import { getApiError } from '@/shared/helpers/apiError';
+import { getBackendUrl } from '@/shared/helpers/imageUrl';
 import { NODE_TYPE_OPTIONS } from '../constants';
 import { toast } from 'sonner';
 
@@ -23,10 +24,13 @@ export default function MapEditorPage() {
   const { floorId } = useParams<{ floorId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
 
   const [tool, setTool]               = useState<EditorTool>('select');
   const [pendingType, setPendingType] = useState<NodeType>('JUNCTION');
-  const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<number | null>(
+    () => { const n = searchParams.get('nodeId'); return n ? Number(n) : null; }
+  );
   const [edgeStartId, setEdgeStartId] = useState<number | null>(null);
 
   const { data: floorData, isLoading } = useQuery({
@@ -44,6 +48,28 @@ export default function MapEditorPage() {
     queryKey: ['assets', 'all'],
     queryFn: assetService.getAllAssets,
   });
+
+  const { data: allFloors = [] } = useQuery({
+    queryKey: ['mapFloors'],
+    queryFn: mapService.getAllFloors,
+  });
+
+  const otherFloors = allFloors.filter(f => f.id !== Number(floorId));
+
+  const selectedNodeType = floorData?.nodes.find(n => n.id === selectedNodeId)?.type;
+  const isTransitNode = selectedNodeType === 'STAIRS' || selectedNodeType === 'ELEVATOR';
+
+  const { data: allFloorData = [] } = useQuery({
+    queryKey: ['mapAllFloorData', otherFloors.map(f => f.id)],
+    queryFn: () => Promise.all(otherFloors.map(f => mapService.getFloorData(f.id))),
+    enabled: otherFloors.length > 0 && isTransitNode,
+  });
+
+  useEffect(() => {
+    if (floorData && selectedNodeId && !floorData.nodes.find(n => n.id === selectedNodeId)) {
+      setSelectedNodeId(null);
+    }
+  }, [floorData, selectedNodeId]);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['mapFloor', floorId] });
 
@@ -181,7 +207,7 @@ export default function MapEditorPage() {
       <div className="flex flex-1 min-h-0">
         <div className="flex-1 p-4 min-h-0 overflow-auto flex items-start justify-center">
           <MapCanvas
-            imageUrl={floorData.floor.imageUrl}
+            imageUrl={getBackendUrl(floorData.floor.imageUrl)}
 
             nodes={floorData.nodes}
             edges={floorData.edges}
@@ -196,14 +222,61 @@ export default function MapEditorPage() {
         </div>
 
         {selectedNode && tool === 'select' && (
-          <NodePanel
-            node={selectedNode}
-            locations={locations}
-            assets={assets}
-            onUpdate={handleUpdateNode}
-            onDelete={handleDeleteNode}
-            onClose={() => setSelectedNodeId(null)}
-          />
+          <div className="flex flex-col w-64 flex-shrink-0 border-l border-slate-200 overflow-y-auto">
+            <NodePanel
+              node={selectedNode}
+              locations={locations}
+              assets={assets}
+              onUpdate={handleUpdateNode}
+              onDelete={handleDeleteNode}
+              onClose={() => setSelectedNodeId(null)}
+            />
+
+            {/* Cross-floor connections for STAIRS / ELEVATOR */}
+            {isTransitNode && (
+              <div className="p-3 border-t border-slate-200 space-y-2">
+                <p className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+                  Nối với tầng khác
+                </p>
+                {allFloorData.length === 0 && (
+                  <p className="text-xs text-slate-400">Đang tải...</p>
+                )}
+                {allFloorData.map(fd => {
+                  const transitNodes = fd.nodes.filter(n => n.type === selectedNodeType);
+                  const floorLoc = locations.find(l => l.id === fd.floor.locationId);
+                  const floorLabel = floorLoc?.name ?? `Tầng #${fd.floor.id}`;
+                  return transitNodes.map(n => {
+                    const alreadyConnected =
+                      floorData.edges.some(e =>
+                        (e.nodeFromId === selectedNodeId && e.nodeToId === n.id) ||
+                        (e.nodeToId === selectedNodeId && e.nodeFromId === n.id)
+                      );
+                    return (
+                      <div key={n.id} className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-slate-700 truncate">
+                            {n.label || selectedNodeType}
+                          </p>
+                          <p className="text-xs text-slate-400">{floorLabel}</p>
+                        </div>
+                        {alreadyConnected ? (
+                          <span className="text-xs text-emerald-600 font-medium flex-shrink-0">✓ Đã nối</span>
+                        ) : (
+                          <button
+                            onClick={() => createEdgeMutation.mutate({ from: selectedNodeId!, to: n.id })}
+                            disabled={createEdgeMutation.isPending}
+                            className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded flex-shrink-0"
+                          >
+                            Nối
+                          </button>
+                        )}
+                      </div>
+                    );
+                  });
+                })}
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

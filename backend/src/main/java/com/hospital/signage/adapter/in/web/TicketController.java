@@ -75,60 +75,44 @@ public class TicketController {
     }
 
     @Operation(summary = "Phân công kỹ thuật viên xử lý phiếu")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('TICKET_MANAGE')")
     @PutMapping("/{id}/assign")
     public ResponseEntity<MaintenanceTicket> assignTicket(
             @PathVariable Long id,
             @RequestBody AssignTicketRequest request) {
-        try {
-            return ResponseEntity.ok(ticketUseCase.assignTicket(id, request.assigneeId()));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        }
+        return ResponseEntity.ok(ticketUseCase.assignTicket(id, request.assigneeId()));
     }
 
     @Operation(summary = "Kỹ thuật viên tự nhận phiếu")
-    @PreAuthorize("hasRole('TECHNICAL')")
+    @PreAuthorize("hasAuthority('TICKET_MANAGE')")
     @PutMapping("/{id}/take")
     public ResponseEntity<MaintenanceTicket> takeTicket(@PathVariable Long id) {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         if (!(principal instanceof User technician)) {
             return ResponseEntity.status(401).build();
         }
-        try {
-            return ResponseEntity.ok(ticketUseCase.takeTicket(id, technician.getId()));
-        } catch (IllegalStateException e) {
-            return ResponseEntity.badRequest().build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        }
+        return ResponseEntity.ok(ticketUseCase.takeTicket(id, technician.getId()));
     }
 
     @Operation(summary = "Cập nhật trạng thái phiếu (xử lý, hoàn thành, đóng, từ chối)")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('TECHNICAL')")
+    @PreAuthorize("hasAuthority('TICKET_MANAGE')")
     @PutMapping("/{id}/status")
     public ResponseEntity<MaintenanceTicket> updateTicketStatus(
             @PathVariable Long id,
             @RequestBody UpdateStatusRequest request) {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Long technicianId = null;
-        if (principal instanceof User caller && "TECHNICAL".equals(caller.getRole().name())) {
+        if (principal instanceof User caller && Long.valueOf(2).equals(caller.getRoleId())) {
             technicianId = caller.getId();
         }
-        try {
-            return ResponseEntity.ok(ticketUseCase.updateTicketStatus(
-                    id,
-                    request.status(),
-                    request.imageBefore(),
-                    request.imageAfter(),
-                    request.rejectionNote(),
-                    technicianId
-            ));
-        } catch (IllegalStateException e) {
-            return ResponseEntity.status(403).build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.notFound().build();
-        }
+        return ResponseEntity.ok(ticketUseCase.updateTicketStatus(
+                id,
+                request.status(),
+                request.imageBefore(),
+                request.imageAfter(),
+                request.rejectionNote(),
+                technicianId
+        ));
     }
 
     public record CreateTicketRequest(

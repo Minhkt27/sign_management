@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ticketService } from '@/services/ticketService';
 import { fileService } from '@/services/fileService';
-import { mapService } from '@/services/mapService';
 import { MaintenanceTicket } from '@/shared/types';
 import { authStore } from '@/app/store/authStore';
 import { Button } from '@/components/ui/button';

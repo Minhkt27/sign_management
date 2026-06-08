@@ -11,8 +11,12 @@ export const userService = {
       `/users?page=${page}&size=${size}&search=${encodeURIComponent(search)}`
     ).then(r => r.data),
 
-  createTechnician: (data: { username: string; fullName: string; password: string }): Promise<User> =>
+  createUser: (data: { username: string; fullName: string; password: string; roleId: number; customPermissions: string[] }): Promise<User> =>
     apiClient.post<User>('/users', data).then(r => r.data),
+
+  updateRoleAndPermissions: (id: number, data: { roleId: number; customPermissions: string[] }): Promise<User> =>
+    apiClient.put<User>(`/users/${id}/role-permissions`, data).then(r => r.data),
+
 
   setActive: (id: number, active: boolean): Promise<User> =>
     apiClient.put<User>(`/users/${id}/active`, { active }).then(r => r.data),

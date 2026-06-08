@@ -7,6 +7,7 @@ import { locationService } from '@/services/locationService';
 import { ticketService } from '@/services/ticketService';
 import { signTypeService } from '@/services/signTypeService';
 import { fileService } from '@/services/fileService';
+import { mapService } from '@/services/mapService';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
 import { PRIORITY_LABELS, TICKET_STATUS_LABELS } from '@/shared/helpers/ticketBadges';
 import { getFullLocationPath, resolveLocationLevels } from '@/shared/helpers/locationHelper';
@@ -14,7 +15,7 @@ import { Asset, Location, SignType } from '@/shared/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, QrCode, Calendar, Wrench, CheckCircle2, AlertCircle, HardDrive, PenTool, FileText, MapPin, Layers, Maximize2, Building, Image as ImageIcon, Plus } from 'lucide-react';
+import { ArrowLeft, QrCode, Calendar, Wrench, CheckCircle2, AlertCircle, HardDrive, PenTool, FileText, MapPin, Layers, Maximize2, Building, Image as ImageIcon, Plus, Map as MapIcon, Tag } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -83,6 +84,25 @@ export default function AssetDetailPage() {
     queryKey: ['signTypes'],
     queryFn: signTypeService.getAllSignTypes,
   });
+
+  // Fetch linked map node (if asset is pinned on a floor map)
+  const { data: linkedNode } = useQuery({
+    queryKey: ['nodeByAsset', id],
+    queryFn: () => mapService.getNodeByAsset(id!),
+    enabled: !!id,
+    retry: false,
+  });
+
+  const { data: allFloors = [] } = useQuery({
+    queryKey: ['mapFloors'],
+    queryFn: mapService.getAllFloors,
+    enabled: !!linkedNode,
+  });
+
+  const linkedFloor = linkedNode ? allFloors.find(f => f.id === linkedNode.floorId) : undefined;
+  const linkedFloorName = linkedFloor
+    ? (locations.find(l => l.id === linkedFloor.locationId)?.name ?? `Sơ đồ #${linkedFloor.id}`)
+    : undefined;
 
   // Initialize edit fields when asset and locations are loaded
   useEffect(() => {
@@ -250,7 +270,7 @@ export default function AssetDetailPage() {
             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Mã QR Biển Báo</h3>
             <div ref={qrRef} className="w-48 h-48 border-2 border-slate-200 rounded-xl p-3 bg-white flex flex-col items-center justify-center relative shadow-inner">
               <QRCode
-                value={`${window.location.origin}/tech/assets/${asset.assetCode}`}
+                value={`${window.location.origin}/scan/${asset.assetCode}`}
                 size={160}
                 level="M"
               />
@@ -298,7 +318,7 @@ export default function AssetDetailPage() {
                 </Button>
               } />
 
-              <DialogContent className="bg-white sm:max-w-[550px] rounded-2xl border-slate-100 p-0 overflow-hidden shadow-2xl">
+              <DialogContent className="bg-white sm:max-w-[620px] rounded-2xl border-slate-100 p-0 overflow-hidden shadow-2xl">
                 <form onSubmit={handleUpdateAsset} className="flex flex-col h-full">
                   <div className="bg-slate-50/80 backdrop-blur px-6 py-5 border-b border-slate-100">
                     <DialogHeader>
@@ -312,20 +332,27 @@ export default function AssetDetailPage() {
                     </DialogHeader>
                   </div>
 
-                  <div className="px-6 py-5 space-y-4 text-left max-h-[480px] overflow-y-auto">
-                    <div className="grid grid-cols-2 gap-4">
+                  <div className="px-6 py-5 space-y-5 text-left max-h-[500px] overflow-y-auto">
+                    {/* Mã và Trạng thái */}
+                    <div className="bg-blue-50/30 border border-blue-100/50 p-4 rounded-xl grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">Mã biển hiệu</label>
+                        <label className="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center space-x-1 mb-2">
+                          <Tag size={13} />
+                          <span>Mã biển hiệu</span>
+                        </label>
                         <Input
                           id="edit-asset-code"
                           required
                           value={assetCode}
                           onChange={(e) => setAssetCode(e.target.value)}
-                          className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg bg-slate-50 font-medium"
+                          className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg bg-white font-medium"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">Trạng thái</label>
+                        <label className="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center space-x-1 mb-2">
+                          <AlertCircle size={13} />
+                          <span>Trạng thái</span>
+                        </label>
                         <select
                           id="edit-asset-status"
                           value={status}
@@ -340,200 +367,76 @@ export default function AssetDetailPage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    {/* Thông tin biển báo */}
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100 pb-1.5">
+                        Thông tin biển báo
+                      </h4>
+                      
                       <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">Tên biển</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
+                          <Tag size={13} className="text-slate-400" />
+                          <span>Tên biển báo *</span>
+                        </label>
                         <Input
-                          placeholder="Tên hiển thị của biển..."
+                          required
+                          placeholder="Ví dụ: Biển phòng khám 101..."
                           value={assetName}
                           onChange={(e) => setAssetName(e.target.value)}
                           className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg"
                         />
                       </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">Loại biển</label>
-                        <select
-                          value={editSignTypeId ?? ''}
-                          onChange={(e) => setEditSignTypeId(e.target.value ? Number(e.target.value) : undefined)}
-                          className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300"
-                        >
-                          <option value="">— Không phân loại —</option>
-                          {signTypes.map(st => (
-                            <option key={st.id} value={st.id}>{st.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
 
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
-                        <Calendar size={13} className="text-slate-400" />
-                        <span>Ngày lắp đặt</span>
-                      </label>
-                      <Input
-                        type="date"
-                        value={installedAt}
-                        onChange={(e) => setInstalledAt(e.target.value)}
-                        className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
-                        <FileText size={13} className="text-slate-400" />
-                        <span>Mô tả biển báo *</span>
-                      </label>
-                      <Input
-                        id="edit-asset-description"
-                        required
-                        placeholder="Mô tả hiển thị trên biển báo..."
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="block text-xs font-bold text-slate-500 flex items-center space-x-1">
-                        <MapPin size={13} className="text-slate-400" />
-                        <span>Vị trí lắp đặt *</span>
-                      </label>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <span className="block text-xs font-bold text-slate-400 uppercase mb-1">Tòa nhà</span>
+                          <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
+                            <Layers size={13} className="text-slate-400" />
+                            <span>Loại biển</span>
+                          </label>
                           <select
-                            value={selectedBuildingId}
-                            onChange={(e) => {
-                              const val = e.target.value ? Number(e.target.value) : '';
-                              setSelectedBuildingId(val);
-                              setSelectedFloorId('');
-                              setSelectedRoomId('');
-                              setSelectedSubRoomId('');
-                            }}
-                            className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            value={editSignTypeId ?? ''}
+                            onChange={(e) => setEditSignTypeId(e.target.value ? Number(e.target.value) : undefined)}
+                            className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300"
                           >
-                            <option value="">— Chọn Tòa nhà —</option>
-                            {locations.filter(loc => loc.parentId === null).map(loc => (
-                              <option key={loc.id} value={loc.id}>{loc.name}</option>
+                            <option value="">— Không phân loại —</option>
+                            {signTypes.map(st => (
+                              <option key={st.id} value={st.id}>{st.name}</option>
                             ))}
                           </select>
                         </div>
                         <div>
-                          <span className="block text-xs font-bold text-slate-400 uppercase mb-1">Tầng</span>
+                          <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
+                            <Layers size={13} className="text-slate-400" />
+                            <span>Chất liệu</span>
+                          </label>
                           <select
-                            disabled={!selectedBuildingId}
-                            value={selectedFloorId}
-                            onChange={(e) => {
-                              const val = e.target.value ? Number(e.target.value) : '';
-                              setSelectedFloorId(val);
-                              setSelectedRoomId('');
-                              setSelectedSubRoomId('');
-                            }}
-                            className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+                            id="edit-asset-material"
+                            value={material}
+                            onChange={(e) => setMaterial(e.target.value as any)}
+                            className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300"
                           >
-                            <option value="">— Chọn Tầng —</option>
-                            {locations.filter(loc => loc.parentId === selectedBuildingId).map(loc => (
-                              <option key={loc.id} value={loc.id}>{loc.name}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <span className="block text-xs font-bold text-slate-400 uppercase mb-1">Khoa (tuỳ chọn)</span>
-                          <select
-                            disabled={!selectedFloorId}
-                            value={selectedRoomId}
-                            onChange={(e) => {
-                              const val = e.target.value ? Number(e.target.value) : '';
-                              setSelectedRoomId(val);
-                              setSelectedSubRoomId('');
-                            }}
-                            className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
-                          >
-                            <option value="">— Chọn Khoa —</option>
-                            {locations.filter(loc => loc.parentId === selectedFloorId).map(loc => (
-                              <option key={loc.id} value={loc.id}>{loc.name}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <span className="block text-xs font-bold text-slate-400 uppercase mb-1">Phòng (nếu có)</span>
-                          <select
-                            disabled={!selectedRoomId || locations.filter(loc => loc.parentId === selectedRoomId).length === 0}
-                            value={selectedSubRoomId}
-                            onChange={(e) => setSelectedSubRoomId(e.target.value ? Number(e.target.value) : '')}
-                            className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
-                          >
-                            <option value="">— Chọn Phòng —</option>
-                            {locations.filter(loc => loc.parentId === selectedRoomId).map(loc => (
-                              <option key={loc.id} value={loc.id}>{loc.name}</option>
-                            ))}
+                            <option value="MICA">MICA</option>
+                            <option value="INOX">INOX</option>
+                            <option value="LED">LED</option>
+                            <option value="ALU">ALU</option>
                           </select>
                         </div>
                       </div>
-                      {!locationId && <p className="text-xs text-rose-500 font-medium">Vui lòng chọn ít nhất Tòa nhà.</p>}
-                    </div>
 
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
-                        <Building size={13} className="text-slate-400" />
-                        <span>Nhà cung cấp</span>
-                      </label>
-                      <Input
-                        placeholder="Đơn vị sản xuất..."
-                        value={supplier}
-                        onChange={(e) => setSupplier(e.target.value)}
-                        className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
-                        <ImageIcon size={13} className="text-slate-400" />
-                        <span>Hình ảnh biển báo mới</span>
-                      </label>
-                      <input
-                        id="edit-asset-image"
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                        className="w-full text-xs text-slate-550 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
-                        <MapPin size={13} className="text-slate-400" />
-                        <span>Mô tả cụ thể vị trí lắp đặt *</span>
-                      </label>
-                      <textarea
-                        id="edit-asset-location-description"
-                        required
-                        rows={2}
-                        placeholder="Mô tả cụ thể vị trí lắp đặt..."
-                        value={locationDescription}
-                        onChange={(e) => setLocationDescription(e.target.value)}
-                        className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300 transition-colors"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
-                          <Layers size={13} className="text-slate-400" />
-                          <span>Chất liệu</span>
+                          <FileText size={13} className="text-slate-400" />
+                          <span>Mô tả biển báo</span>
                         </label>
-                        <select
-                          id="edit-asset-material"
-                          value={material}
-                          onChange={(e) => setMaterial(e.target.value as any)}
-                          className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300"
-                        >
-                          <option value="MICA">MICA</option>
-                          <option value="INOX">INOX</option>
-                          <option value="LED">LED</option>
-                          <option value="ALU">ALU</option>
-                        </select>
+                        <Input
+                          id="edit-asset-description"
+                          placeholder="Mô tả chi tiết..."
+                          value={description}
+                          onChange={(e) => setDescription(e.target.value)}
+                          className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg"
+                        />
                       </div>
+
                       <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
                           <Maximize2 size={13} className="text-slate-400" />
@@ -542,9 +445,154 @@ export default function AssetDetailPage() {
                         <Input
                           id="edit-asset-size"
                           required
+                          placeholder="Ví dụ: 40x30 cm"
                           value={size}
                           onChange={(e) => setSize(e.target.value)}
                           className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
+                            <Building size={13} className="text-slate-400" />
+                            <span>Nhà cung cấp</span>
+                          </label>
+                          <Input
+                            placeholder="Đơn vị sản xuất..."
+                            value={supplier}
+                            onChange={(e) => setSupplier(e.target.value)}
+                            className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
+                            <Calendar size={13} className="text-slate-400" />
+                            <span>Ngày lắp đặt</span>
+                          </label>
+                          <Input
+                            type="date"
+                            value={installedAt}
+                            onChange={(e) => setInstalledAt(e.target.value)}
+                            className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Vị trí lắp đặt */}
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100 pb-1.5">
+                        Vị trí lắp đặt chi tiết
+                      </h4>
+                      
+                      <div className="space-y-3">
+                        <label className="block text-xs font-bold text-slate-655 flex items-center space-x-1">
+                          <MapPin size={13} className="text-slate-400" />
+                          <span>Vị trí lắp đặt *</span>
+                        </label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Tòa nhà</span>
+                            <select
+                              value={selectedBuildingId}
+                              onChange={(e) => {
+                                const val = e.target.value ? Number(e.target.value) : '';
+                                setSelectedBuildingId(val);
+                                setSelectedFloorId('');
+                                setSelectedRoomId('');
+                                setSelectedSubRoomId('');
+                              }}
+                              className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300"
+                            >
+                              <option value="">— Chọn Tòa nhà —</option>
+                              {locations.filter(loc => loc.parentId === null).map(loc => (
+                                <option key={loc.id} value={loc.id}>{loc.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Tầng</span>
+                            <select
+                              disabled={!selectedBuildingId}
+                              value={selectedFloorId}
+                              onChange={(e) => {
+                                const val = e.target.value ? Number(e.target.value) : '';
+                                setSelectedFloorId(val);
+                                setSelectedRoomId('');
+                                setSelectedSubRoomId('');
+                              }}
+                              className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+                            >
+                              <option value="">— Chọn Tầng —</option>
+                              {locations.filter(loc => loc.parentId === selectedBuildingId).map(loc => (
+                                <option key={loc.id} value={loc.id}>{loc.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Khoa / Phòng ban</span>
+                            <select
+                              disabled={!selectedFloorId}
+                              value={selectedRoomId}
+                              onChange={(e) => {
+                                const val = e.target.value ? Number(e.target.value) : '';
+                                setSelectedRoomId(val);
+                                setSelectedSubRoomId('');
+                              }}
+                              className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+                            >
+                              <option value="">— Chọn Khoa (tuỳ chọn) —</option>
+                              {locations.filter(loc => loc.parentId === selectedFloorId).map(loc => (
+                                <option key={loc.id} value={loc.id}>{loc.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Phòng cụ thể</span>
+                            <select
+                              disabled={!selectedRoomId || locations.filter(loc => loc.parentId === selectedRoomId).length === 0}
+                              value={selectedSubRoomId}
+                              onChange={(e) => setSelectedSubRoomId(e.target.value ? Number(e.target.value) : '')}
+                              className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+                            >
+                              <option value="">— Chọn Phòng (nếu có) —</option>
+                              {locations.filter(loc => loc.parentId === selectedRoomId).map(loc => (
+                                <option key={loc.id} value={loc.id}>{loc.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        {!locationId && <p className="text-xs text-rose-500 font-medium mt-1">Vui lòng chọn ít nhất Tòa nhà.</p>}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
+                          <MapPin size={13} className="text-slate-400" />
+                          <span>Mô tả cụ thể vị trí lắp đặt *</span>
+                        </label>
+                        <textarea
+                          id="edit-asset-location-description"
+                          required
+                          rows={2}
+                          placeholder="Ví dụ: Treo trên tường hành lang, cạnh thang máy tầng 1..."
+                          value={locationDescription}
+                          onChange={(e) => setLocationDescription(e.target.value)}
+                          className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300 transition-colors"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
+                          <ImageIcon size={13} className="text-slate-400" />
+                          <span>Hình ảnh biển báo mới</span>
+                        </label>
+                        <input
+                          id="edit-asset-image"
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                          className="w-full text-xs text-slate-550 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
                         />
                       </div>
                     </div>
@@ -683,6 +731,26 @@ export default function AssetDetailPage() {
               </p>
             </div>
           </div>
+
+          {linkedNode && (
+            <div className="col-span-2 bg-slate-50/50 p-4 rounded-xl border border-slate-100/80 flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <MapIcon size={14} className="text-blue-500" />
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Vị trí trên sơ đồ</span>
+              </div>
+              <div className="flex items-center gap-3">
+                {linkedFloorName && (
+                  <span className="text-sm font-semibold text-slate-700">{linkedFloorName}</span>
+                )}
+                <button
+                  onClick={() => navigate(`/admin/assets/tree/map/${linkedNode.floorId}/edit?nodeId=${linkedNode.id}`)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  <MapIcon size={13} /> Xem trên sơ đồ
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

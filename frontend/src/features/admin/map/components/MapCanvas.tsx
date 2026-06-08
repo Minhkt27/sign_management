@@ -18,17 +18,15 @@ interface Props {
 }
 
 const NODE_COLORS: Record<NodeType, string> = {
-  ROOM:       'bg-blue-500',
+  ROOM: 'bg-blue-500',
   DEPARTMENT: 'bg-teal-500',
-  JUNCTION:   'bg-slate-400',
-  STAIRS:     'bg-orange-500',
-  ELEVATOR:   'bg-purple-500',
-  ENTRANCE:   'bg-emerald-500',
+  JUNCTION: 'bg-slate-400',
+  STAIRS: 'bg-orange-500',
+  ELEVATOR: 'bg-purple-500',
+  ENTRANCE: 'bg-emerald-500',
 };
 
-const NODE_LABELS: Record<NodeType, string> = {
-  ROOM: 'P', DEPARTMENT: 'K', JUNCTION: '●', STAIRS: '▲', ELEVATOR: 'E', ENTRANCE: '→',
-};
+
 
 export function MapCanvas({
   imageUrl, nodes, edges, tool,
@@ -86,9 +84,8 @@ export function MapCanvas({
   return (
     <div
       ref={containerRef}
-      className={`relative w-full h-full overflow-hidden rounded-xl bg-slate-100 select-none ${
-        tool === 'addNode' ? 'cursor-crosshair' : tool === 'delete' ? 'cursor-not-allowed' : 'cursor-default'
-      }`}
+      className={`relative w-full h-full overflow-hidden rounded-xl bg-slate-100 select-none ${tool === 'addNode' ? 'cursor-crosshair' : tool === 'delete' ? 'cursor-not-allowed' : 'cursor-default'
+        }`}
       onClick={handleContainerClick}
     >
       {/* Floor plan image */}
@@ -103,7 +100,7 @@ export function MapCanvas({
       <svg className="absolute inset-0 w-full h-full pointer-events-none">
         {edges.map(edge => {
           const from = nodes.find(n => n.id === edge.nodeFromId);
-          const to   = nodes.find(n => n.id === edge.nodeToId);
+          const to = nodes.find(n => n.id === edge.nodeToId);
           if (!from || !to) return null;
           const fc = getNodeCoords(from);
           const tc = getNodeCoords(to);
@@ -130,21 +127,19 @@ export function MapCanvas({
         return (
           <div
             key={node.id}
-            className={`absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center
-              w-7 h-7 rounded-full text-white text-xs font-bold shadow-md border-2 transition-transform
+            className={`absolute -translate-x-1/2 -translate-y-1/2
+              rounded-full transition-transform
               ${NODE_COLORS[node.type]}
-              ${isSelected  ? 'border-white ring-2 ring-blue-400 scale-125' : 'border-white'}
-              ${isEdgeStart ? 'ring-2 ring-yellow-400 scale-110' : ''}
-              ${onPath      ? 'ring-2 ring-blue-500' : ''}
+              ${isSelected ? 'ring-2 ring-blue-400 scale-150' : ''}
+              ${isEdgeStart ? 'ring-2 ring-yellow-400 scale-150' : ''}
+              ${onPath ? 'ring-2 ring-blue-500' : ''}
               ${tool === 'select' ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}
             `}
-            style={{ left: `${x * 100}%`, top: `${y * 100}%` }}
+            style={{ left: `${x * 100}%`, top: `${y * 100}%`, width: 10, height: 10 }}
             onClick={e => { e.stopPropagation(); onNodeClick(node.id); }}
             onMouseDown={e => handleNodeMouseDown(node, e)}
             title={node.label ?? node.type}
-          >
-            {NODE_LABELS[node.type]}
-          </div>
+          />
         );
       })}
 

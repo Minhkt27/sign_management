@@ -1,5 +1,8 @@
 package com.hospital.signage.adapter.in.web;
 
+import com.hospital.signage.domain.exception.TicketNotFoundException;
+import com.hospital.signage.domain.exception.TicketRejectionLimitExceededException;
+import com.hospital.signage.domain.exception.UnauthorizedTicketUpdateException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -38,6 +41,21 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, String>> handleAccessDenied(AccessDeniedException ex) {
         return error(HttpStatus.FORBIDDEN, "Forbidden", "Bạn không có quyền thực hiện thao tác này.");
+    }
+
+    @ExceptionHandler(TicketNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleTicketNotFound(TicketNotFoundException ex) {
+        return error(HttpStatus.NOT_FOUND, "Not Found", ex.getMessage());
+    }
+
+    @ExceptionHandler(TicketRejectionLimitExceededException.class)
+    public ResponseEntity<Map<String, String>> handleTicketRejectionLimitExceeded(TicketRejectionLimitExceededException ex) {
+        return error(HttpStatus.BAD_REQUEST, "Bad Request", ex.getMessage());
+    }
+
+    @ExceptionHandler(UnauthorizedTicketUpdateException.class)
+    public ResponseEntity<Map<String, String>> handleUnauthorizedTicketUpdate(UnauthorizedTicketUpdateException ex) {
+        return error(HttpStatus.FORBIDDEN, "Forbidden", ex.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

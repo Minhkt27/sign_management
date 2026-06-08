@@ -67,17 +67,13 @@ public class AssetPersistenceAdapter implements AssetDatabasePort {
     }
 
     @Override
-    public List<Asset> findByLocationId(Long locationId) {
-        return repository.findByLocationId(locationId).stream()
-                .map(mapper::toDomain)
-                .collect(Collectors.toList());
+    public Page<Asset> findByLocationId(Long locationId, Pageable pageable) {
+        return repository.findByLocationId(locationId, pageable).map(mapper::toDomain);
     }
 
     @Override
-    public List<Asset> findBySignTypeId(Long signTypeId) {
-        return repository.findBySignTypeId(signTypeId).stream()
-                .map(mapper::toDomain)
-                .collect(Collectors.toList());
+    public Page<Asset> findBySignTypeId(Long signTypeId, Pageable pageable) {
+        return repository.findBySignTypeId(signTypeId, pageable).map(mapper::toDomain);
     }
 
     @Override

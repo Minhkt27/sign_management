@@ -1,260 +1,161 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { mapService } from '@/services/mapService';
+import { locationService } from '@/services/locationService';
 import { MapFloorData, MapNode } from '@/shared/types';
-import { Search, Navigation, AlertCircle, Accessibility } from 'lucide-react';
+import { HomeTab } from '../components/HomeTab';
+import { MapTab } from '../components/MapTab';
+import { DeptsTab } from '../components/DeptsTab';
+import { QRTab } from '../components/QRTab';
+
+type Tab = 'home' | 'map' | 'depts' | 'qr';
+
+const NAV: { id: Tab; label: string; icon: string }[] = [
+  { id: 'home',  label: 'Trang chủ', icon: '🏠' },
+  { id: 'map',   label: 'Sơ đồ',     icon: '🗺️' },
+  { id: 'depts', label: 'Khoa/Phòng',icon: '📋' },
+  { id: 'qr',    label: 'QR vị trí', icon: '▣' },
+];
 
 export default function WayfindingPage() {
   const [searchParams] = useSearchParams();
-
-  const [search, setSearch]             = useState('');
-  const [fromNodeId, setFromNodeId]     = useState<number | null>(
+  const destParam = searchParams.get('dest');
+  const [activeTab, setActiveTab] = useState<Tab>(destParam ? 'map' : 'home');
+  const [fromNodeId, setFromNodeId] = useState<number | null>(
     searchParams.get('from') ? Number(searchParams.get('from')) : null
   );
-  const [toNodeId, setToNodeId]         = useState<number | null>(null);
-  const [avoidStairs, setAvoidStairs]   = useState(false);
-  const [activePath, setActivePath]     = useState<MapNode[]>([]);
-  const [activeFloorId, setActiveFloorId] = useState<number | null>(null);
+  const [fromLabel, setFromLabel] = useState(
+    searchParams.get('fromLabel') ?? ''
+  );
 
   const { data: floors = [] } = useQuery({
     queryKey: ['mapFloors'],
     queryFn: mapService.getAllFloors,
   });
 
-  const floorDataQueries = useQuery({
+  const { data: locations = [] } = useQuery({
+    queryKey: ['locations'],
+    queryFn: locationService.getAllLocations,
+  });
+
+  const { data: allFloorData = [] } = useQuery<MapFloorData[]>({
     queryKey: ['mapAllFloorData', floors.map(f => f.id)],
-    queryFn: async () => {
-      const results = await Promise.all(floors.map(f => mapService.getFloorData(f.id)));
-      return results;
-    },
+    queryFn: () => Promise.all(floors.map(f => mapService.getFloorData(f.id))),
     enabled: floors.length > 0,
   });
 
-  const allFloorData: MapFloorData[] = floorDataQueries.data ?? [];
+  const [pendingDestNodeId, setPendingDestNodeId] = useState<number | null>(
+    destParam ? Number(destParam) : null
+  );
 
-  const searchResults = useMemo(() => {
-    if (!search.trim()) return [];
-    const q = search.toLowerCase();
-    return allFloorData.flatMap(fd =>
-      fd.nodes
-        .filter(n => n.label && n.label.toLowerCase().includes(q) && (n.locationId !== undefined || n.type === 'ROOM'))
-        .map(n => ({ node: n, floorData: fd }))
-    ).slice(0, 10);
-  }, [search, allFloorData]);
-
-  const handleSelectDestination = (node: MapNode, fd: MapFloorData) => {
-    setToNodeId(node.id);
-    setActiveFloorId(fd.floor.id);
-    setSearch(node.label ?? '');
-    setActivePath([]);
+  const handleSetLocation = (node: MapNode, label: string) => {
+    setFromNodeId(node.id);
+    setFromLabel(label);
   };
 
-  const handleFindPath = async () => {
-    if (fromNodeId === null || toNodeId === null) return;
-    try {
-      const path = await mapService.findPath(fromNodeId, toNodeId, avoidStairs);
-      setActivePath(path);
-      if (path.length > 0) {
-        const firstNode = path[0];
-        const fd = allFloorData.find(fd => fd.nodes.some(n => n.id === firstNode.id));
-        if (fd) setActiveFloorId(fd.floor.id);
-      }
-    } catch {
-      alert('Không tìm được đường đi. Vui lòng thử lại.');
-    }
+  const handleSelectDest = (node: MapNode) => {
+    setPendingDestNodeId(node.id);
+    setActiveTab('map');
   };
-
-  const currentFloorData = allFloorData.find(fd => fd.floor.id === activeFloorId);
-  const pathNodeIds = new Set(activePath.map(n => n.id));
-
-  const pathByFloor = useMemo(() => {
-    const map = new Map<number, MapNode[]>();
-    activePath.forEach(node => {
-      const fd = allFloorData.find(fd => fd.nodes.some(n => n.id === node.id));
-      if (!fd) return;
-      const existing = map.get(fd.floor.id) ?? [];
-      map.set(fd.floor.id, [...existing, node]);
-    });
-    return map;
-  }, [activePath, allFloorData]);
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <div className="bg-white border-b border-slate-200 px-4 py-4">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-xl font-bold text-blue-700">Tìm đường trong bệnh viện</h1>
-          <p className="text-slate-500 text-sm mt-0.5">Tra cứu phòng khám, khoa, khu vực</p>
+    <div
+      className="flex flex-col h-screen overflow-hidden"
+      style={{ background: '#F2F7F3', fontFamily: "'Be Vietnam Pro', sans-serif", maxWidth: 430, margin: '0 auto' }}
+    >
+      {/* ── HEADER ── */}
+      <div
+        className="flex-shrink-0 relative z-20"
+        style={{ background: 'linear-gradient(160deg,#1A5C2A 0%,#2E7D3C 55%,#3D9B4E 100%)', padding: '13px 14px 13px' }}
+      >
+        <div className="absolute top-0 right-0 w-32 h-32 rounded-full pointer-events-none"
+          style={{ background: 'rgba(200,160,32,.15)', transform: 'translate(30px,-30px)' }} />
+        <div className="flex items-center gap-2.5 relative z-10">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+            style={{ background: 'rgba(255,255,255,.15)', border: '1.5px solid rgba(200,160,32,.5)' }}>
+            🏥
+          </div>
+          <div>
+            <h1 className="text-xs font-extrabold text-white uppercase tracking-wide leading-tight">
+              Bệnh viện
+            </h1>
+            <p className="text-xs" style={{ color: 'rgba(255,255,255,.65)' }}>Hệ thống dẫn đường thông minh</p>
+          </div>
+          {fromNodeId && (
+            <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold flex-shrink-0"
+              style={{ background: 'rgba(255,255,255,.15)', color: '#fff', border: '1px solid rgba(255,255,255,.3)' }}>
+              <span className="w-1.5 h-1.5 rounded-full bg-green-300 inline-block" />
+              <span className="max-w-[100px] truncate">{fromLabel}</span>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-5">
-        {/* Search panel */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
-          <div className="space-y-3">
-            {/* Destination search */}
-            <div className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input
-                value={search}
-                onChange={e => { setSearch(e.target.value); setToNodeId(null); setActivePath([]); }}
-                placeholder="Tìm phòng khám, khoa, khu vực..."
-                className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* Search results dropdown */}
-            {search.trim() && toNodeId === null && searchResults.length > 0 && (
-              <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                {searchResults.map(({ node, floorData: fd }) => (
-                  <button
-                    key={node.id}
-                    onClick={() => handleSelectDestination(node, fd)}
-                    className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b border-slate-100 last:border-0 text-sm"
-                  >
-                    <span className="font-medium text-slate-800">{node.label}</span>
-                    <span className="text-slate-400 ml-2 text-xs">
-                      {fd.floor.id && floors.find(f => f.id === fd.floor.id) ? '' : ''}
-                      Tầng {fd.floor.locationId}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {search.trim() && toNodeId === null && searchResults.length === 0 && (
-              <p className="text-sm text-slate-400 px-1">Không tìm thấy "{search}"</p>
-            )}
-          </div>
-
-          {/* Options */}
-          <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer w-fit">
-            <input
-              type="checkbox"
-              checked={avoidStairs}
-              onChange={e => setAvoidStairs(e.target.checked)}
-              className="rounded"
-            />
-            <Accessibility size={16} className="text-blue-500" />
-            Tránh cầu thang (dùng thang máy)
-          </label>
-
-          <button
-            onClick={handleFindPath}
-            disabled={toNodeId === null}
-            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold py-3 rounded-xl text-sm"
-          >
-            <Navigation size={18} /> Tìm đường
-          </button>
-        </div>
-
-        {/* Path result */}
-        {activePath.length > 0 && (
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
-            <h2 className="font-semibold text-slate-700">Tuyến đường ({activePath.length} điểm)</h2>
-
-            {/* Step list */}
-            <ol className="space-y-2">
-              {activePath.map((node, idx) => (
-                <li key={node.id} className="flex items-start gap-3 text-sm">
-                  <span className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${
-                    idx === 0 ? 'bg-emerald-500' : idx === activePath.length - 1 ? 'bg-blue-600' : 'bg-slate-400'
-                  }`}>
-                    {idx + 1}
-                  </span>
-                  <span className={idx === activePath.length - 1 ? 'font-semibold text-blue-700' : 'text-slate-700'}>
-                    {node.label ?? node.type}
-                    {node.type === 'STAIRS'   && <span className="ml-1.5 text-xs text-orange-500">(cầu thang)</span>}
-                    {node.type === 'ELEVATOR' && <span className="ml-1.5 text-xs text-purple-500">(thang máy)</span>}
-                  </span>
-                </li>
-              ))}
-            </ol>
-
-            {/* Floor tabs */}
-            {pathByFloor.size > 1 && (
-              <div className="flex gap-2 flex-wrap pt-2">
-                {Array.from(pathByFloor.keys()).map(fid => (
-                  <button
-                    key={fid}
-                    onClick={() => setActiveFloorId(fid)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
-                      activeFloorId === fid
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'border-slate-300 text-slate-600 hover:border-blue-400'
-                    }`}
-                  >
-                    Tầng {fid}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+      {/* ── SCROLL CONTENT ── */}
+      <div className="flex-1 overflow-y-auto px-3.5 py-4 space-y-2">
+        {activeTab === 'home' && (
+          <HomeTab
+            fromLabel={fromLabel}
+            locations={locations}
+            allFloorData={allFloorData}
+            onChangeLocation={() => setActiveTab('qr')}
+            onSelectDest={handleSelectDest}
+          />
         )}
-
-        {activePath.length === 0 && toNodeId !== null && (
-          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 text-sm px-4 py-3 rounded-xl">
-            <AlertCircle size={16} /> Không tìm được đường đi. Thử bỏ chọn "Tránh cầu thang".
-          </div>
+        {activeTab === 'map' && (
+          <MapTab
+            fromNodeId={fromNodeId}
+            fromLabel={fromLabel}
+            destNodeId={pendingDestNodeId}
+            floors={floors}
+            locations={locations}
+            allFloorData={allFloorData}
+            onGoToQR={() => setActiveTab('qr')}
+          />
         )}
-
-        {/* Map display */}
-        {currentFloorData && (
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-100">
-              <p className="text-sm font-medium text-slate-700">Sơ đồ tầng</p>
-            </div>
-            <div className="relative">
-              <img
-                src={currentFloorData.floor.imageUrl}
-                alt="Sơ đồ"
-                className="w-full object-contain"
-              />
-
-              {/* SVG overlay for path edges */}
-              <svg className="absolute inset-0 w-full h-full pointer-events-none">
-                {currentFloorData.edges.map(edge => {
-                  const from = currentFloorData.nodes.find(n => n.id === edge.nodeFromId);
-                  const to   = currentFloorData.nodes.find(n => n.id === edge.nodeToId);
-                  if (!from || !to) return null;
-                  const onPath = pathNodeIds.has(from.id) && pathNodeIds.has(to.id);
-                  return (
-                    <line
-                      key={edge.id}
-                      x1={`${from.x * 100}%`} y1={`${from.y * 100}%`}
-                      x2={`${to.x * 100}%`}   y2={`${to.y * 100}%`}
-                      stroke={onPath ? '#3b82f6' : '#cbd5e1'}
-                      strokeWidth={onPath ? 3 : 1}
-                      strokeDasharray={onPath ? undefined : '4 3'}
-                    />
-                  );
-                })}
-              </svg>
-
-              {/* Nodes */}
-              {currentFloorData.nodes.map(node => {
-                const onPath = pathNodeIds.has(node.id);
-                const isStart = activePath[0]?.id === node.id;
-                const isEnd   = activePath[activePath.length - 1]?.id === node.id;
-                if (!onPath && activePath.length > 0) return null;
-                return (
-                  <div
-                    key={node.id}
-                    className={`absolute -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow
-                      ${isStart ? 'bg-emerald-500 scale-125' : isEnd ? 'bg-blue-600 scale-125' : 'bg-blue-400'}
-                    `}
-                    style={{ left: `${node.x * 100}%`, top: `${node.y * 100}%` }}
-                    title={node.label ?? node.type}
-                  >
-                    {isStart ? '▶' : isEnd ? '★' : '●'}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+        {activeTab === 'depts' && (
+          <DeptsTab
+            locations={locations}
+            allFloorData={allFloorData}
+            onSelectDest={node => { handleSelectDest(node); }}
+          />
+        )}
+        {activeTab === 'qr' && (
+          <QRTab
+            allFloorData={allFloorData}
+            locations={locations}
+            onSetLocation={(node, label) => {
+              handleSetLocation(node, label);
+              setActiveTab('home');
+            }}
+          />
         )}
       </div>
+
+      {/* ── BOTTOM NAV ── */}
+      <nav
+        className="flex-shrink-0 flex border-t"
+        style={{ background: '#fff', borderColor: '#C8DEC8', paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        {NAV.map(item => {
+          const active = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 transition-all"
+              style={{ color: active ? '#1A5C2A' : '#5A7A62' }}
+            >
+              <span className="text-xl leading-none">{item.icon}</span>
+              <span className="text-xs font-bold" style={{ fontSize: 10 }}>{item.label}</span>
+              {active && (
+                <span className="w-5 h-0.5 rounded-full mt-0.5" style={{ background: '#1A5C2A' }} />
+              )}
+            </button>
+          );
+        })}
+      </nav>
     </div>
   );
 }

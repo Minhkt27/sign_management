@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MapNode, NodeType, Location, Asset } from '@/shared/types';
-import { X, Trash2, Tag, Search, MapPin } from 'lucide-react';
+import { X, Trash2, Tag, Search, MapPin, ExternalLink } from 'lucide-react';
 import { NODE_TYPE_OPTIONS } from '../constants';
 
 interface Props {
@@ -30,6 +31,7 @@ function buildPath(loc: Location, allLocations: Location[]): string {
 }
 
 export function NodePanel({ node, locations, assets, onUpdate, onDelete, onClose }: Props) {
+  const navigate = useNavigate();
   const [label, setLabel]               = useState('');
   const [type, setType]                 = useState<NodeType>('JUNCTION');
   const [locationId, setLocationId]     = useState<string>('');
@@ -50,7 +52,7 @@ export function NodePanel({ node, locations, assets, onUpdate, onDelete, onClose
       setLocDropdownOpen(false);
       setAssetDropdownOpen(false);
     }
-  }, [node]);
+  }, [node?.id]);
 
   if (!node) return null;
 
@@ -210,6 +212,13 @@ export function NodePanel({ node, locations, assets, onUpdate, onDelete, onClose
                   <p className="text-xs text-slate-500 truncate">{linkedAsset.name}</p>
                 )}
               </div>
+              <button
+                onClick={() => navigate(`/admin/assets/${linkedAsset.id}`)}
+                className="text-slate-400 hover:text-blue-500 shrink-0"
+                title="Xem chi tiết biển"
+              >
+                <ExternalLink size={13} />
+              </button>
               <button onClick={() => setAssetId('')} className="text-slate-400 hover:text-red-500 shrink-0">
                 <X size={13} />
               </button>

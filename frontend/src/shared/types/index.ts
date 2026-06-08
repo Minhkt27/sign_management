@@ -42,11 +42,20 @@ export interface Asset {
   updatedAt?: string;
 }
 
+export interface Role {
+  id: number;
+  code: string;
+  name: string;
+  description?: string;
+  permissions: string[];
+}
+
 export interface User {
   id: number;
   username: string;
   fullName: string;
-  role: 'ADMIN' | 'TECHNICAL';
+  roleId: number;
+  customPermissions: string[];
   isActive: boolean;
 }
 

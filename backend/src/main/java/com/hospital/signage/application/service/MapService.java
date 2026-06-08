@@ -162,6 +162,13 @@ public class MapService implements MapUseCase {
 
     @Override
     public List<MapNode> findPath(Long fromNodeId, Long toNodeId, boolean avoidStairs) {
+        if (fromNodeId.equals(toNodeId)) {
+            return mapDatabasePort.findAllNodes().stream()
+                    .filter(n -> n.getId().equals(fromNodeId))
+                    .findFirst()
+                    .map(Collections::singletonList)
+                    .orElse(Collections.emptyList());
+        }
         List<MapNode> allNodes = mapDatabasePort.findAllNodes();
         List<MapEdge> allEdges = mapDatabasePort.findAllEdges();
 

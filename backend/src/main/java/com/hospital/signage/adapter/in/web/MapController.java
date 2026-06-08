@@ -49,7 +49,7 @@ public class MapController {
     }
 
     @Operation(summary = "Tạo sơ đồ tầng mới")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('MAP_MANAGE')")
     @PostMapping("/floors")
     public ResponseEntity<MapFloor> createFloor(@Valid @RequestBody FloorRequest req) {
         MapFloor floor = MapFloor.builder()
@@ -62,7 +62,7 @@ public class MapController {
     }
 
     @Operation(summary = "Cập nhật sơ đồ tầng")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('MAP_MANAGE')")
     @PutMapping("/floors/{id}")
     public ResponseEntity<MapFloor> updateFloor(@PathVariable Long id, @Valid @RequestBody FloorRequest req) {
         MapFloor floor = MapFloor.builder()
@@ -74,7 +74,7 @@ public class MapController {
     }
 
     @Operation(summary = "Xóa sơ đồ tầng")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('MAP_MANAGE')")
     @DeleteMapping("/floors/{id}")
     public ResponseEntity<Void> deleteFloor(@PathVariable Long id) {
         mapUseCase.deleteFloor(id);
@@ -84,7 +84,7 @@ public class MapController {
     // ── Node ───────────────────────────────────────────────────────────────
 
     @Operation(summary = "Thêm node lên sơ đồ")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('MAP_MANAGE')")
     @PostMapping("/nodes")
     public ResponseEntity<MapNode> createNode(@Valid @RequestBody NodeRequest req) {
         MapNode node = MapNode.builder()
@@ -100,7 +100,7 @@ public class MapController {
     }
 
     @Operation(summary = "Cập nhật node")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('MAP_MANAGE')")
     @PutMapping("/nodes/{id}")
     public ResponseEntity<MapNode> updateNode(@PathVariable Long id, @Valid @RequestBody NodeUpdateRequest req) {
         MapNode node = MapNode.builder()
@@ -115,7 +115,7 @@ public class MapController {
     }
 
     @Operation(summary = "Xóa node")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('MAP_MANAGE')")
     @DeleteMapping("/nodes/{id}")
     public ResponseEntity<Void> deleteNode(@PathVariable Long id) {
         mapUseCase.deleteNode(id);
@@ -123,7 +123,6 @@ public class MapController {
     }
 
     @Operation(summary = "Lấy node theo assetId (ADMIN/TECHNICAL)")
-    @PreAuthorize("hasAnyRole('ADMIN','TECHNICAL')")
     @GetMapping("/nodes/by-asset/{assetId}")
     public ResponseEntity<MapNode> getNodeByAsset(@PathVariable UUID assetId) {
         return mapUseCase.getNodeByAssetId(assetId)
@@ -142,14 +141,14 @@ public class MapController {
     // ── Edge ───────────────────────────────────────────────────────────────
 
     @Operation(summary = "Nối 2 node")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('MAP_MANAGE')")
     @PostMapping("/edges")
     public ResponseEntity<MapEdge> createEdge(@Valid @RequestBody EdgeRequest req) {
         return ResponseEntity.ok(mapUseCase.createEdge(req.nodeFromId(), req.nodeToId()));
     }
 
     @Operation(summary = "Xóa edge")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('MAP_MANAGE')")
     @DeleteMapping("/edges/{id}")
     public ResponseEntity<Void> deleteEdge(@PathVariable Long id) {
         mapUseCase.deleteEdge(id);
@@ -168,7 +167,6 @@ public class MapController {
     }
 
     @Operation(summary = "Tìm đường đến asset (ADMIN/TECHNICAL — cho KTV)")
-    @PreAuthorize("hasAnyRole('ADMIN','TECHNICAL')")
     @GetMapping("/wayfinding/asset")
     public ResponseEntity<List<MapNode>> findPathToAsset(
             @RequestParam Long from,

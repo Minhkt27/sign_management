@@ -1,7 +1,7 @@
 package com.hospital.signage.adapter.out.persistence.repository;
 
 import com.hospital.signage.adapter.out.persistence.entity.UserEntity;
-import com.hospital.signage.domain.enums.Role;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,7 +15,7 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<UserEntity, Long> {
     Optional<UserEntity> findByUsername(String username);
-    List<UserEntity> findByRole(Role role);
+    List<UserEntity> findByRoleId(Long roleId);
 
     @Query(value = "SELECT * FROM users WHERE unaccent(username) ILIKE unaccent('%' || :search || '%') OR unaccent(full_name) ILIKE unaccent('%' || :search || '%') ORDER BY created_at DESC",
            countQuery = "SELECT count(*) FROM users WHERE unaccent(username) ILIKE unaccent('%' || :search || '%') OR unaccent(full_name) ILIKE unaccent('%' || :search || '%')",

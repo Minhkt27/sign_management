@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { QrCode, Search, X, ImagePlus } from 'lucide-react';
+import { assetService } from '@/services/assetService';
+import { Asset } from '@/shared/types';
 
 export default function AssetBrowsePage() {
   const navigate = useNavigate();
@@ -14,8 +17,25 @@ export default function AssetBrowsePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const containerId = 'qr-reader';
 
+  const { data: assets = [] } = useQuery<Asset[]>({
+    queryKey: ['assets'],
+    queryFn: assetService.getAllAssets,
+  });
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  const filteredAssets = manualCode.trim()
+    ? assets
+        .filter(a =>
+          a.assetCode.toLowerCase().includes(manualCode.toLowerCase()) ||
+          (a.name ?? '').toLowerCase().includes(manualCode.toLowerCase())
+        )
+        .slice(0, 10)
+    : [];
+
   const handleCodeFound = (code: string) => {
-    const match = code.match(/\/tech\/assets\/([^/?#]+)/);
+    // QR codes may contain full URLs like https://domain/scan/BB-001
+    // or https://domain/tech/assets/BB-001, or just a plain asset code
+    const match = code.match(/\/(?:scan|tech\/assets)\/([^/?#]+)/);
     const assetCode = match ? match[1] : code.trim();
     navigate(`/tech/assets/${assetCode}`);
   };
@@ -149,14 +169,40 @@ export default function AssetBrowsePage() {
         {/* Manual fallback */}
         <div className="border-t border-slate-100 pt-4 space-y-2">
           <p className="text-xs text-slate-400 font-medium">Hoặc nhập mã biển thủ công:</p>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Ví dụ: LED-R101"
-              value={manualCode}
-              onChange={(e) => setManualCode(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && manualCode.trim() && navigate(`/tech/assets/${manualCode.trim()}`)}
-              className="rounded-lg text-sm"
-            />
+          <div className="relative flex gap-2">
+            <div className="flex-1 relative">
+              <Input
+                placeholder="Ví dụ: LED-R101"
+                value={manualCode}
+                onChange={(e) => {
+                  setManualCode(e.target.value);
+                  setDropdownOpen(true);
+                }}
+                onFocus={() => setDropdownOpen(true)}
+                onBlur={() => setTimeout(() => setDropdownOpen(false), 200)}
+                onKeyDown={(e) => e.key === 'Enter' && manualCode.trim() && navigate(`/tech/assets/${manualCode.trim()}`)}
+                className="rounded-lg text-sm w-full"
+              />
+              {dropdownOpen && filteredAssets.length > 0 && (
+                <div className="absolute z-10 w-full bg-white border border-slate-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
+                  {filteredAssets.map(asset => (
+                    <button
+                      key={asset.id}
+                      type="button"
+                      onMouseDown={() => {
+                        setManualCode(asset.assetCode);
+                        setDropdownOpen(false);
+                        navigate(`/tech/assets/${asset.assetCode}`);
+                      }}
+                      className="w-full text-left px-3 py-2.5 hover:bg-blue-50 text-xs font-semibold text-slate-700 border-b border-slate-100 last:border-0 flex justify-between items-center"
+                    >
+                      <span className="font-bold text-blue-600">{asset.assetCode}</span>
+                      {asset.name && <span className="text-slate-400 font-normal truncate max-w-[60%]">{asset.name}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <Button
               onClick={() => manualCode.trim() && navigate(`/tech/assets/${manualCode.trim()}`)}
               className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4"

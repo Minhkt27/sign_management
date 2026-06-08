@@ -49,10 +49,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 } else if (!user.getIsActive()) {
                     log.warn("JWT rejected — account '{}' is inactive", username);
                 } else {
+                    java.util.List<String> permissions = jwtTokenProvider.extractPermissions(jwt);
+                    if (permissions == null) permissions = java.util.Collections.emptyList();
+
+                    java.util.List<SimpleGrantedAuthority> authorities = permissions.stream()
+                            .map(SimpleGrantedAuthority::new)
+                            .collect(java.util.stream.Collectors.toList());
+
                     UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
                             .username(user.getUsername())
                             .password(user.getPassword())
-                            .authorities(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
+                            .authorities(authorities)
                             .build();
 
                     if (jwtTokenProvider.validateToken(jwt, userDetails)) {

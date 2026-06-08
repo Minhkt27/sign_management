@@ -1,7 +1,7 @@
 package com.hospital.signage.adapter.in.web;
 
 import com.hospital.signage.application.port.in.AuthUseCase;
-import com.hospital.signage.domain.enums.Role;
+
 import com.hospital.signage.domain.model.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -67,9 +67,9 @@ public class AuthController {
 
     public record LoginResponse(String token, String refreshToken, UserResponse user) {}
 
-    public record UserResponse(Long id, String username, String fullName, Role role) {
+    public record UserResponse(Long id, String username, String fullName, Long roleId, java.util.List<String> permissions) {
         static UserResponse from(User u) {
-            return new UserResponse(u.getId(), u.getUsername(), u.getFullName(), u.getRole());
+            return new UserResponse(u.getId(), u.getUsername(), u.getFullName(), u.getRoleId(), u.getCustomPermissions());
         }
     }
 }

@@ -6,6 +6,9 @@ import com.hospital.signage.application.port.out.TicketDatabasePort;
 import com.hospital.signage.application.port.out.UserDatabasePort;
 import com.hospital.signage.domain.enums.Priority;
 import com.hospital.signage.domain.enums.TicketStatus;
+import com.hospital.signage.domain.exception.TicketNotFoundException;
+import com.hospital.signage.domain.exception.TicketRejectionLimitExceededException;
+import com.hospital.signage.domain.exception.UnauthorizedTicketUpdateException;
 import com.hospital.signage.domain.model.Asset;
 import com.hospital.signage.domain.model.MaintenanceTicket;
 import com.hospital.signage.domain.model.User;
@@ -26,6 +29,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class TicketService implements TicketUseCase {
+
+    private static final int MAX_REJECTION_LIMIT = 3;
 
     private final TicketDatabasePort ticketDatabasePort;
     private final AssetDatabasePort assetDatabasePort;
@@ -62,7 +67,7 @@ public class TicketService implements TicketUseCase {
     @Transactional
     public MaintenanceTicket assignTicket(Long ticketId, Long assigneeId) {
         MaintenanceTicket ticket = ticketDatabasePort.findById(ticketId)
-                .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
+                .orElseThrow(() -> new TicketNotFoundException(ticketId));
 
         User assignee = userDatabasePort.findById(assigneeId)
                 .orElseThrow(() -> new IllegalArgumentException("Assignee user not found"));
@@ -78,34 +83,51 @@ public class TicketService implements TicketUseCase {
     public MaintenanceTicket updateTicketStatus(Long ticketId, TicketStatus status, String imageBefore,
             String imageAfter, String rejectionNote, Long technicianId) {
         MaintenanceTicket ticket = ticketDatabasePort.findById(ticketId)
-                .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
+                .orElseThrow(() -> new TicketNotFoundException(ticketId));
 
-        boolean isRejection = status == TicketStatus.IN_PROGRESS
-                && rejectionNote != null && !rejectionNote.isBlank();
+        boolean isRejection = status == TicketStatus.IN_PROGRESS && rejectionNote != null && !rejectionNote.isBlank();
 
-        if (isRejection && ticket.getRejectionCount() >= 3) {
-            throw new IllegalStateException("Phiếu này đã bị từ chối tối đa 3 lần.");
-        }
-
-        if (technicianId != null) {
-            if (ticket.getAssignee() == null) {
-                if (status == TicketStatus.IN_PROGRESS && !isRejection) {
-                    User technician = userDatabasePort.findById(technicianId)
-                            .orElseThrow(() -> new IllegalArgumentException("Technician not found"));
-                    ticket.setAssignee(technician);
-                }
-            } else if (!ticket.getAssignee().getId().equals(technicianId)) {
-                throw new IllegalStateException("Bạn không được phép cập nhật phiếu này.");
-            }
-        }
+        validateRejectionLimit(ticket, isRejection);
+        validateTechnicianPermission(ticket, status, isRejection, technicianId);
 
         ticket.setTicketStatus(status);
+        updateTicketImages(ticket, imageBefore, imageAfter);
+        handleCompletionAndRejection(ticket, status, isRejection, rejectionNote);
+        updateRelatedAssetState(ticket, status);
+
+        return ticketDatabasePort.save(ticket);
+    }
+
+    private void validateRejectionLimit(MaintenanceTicket ticket, boolean isRejection) {
+        if (isRejection && ticket.getRejectionCount() >= MAX_REJECTION_LIMIT) {
+            throw new TicketRejectionLimitExceededException("Phiếu này đã bị từ chối tối đa " + MAX_REJECTION_LIMIT + " lần.");
+        }
+    }
+
+    private void validateTechnicianPermission(MaintenanceTicket ticket, TicketStatus status, boolean isRejection, Long technicianId) {
+        if (technicianId == null) return;
+
+        if (ticket.getAssignee() == null) {
+            if (status == TicketStatus.IN_PROGRESS && !isRejection) {
+                User technician = userDatabasePort.findById(technicianId)
+                        .orElseThrow(() -> new IllegalArgumentException("Technician not found"));
+                ticket.setAssignee(technician);
+            }
+        } else if (!ticket.getAssignee().getId().equals(technicianId)) {
+            throw new UnauthorizedTicketUpdateException("Bạn không được phép cập nhật phiếu này.");
+        }
+    }
+
+    private void updateTicketImages(MaintenanceTicket ticket, String imageBefore, String imageAfter) {
         if (imageBefore != null && !imageBefore.isBlank()) {
             ticket.setImageBefore(imageBefore);
         }
         if (imageAfter != null && !imageAfter.isBlank()) {
             ticket.setImageAfter(imageAfter);
         }
+    }
+
+    private void handleCompletionAndRejection(MaintenanceTicket ticket, TicketStatus status, boolean isRejection, String rejectionNote) {
         if (status == TicketStatus.RESOLVED) {
             ticket.setCompletedAt(Instant.now());
         }
@@ -113,28 +135,30 @@ public class TicketService implements TicketUseCase {
             ticket.setRejectionNote(rejectionNote);
             ticket.setRejectionCount(ticket.getRejectionCount() + 1);
             ticket.setCompletedAt(null);
-            log.warn("Ticket {} rejected (count={}/3): {}", ticketId, ticket.getRejectionCount(), rejectionNote);
+            log.warn("Ticket {} rejected (count={}/{}): {}", ticket.getId(), ticket.getRejectionCount(), MAX_REJECTION_LIMIT, rejectionNote);
         }
+    }
 
+    private void updateRelatedAssetState(MaintenanceTicket ticket, TicketStatus status) {
         Asset asset = ticket.getAsset();
-        if (asset != null && asset.getStatus() != com.hospital.signage.domain.enums.AssetStatus.SCRAPPED) {
-            if (status == TicketStatus.IN_PROGRESS) {
-                asset.setStatus(com.hospital.signage.domain.enums.AssetStatus.REPAIRING);
-                assetDatabasePort.save(asset);
-            } else if (status == TicketStatus.RESOLVED || status == TicketStatus.CLOSED) {
-                asset.setStatus(com.hospital.signage.domain.enums.AssetStatus.ACTIVE);
-                assetDatabasePort.save(asset);
-            }
+        if (asset == null || asset.getStatus() == com.hospital.signage.domain.enums.AssetStatus.SCRAPPED) {
+            return;
         }
 
-        return ticketDatabasePort.save(ticket);
+        if (status == TicketStatus.IN_PROGRESS) {
+            asset.setStatus(com.hospital.signage.domain.enums.AssetStatus.REPAIRING);
+            assetDatabasePort.save(asset);
+        } else if (status == TicketStatus.RESOLVED || status == TicketStatus.CLOSED) {
+            asset.setStatus(com.hospital.signage.domain.enums.AssetStatus.ACTIVE);
+            assetDatabasePort.save(asset);
+        }
     }
 
     @Override
     @Transactional
     public MaintenanceTicket takeTicket(Long ticketId, Long technicianId) {
         MaintenanceTicket ticket = ticketDatabasePort.findById(ticketId)
-                .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
+                .orElseThrow(() -> new TicketNotFoundException(ticketId));
         if (ticket.getTicketStatus() != TicketStatus.OPEN || ticket.getAssignee() != null) {
             throw new IllegalStateException("Phiếu này đã được giao hoặc không còn ở trạng thái chờ.");
         }

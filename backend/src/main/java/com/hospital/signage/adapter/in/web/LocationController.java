@@ -44,7 +44,7 @@ public class LocationController {
     }
 
     @Operation(summary = "Tạo vị trí mới")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('MAP_MANAGE')")
     @PostMapping
     public ResponseEntity<Location> createLocation(@Valid @RequestBody LocationRequest req) {
         Location location = Location.builder()
@@ -58,7 +58,7 @@ public class LocationController {
     }
 
     @Operation(summary = "Cập nhật vị trí")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('MAP_MANAGE')")
     @PutMapping("/{id}")
     public ResponseEntity<Location> updateLocation(@PathVariable Long id, @Valid @RequestBody LocationRequest req) {
         Location location = Location.builder()
@@ -72,7 +72,7 @@ public class LocationController {
     }
 
     @Operation(summary = "Xóa vị trí")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('MAP_MANAGE')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteLocation(@PathVariable Long id) {
         locationUseCase.deleteLocation(id);

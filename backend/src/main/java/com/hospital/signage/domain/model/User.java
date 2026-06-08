@@ -5,9 +5,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import com.hospital.signage.domain.enums.Role;
-
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @Builder
@@ -18,7 +18,9 @@ public class User {
     private String username;
     private String password;
     private String fullName;
-    private Role role;
+    private Long roleId;
+    @Builder.Default
+    private List<String> customPermissions = new ArrayList<>();
     private Boolean isActive;
     private String refreshToken;
     private Instant createdAt;
