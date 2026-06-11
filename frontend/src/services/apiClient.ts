@@ -5,11 +5,14 @@ interface RetryableRequest extends InternalAxiosRequestConfig {
   _retry?: boolean;
 }
 
+const baseHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+if (import.meta.env.DEV || import.meta.env.VITE_USE_NGROK === 'true') {
+  baseHeaders['ngrok-skip-browser-warning'] = 'true';
+}
+
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: baseHeaders,
 });
 
 apiClient.interceptors.request.use(
@@ -42,7 +45,7 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config as RetryableRequest;
 
-    if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry) {
+    if (error.response?.status === 401 && !originalRequest._retry) {
       const refreshToken = authStore.getRefreshToken();
 
       const isPublicRoute = /^\/(map|scan)(\/|$)/.test(window.location.pathname);

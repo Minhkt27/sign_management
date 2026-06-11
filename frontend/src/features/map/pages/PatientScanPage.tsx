@@ -24,11 +24,19 @@ export default function PatientScanPage() {
 
   useEffect(() => {
     if (node) {
-      navigate(`/map?dest=${node.id}`, { replace: true });
+      const label = node.label || asset?.name || asset?.location?.name || 'Vị trí của bạn';
+      let url = `/map?from=${node.id}&fromLabel=${encodeURIComponent(label)}`;
+      
+      const savedDest = localStorage.getItem('wayfinding_dest');
+      if (savedDest) {
+        url += `&dest=${savedDest}`;
+      }
+      
+      navigate(url, { replace: true });
     } else if (assetError || nodeError) {
       navigate('/map', { replace: true });
     }
-  }, [node, assetError, nodeError, navigate]);
+  }, [node, asset, assetError, nodeError, navigate]);
 
   return (
     <div

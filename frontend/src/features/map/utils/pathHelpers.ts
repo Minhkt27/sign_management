@@ -1,5 +1,11 @@
 import { MapNode, MapFloorData, Location, MapFloor } from '@/shared/types';
 
+// Node coordinates are normalised 0–1. These thresholds are in that space.
+// DOOR_PROXIMITY: junction nằm sát cửa phòng (≈ 5% chiều dài floor map)
+const DOOR_PROXIMITY = 0.05;
+// NEARBY_ROOM: ngưỡng "gần nhất" để gợi ý tên landmark khi không có cửa trực tiếp
+const NEARBY_ROOM_PROXIMITY = 0.12;
+
 export type PathStep = {
   node: MapNode;
   icon: string;
@@ -19,14 +25,15 @@ export const turnDir = (prev: MapNode, curr: MapNode, next: MapNode): 'left' | '
 };
 
 export const displayName = (node: MapNode, locations: Location[]): string | null => {
-  const loc = node.locationId ? locations.find(l => l.id === node.locationId) : null;
+  if (!node) return null;
+  const loc = node.locationId ? locations.find(l => l?.id === node.locationId) : null;
   return loc?.name ?? node.label ?? null;
 };
 
 export const floorName = (floorId: number, floors: MapFloor[], locations: Location[]): string => {
-  const floor = floors.find(f => f.id === floorId);
+  const floor = floors.find(f => f?.id === floorId);
   if (!floor) return `Tầng #${floorId}`;
-  return locations.find(l => l.id === floor.locationId)?.name ?? `Tầng #${floorId}`;
+  return locations.find(l => l?.id === floor.locationId)?.name ?? `Tầng #${floorId}`;
 };
 
 export const buildSteps = (
@@ -40,32 +47,36 @@ export const buildSteps = (
   const nm = (n: MapNode) => displayName(n, locations);
   const fn = (fid: number) => floorName(fid, floors, locations);
 
-  const getFloorNodes = (node: MapNode) =>
-    allFloorData.find(fd => fd.nodes.some(n => n.id === node.id))?.nodes ?? [];
+  const getFloorNodes = (node: MapNode) => {
+    if (!node) return [];
+    return allFloorData.find(fd => fd?.nodes?.some(n => n?.id === node.id))?.nodes ?? [];
+  };
 
   const doorOf = (node: MapNode): string | null => {
+    if (!node) return null;
     const fNodes = getFloorNodes(node);
     let best: { label: string; dist: number } | null = null;
     for (const n of fNodes) {
-      if (n.id === node.id) continue;
+      if (!n || n.id === node.id) continue;
       if (n.type !== 'ROOM' && n.type !== 'DEPARTMENT') continue;
       const lbl = nm(n); if (!lbl) continue;
       const dist = Math.hypot(n.x - node.x, n.y - node.y);
       if (!best || dist < best.dist) best = { label: lbl, dist };
     }
-    return best && best.dist < 0.05 ? `cửa ${best.label}` : null;
+    return best && best.dist < DOOR_PROXIMITY ? `cửa ${best.label}` : null;
   };
 
   const nearbyRoom = (node: MapNode): string | null => {
+    if (!node) return null;
     const fNodes = getFloorNodes(node);
     let best: { label: string; dist: number } | null = null;
     for (const n of fNodes) {
-      if (n.id === node.id) continue;
+      if (!n || n.id === node.id) continue;
       const lbl = nm(n); if (!lbl) continue;
       const dist = Math.hypot(n.x - node.x, n.y - node.y);
       if (!best || dist < best.dist) best = { label: lbl, dist };
     }
-    return best && best.dist < 0.12 ? best.label : null;
+    return best && best.dist < NEARBY_ROOM_PROXIMITY ? best.label : null;
   };
 
   const junctionMark = (node: MapNode): string | null => nm(node) ?? doorOf(node) ?? nearbyRoom(node);

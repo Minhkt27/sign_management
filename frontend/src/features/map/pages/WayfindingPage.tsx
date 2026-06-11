@@ -7,27 +7,26 @@ import { MapFloorData, MapNode } from '@/shared/types';
 import { HomeTab } from '../components/HomeTab';
 import { MapTab } from '../components/MapTab';
 import { DeptsTab } from '../components/DeptsTab';
-import { QRTab } from '../components/QRTab';
+import { LocationSelectModal } from '../components/LocationSelectModal';
 
-type Tab = 'home' | 'map' | 'depts' | 'qr';
+type Tab = 'home' | 'map' | 'depts';
 
 const NAV: { id: Tab; label: string; icon: string }[] = [
-  { id: 'home',  label: 'Trang chủ', icon: '🏠' },
-  { id: 'map',   label: 'Sơ đồ',     icon: '🗺️' },
-  { id: 'depts', label: 'Khoa/Phòng',icon: '📋' },
-  { id: 'qr',    label: 'QR vị trí', icon: '▣' },
+  { id: 'home', label: 'Trang chủ', icon: '🏠' },
+  { id: 'map', label: 'Sơ đồ', icon: '🗺️' },
+  { id: 'depts', label: 'Khoa/Phòng', icon: '📋' },
 ];
 
 export default function WayfindingPage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const destParam = searchParams.get('dest');
   const [activeTab, setActiveTab] = useState<Tab>(destParam ? 'map' : 'home');
-  const [fromNodeId, setFromNodeId] = useState<number | null>(
-    searchParams.get('from') ? Number(searchParams.get('from')) : null
-  );
-  const [fromLabel, setFromLabel] = useState(
-    searchParams.get('fromLabel') ?? ''
-  );
+
+  const fromParam = searchParams.get('from');
+  const fromNodeId = fromParam ? Number(fromParam) : null;
+  const fromLabel = searchParams.get('fromLabel') ?? '';
+
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
 
   const { data: floors = [] } = useQuery({
     queryKey: ['mapFloors'],
@@ -39,23 +38,31 @@ export default function WayfindingPage() {
     queryFn: locationService.getAllLocations,
   });
 
+  const floorIds = floors.map(f => f.id).join(',');
+
   const { data: allFloorData = [] } = useQuery<MapFloorData[]>({
-    queryKey: ['mapAllFloorData', floors.map(f => f.id)],
-    queryFn: () => Promise.all(floors.map(f => mapService.getFloorData(f.id))),
+    queryKey: ['mapAllFloorData', floorIds],
+    queryFn: () => Promise.all(floors.filter(f => f?.id).map(f => mapService.getFloorData(f.id))),
     enabled: floors.length > 0,
   });
 
-  const [pendingDestNodeId, setPendingDestNodeId] = useState<number | null>(
-    destParam ? Number(destParam) : null
-  );
+  const pendingDestNodeId = destParam ? Number(destParam) : null;
 
   const handleSetLocation = (node: MapNode, label: string) => {
-    setFromNodeId(node.id);
-    setFromLabel(label);
+    if (!node) return;
+    setSearchParams(prev => {
+      prev.set('from', String(node?.id));
+      prev.set('fromLabel', label);
+      return prev;
+    });
   };
 
   const handleSelectDest = (node: MapNode) => {
-    setPendingDestNodeId(node.id);
+    if (!node) return;
+    setSearchParams(prev => {
+      prev.set('dest', String(node?.id));
+      return prev;
+    });
     setActiveTab('map');
   };
 
@@ -99,7 +106,7 @@ export default function WayfindingPage() {
             fromLabel={fromLabel}
             locations={locations}
             allFloorData={allFloorData}
-            onChangeLocation={() => setActiveTab('qr')}
+            onChangeLocation={() => setIsLocationModalOpen(true)}
             onSelectDest={handleSelectDest}
           />
         )}
@@ -111,7 +118,8 @@ export default function WayfindingPage() {
             floors={floors}
             locations={locations}
             allFloorData={allFloorData}
-            onGoToQR={() => setActiveTab('qr')}
+            onGoToQR={() => setIsLocationModalOpen(true)}
+            onSetLocation={handleSetLocation}
           />
         )}
         {activeTab === 'depts' && (
@@ -119,16 +127,6 @@ export default function WayfindingPage() {
             locations={locations}
             allFloorData={allFloorData}
             onSelectDest={node => { handleSelectDest(node); }}
-          />
-        )}
-        {activeTab === 'qr' && (
-          <QRTab
-            allFloorData={allFloorData}
-            locations={locations}
-            onSetLocation={(node, label) => {
-              handleSetLocation(node, label);
-              setActiveTab('home');
-            }}
           />
         )}
       </div>
@@ -156,6 +154,15 @@ export default function WayfindingPage() {
           );
         })}
       </nav>
+
+      {/* ── LOCATION SELECT POPUP ── */}
+      <LocationSelectModal
+        open={isLocationModalOpen}
+        onClose={() => setIsLocationModalOpen(false)}
+        allFloorData={allFloorData}
+        locations={locations}
+        onSetLocation={handleSetLocation}
+      />
     </div>
   );
 }

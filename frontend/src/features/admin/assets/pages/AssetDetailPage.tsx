@@ -30,33 +30,38 @@ export default function AssetDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [qrBaseUrl, setQrBaseUrl] = useState(() => {
+    return localStorage.getItem('qrBaseUrl') || window.location.origin;
+  });
+
+  const handleQrBaseUrlChange = (val: string) => {
+    setQrBaseUrl(val);
+    localStorage.setItem('qrBaseUrl', val);
+  };
   
-  // Editing State
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [assetCode, setAssetCode] = useState('');
-  const [assetName, setAssetName] = useState('');
-  const [description, setDescription] = useState('');
-  const [locationDescription, setLocationDescription] = useState('');
-  const [selectedBuildingId, setSelectedBuildingId] = useState<number | ''>('');
-  const [selectedFloorId, setSelectedFloorId] = useState<number | ''>('');
-  const [selectedRoomId, setSelectedRoomId] = useState<number | ''>('');
-  const [selectedSubRoomId, setSelectedSubRoomId] = useState<number | ''>('');
-  const locationId = selectedSubRoomId || selectedRoomId || selectedFloorId || selectedBuildingId || undefined;
-  const [editSignTypeId, setEditSignTypeId] = useState<number | undefined>(undefined);
-  const [material, setMaterial] = useState<'MICA' | 'INOX' | 'LED' | 'ALU'>('MICA');
-  const [size, setSize] = useState('');
-  const [supplier, setSupplier] = useState('');
-  const [installedAt, setInstalledAt] = useState('');
-  const [status, setStatus] = useState<Asset['status']>('ACTIVE');
+  const [isTicketDialogOpen, setIsTicketDialogOpen] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const qrRef = useRef<HTMLDivElement>(null);
 
-  // Create Ticket State
-  const [isTicketDialogOpen, setIsTicketDialogOpen] = useState(false);
-  const [ticketDesc, setTicketDesc] = useState('');
-  const [ticketPriority, setTicketPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM');
+  type EditForm = {
+    assetCode: string; assetName: string; description: string; locationDescription: string;
+    buildingId: number | ''; floorId: number | ''; roomId: number | ''; subRoomId: number | '';
+    signTypeId: number | undefined; material: 'MICA' | 'INOX' | 'LED' | 'ALU';
+    size: string; supplier: string; installedAt: string; status: Asset['status'];
+  };
+  const [editForm, setEditForm] = useState<EditForm>({
+    assetCode: '', assetName: '', description: '', locationDescription: '',
+    buildingId: '', floorId: '', roomId: '', subRoomId: '',
+    signTypeId: undefined, material: 'MICA', size: '', supplier: '', installedAt: '', status: 'ACTIVE',
+  });
+  const setField = <K extends keyof EditForm>(key: K, val: EditForm[K]) =>
+    setEditForm(prev => ({ ...prev, [key]: val }));
+  const locationId = editForm.subRoomId || editForm.roomId || editForm.floorId || editForm.buildingId || undefined;
+
+  const [ticketForm, setTicketForm] = useState({ desc: '', priority: 'MEDIUM' as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' });
 
   // Fetch Asset Detail
   const { data: asset, isLoading: isAssetLoading } = useQuery<Asset>({
@@ -106,26 +111,26 @@ export default function AssetDetailPage() {
 
   // Initialize edit fields when asset and locations are loaded
   useEffect(() => {
-    if (asset && locations.length > 0 && !assetCode) {
-      setAssetCode(asset.assetCode);
-      setAssetName(asset.name || '');
-      setDescription(asset.description || '');
-      setLocationDescription(asset.locationDescription || '');
-      
+    if (asset && locations.length > 0 && !editForm.assetCode) {
       const levels = resolveLocationLevels(asset.location?.id, locations);
-      setSelectedBuildingId(levels.buildingId);
-      setSelectedFloorId(levels.floorId);
-      setSelectedRoomId(levels.roomId);
-      setSelectedSubRoomId(levels.subRoomId);
-
-      setEditSignTypeId(asset.signTypeId);
-      setMaterial(asset.material);
-      setSize(asset.size);
-      setSupplier(asset.supplier || '');
-      setInstalledAt(asset.installedAt ? asset.installedAt.split('T')[0] : '');
-      setStatus(asset.status);
+      setEditForm({
+        assetCode: asset.assetCode,
+        assetName: asset.name || '',
+        description: asset.description || '',
+        locationDescription: asset.locationDescription || '',
+        buildingId: levels.buildingId,
+        floorId: levels.floorId,
+        roomId: levels.roomId,
+        subRoomId: levels.subRoomId,
+        signTypeId: asset.signTypeId,
+        material: asset.material,
+        size: asset.size,
+        supplier: asset.supplier || '',
+        installedAt: asset.installedAt ? asset.installedAt.split('T')[0] : '',
+        status: asset.status,
+      });
     }
-  }, [asset, locations, assetCode]);
+  }, [asset, locations]);
 
   const signTypeMap = new Map(signTypes.map(st => [st.id, st.name]));
 
@@ -147,8 +152,7 @@ export default function AssetDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['assetTickets', id] });
       queryClient.invalidateQueries({ queryKey: ['asset', id] });
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
-      setTicketDesc('');
-      setTicketPriority('MEDIUM');
+      setTicketForm({ desc: '', priority: 'MEDIUM' });
       setIsTicketDialogOpen(false);
     },
   });
@@ -165,17 +169,17 @@ export default function AssetDetailPage() {
       }
 
       updateMutation.mutate({
-        assetCode,
-        name: assetName,
-        description,
-        locationDescription,
+        assetCode: editForm.assetCode,
+        name: editForm.assetName,
+        description: editForm.description,
+        locationDescription: editForm.locationDescription,
         locationId,
-        signTypeId: editSignTypeId,
-        material,
-        size,
-        supplier,
-        installedAt: installedAt ? `${installedAt}T00:00:00` : undefined,
-        status,
+        signTypeId: editForm.signTypeId,
+        material: editForm.material,
+        size: editForm.size,
+        supplier: editForm.supplier,
+        installedAt: editForm.installedAt ? `${editForm.installedAt}T00:00:00` : undefined,
+        status: editForm.status,
         imageUrl: uploadedUrl || undefined,
       });
     } catch (err) {
@@ -187,12 +191,12 @@ export default function AssetDetailPage() {
 
   const handleCreateTicket = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id || !ticketDesc) return;
+    if (!id || !ticketForm.desc) return;
 
     createTicketMutation.mutate({
       assetId: id,
-      description: ticketDesc,
-      priority: ticketPriority,
+      description: ticketForm.desc,
+      priority: ticketForm.priority,
       source: 'MANUAL',
     });
   };
@@ -266,16 +270,36 @@ export default function AssetDetailPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Left Card: QR Code & Actions */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col items-center justify-between text-center space-y-6">
-          <div className="space-y-4">
+          <div className="space-y-4 w-full flex flex-col items-center">
             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Mã QR Biển Báo</h3>
             <div ref={qrRef} className="w-48 h-48 border-2 border-slate-200 rounded-xl p-3 bg-white flex flex-col items-center justify-center relative shadow-inner">
               <QRCode
-                value={`${window.location.origin}/scan/${asset.assetCode}`}
+                value={`${qrBaseUrl}/scan/${asset.assetCode}`}
                 size={160}
                 level="M"
               />
             </div>
             <p className="text-xs text-slate-400 max-w-[200px]">Quét mã để truy cập thông tin biển trên điện thoại.</p>
+            
+            <div className="w-full space-y-1 text-left">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Base URL của QR</label>
+              <div className="flex gap-1.5 items-center">
+                <input
+                  value={qrBaseUrl}
+                  onChange={e => handleQrBaseUrlChange(e.target.value)}
+                  placeholder="https://xxxx.ngrok-free.app"
+                  className="flex-1 border border-slate-350 rounded-lg px-2.5 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-blue-500 bg-slate-50"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleQrBaseUrlChange(window.location.origin)}
+                  className="text-[10px] font-bold text-blue-600 hover:text-blue-800 whitespace-nowrap"
+                >
+                  Đặt lại
+                </button>
+              </div>
+            </div>
+
             <Button
               type="button"
               variant="outline"
@@ -343,8 +367,8 @@ export default function AssetDetailPage() {
                         <Input
                           id="edit-asset-code"
                           required
-                          value={assetCode}
-                          onChange={(e) => setAssetCode(e.target.value)}
+                          value={editForm.assetCode}
+                          onChange={(e) => setField('assetCode', e.target.value)}
                           className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg bg-white font-medium"
                         />
                       </div>
@@ -355,8 +379,8 @@ export default function AssetDetailPage() {
                         </label>
                         <select
                           id="edit-asset-status"
-                          value={status}
-                          onChange={(e) => setStatus(e.target.value as any)}
+                          value={editForm.status}
+                          onChange={(e) => setField('status', e.target.value as Asset['status'])}
                           className="w-full border border-slate-200 bg-white text-slate-750 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300"
                         >
                           <option value="ACTIVE">Hoạt động</option>
@@ -381,8 +405,8 @@ export default function AssetDetailPage() {
                         <Input
                           required
                           placeholder="Ví dụ: Biển phòng khám 101..."
-                          value={assetName}
-                          onChange={(e) => setAssetName(e.target.value)}
+                          value={editForm.assetName}
+                          onChange={(e) => setField('assetName', e.target.value)}
                           className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg"
                         />
                       </div>
@@ -394,8 +418,8 @@ export default function AssetDetailPage() {
                             <span>Loại biển</span>
                           </label>
                           <select
-                            value={editSignTypeId ?? ''}
-                            onChange={(e) => setEditSignTypeId(e.target.value ? Number(e.target.value) : undefined)}
+                            value={editForm.signTypeId ?? ''}
+                            onChange={(e) => setField('signTypeId', e.target.value ? Number(e.target.value) : undefined)}
                             className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300"
                           >
                             <option value="">— Không phân loại —</option>
@@ -411,8 +435,8 @@ export default function AssetDetailPage() {
                           </label>
                           <select
                             id="edit-asset-material"
-                            value={material}
-                            onChange={(e) => setMaterial(e.target.value as any)}
+                            value={editForm.material}
+                            onChange={(e) => setField('material', e.target.value as EditForm['material'])}
                             className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300"
                           >
                             <option value="MICA">MICA</option>
@@ -431,8 +455,8 @@ export default function AssetDetailPage() {
                         <Input
                           id="edit-asset-description"
                           placeholder="Mô tả chi tiết..."
-                          value={description}
-                          onChange={(e) => setDescription(e.target.value)}
+                          value={editForm.description}
+                          onChange={(e) => setField('description', e.target.value)}
                           className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg"
                         />
                       </div>
@@ -446,8 +470,8 @@ export default function AssetDetailPage() {
                           id="edit-asset-size"
                           required
                           placeholder="Ví dụ: 40x30 cm"
-                          value={size}
-                          onChange={(e) => setSize(e.target.value)}
+                          value={editForm.size}
+                          onChange={(e) => setField('size', e.target.value)}
                           className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg"
                         />
                       </div>
@@ -460,8 +484,8 @@ export default function AssetDetailPage() {
                           </label>
                           <Input
                             placeholder="Đơn vị sản xuất..."
-                            value={supplier}
-                            onChange={(e) => setSupplier(e.target.value)}
+                            value={editForm.supplier}
+                            onChange={(e) => setField('supplier', e.target.value)}
                             className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg"
                           />
                         </div>
@@ -472,8 +496,8 @@ export default function AssetDetailPage() {
                           </label>
                           <Input
                             type="date"
-                            value={installedAt}
-                            onChange={(e) => setInstalledAt(e.target.value)}
+                            value={editForm.installedAt}
+                            onChange={(e) => setField('installedAt', e.target.value)}
                             className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg"
                           />
                         </div>
@@ -495,13 +519,10 @@ export default function AssetDetailPage() {
                           <div>
                             <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Tòa nhà</span>
                             <select
-                              value={selectedBuildingId}
+                              value={editForm.buildingId}
                               onChange={(e) => {
                                 const val = e.target.value ? Number(e.target.value) : '';
-                                setSelectedBuildingId(val);
-                                setSelectedFloorId('');
-                                setSelectedRoomId('');
-                                setSelectedSubRoomId('');
+                                setEditForm(prev => ({ ...prev, buildingId: val, floorId: '', roomId: '', subRoomId: '' }));
                               }}
                               className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300"
                             >
@@ -514,18 +535,16 @@ export default function AssetDetailPage() {
                           <div>
                             <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Tầng</span>
                             <select
-                              disabled={!selectedBuildingId}
-                              value={selectedFloorId}
+                              disabled={!editForm.buildingId}
+                              value={editForm.floorId}
                               onChange={(e) => {
                                 const val = e.target.value ? Number(e.target.value) : '';
-                                setSelectedFloorId(val);
-                                setSelectedRoomId('');
-                                setSelectedSubRoomId('');
+                                setEditForm(prev => ({ ...prev, floorId: val, roomId: '', subRoomId: '' }));
                               }}
                               className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
                             >
                               <option value="">— Chọn Tầng —</option>
-                              {locations.filter(loc => loc.parentId === selectedBuildingId).map(loc => (
+                              {locations.filter(loc => loc.parentId === editForm.buildingId).map(loc => (
                                 <option key={loc.id} value={loc.id}>{loc.name}</option>
                               ))}
                             </select>
@@ -533,17 +552,16 @@ export default function AssetDetailPage() {
                           <div>
                             <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Khoa / Phòng ban</span>
                             <select
-                              disabled={!selectedFloorId}
-                              value={selectedRoomId}
+                              disabled={!editForm.floorId}
+                              value={editForm.roomId}
                               onChange={(e) => {
                                 const val = e.target.value ? Number(e.target.value) : '';
-                                setSelectedRoomId(val);
-                                setSelectedSubRoomId('');
+                                setEditForm(prev => ({ ...prev, roomId: val, subRoomId: '' }));
                               }}
                               className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
                             >
                               <option value="">— Chọn Khoa (tuỳ chọn) —</option>
-                              {locations.filter(loc => loc.parentId === selectedFloorId).map(loc => (
+                              {locations.filter(loc => loc.parentId === editForm.floorId).map(loc => (
                                 <option key={loc.id} value={loc.id}>{loc.name}</option>
                               ))}
                             </select>
@@ -551,13 +569,13 @@ export default function AssetDetailPage() {
                           <div>
                             <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Phòng cụ thể</span>
                             <select
-                              disabled={!selectedRoomId || locations.filter(loc => loc.parentId === selectedRoomId).length === 0}
-                              value={selectedSubRoomId}
-                              onChange={(e) => setSelectedSubRoomId(e.target.value ? Number(e.target.value) : '')}
+                              disabled={!editForm.roomId || locations.filter(loc => loc.parentId === editForm.roomId).length === 0}
+                              value={editForm.subRoomId}
+                              onChange={(e) => setField('subRoomId', e.target.value ? Number(e.target.value) : '')}
                               className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
                             >
                               <option value="">— Chọn Phòng (nếu có) —</option>
-                              {locations.filter(loc => loc.parentId === selectedRoomId).map(loc => (
+                              {locations.filter(loc => loc.parentId === editForm.roomId).map(loc => (
                                 <option key={loc.id} value={loc.id}>{loc.name}</option>
                               ))}
                             </select>
@@ -576,8 +594,8 @@ export default function AssetDetailPage() {
                           required
                           rows={2}
                           placeholder="Ví dụ: Treo trên tường hành lang, cạnh thang máy tầng 1..."
-                          value={locationDescription}
-                          onChange={(e) => setLocationDescription(e.target.value)}
+                          value={editForm.locationDescription}
+                          onChange={(e) => setField('locationDescription', e.target.value)}
                           className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300 transition-colors"
                         />
                       </div>
@@ -642,16 +660,16 @@ export default function AssetDetailPage() {
                         required
                         rows={3}
                         placeholder="Mô tả chi tiết tình trạng hư hỏng..."
-                        value={ticketDesc}
-                        onChange={(e) => setTicketDesc(e.target.value)}
+                        value={ticketForm.desc}
+                        onChange={(e) => setTicketForm(prev => ({ ...prev, desc: e.target.value }))}
                         className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Độ ưu tiên</label>
                       <select
-                        value={ticketPriority}
-                        onChange={(e) => setTicketPriority(e.target.value as any)}
+                        value={ticketForm.priority}
+                        onChange={(e) => setTicketForm(prev => ({ ...prev, priority: e.target.value as typeof ticketForm.priority }))}
                         className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                       >
                         <option value="LOW">Thấp (Low)</option>

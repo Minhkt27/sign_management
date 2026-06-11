@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { QRCode } from 'react-qr-code';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -12,7 +12,14 @@ import { getBackendUrl } from '@/shared/helpers/imageUrl';
 
 export default function MapListPage() {
   const navigate = useNavigate();
-  const [baseUrl, setBaseUrl] = useState(window.location.origin);
+  const [baseUrl, setBaseUrl] = useState(() => {
+    return localStorage.getItem('qrBaseUrl') || window.location.origin;
+  });
+
+  const handleBaseUrlChange = (val: string) => {
+    setBaseUrl(val);
+    localStorage.setItem('qrBaseUrl', val);
+  };
 
   const handleDownloadEntranceQR = useCallback(() => {
     const svg = document.getElementById('entrance-qr')?.querySelector('svg');
@@ -96,6 +103,24 @@ export default function MapListPage() {
   const getLocationName = (locationId: number) =>
     locations.find(l => l.id === locationId)?.name ?? `Location #${locationId}`;
 
+  const groupedFloors = useMemo(() => {
+    const groups: { [buildingId: string]: MapFloor[] } = {};
+    const unassigned: MapFloor[] = [];
+
+    floors.forEach(floor => {
+      const floorLoc = locations.find(l => l.id === floor.locationId);
+      if (floorLoc && floorLoc.parentId) {
+        const bId = floorLoc.parentId;
+        if (!groups[bId]) groups[bId] = [];
+        groups[bId].push(floor);
+      } else {
+        unassigned.push(floor);
+      }
+    });
+
+    return { groups, unassigned };
+  }, [floors, locations]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -122,12 +147,12 @@ export default function MapListPage() {
           <div className="flex gap-2 items-center">
             <input
               value={baseUrl}
-              onChange={e => setBaseUrl(e.target.value)}
+              onChange={e => handleBaseUrlChange(e.target.value)}
               placeholder="https://xxxx.ngrok-free.app"
               className="flex-1 border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <button
-              onClick={() => setBaseUrl(window.location.origin)}
+              onClick={() => handleBaseUrlChange(window.location.origin)}
               className="text-xs text-slate-400 hover:text-slate-600 whitespace-nowrap"
             >
               Đặt lại
@@ -227,32 +252,84 @@ export default function MapListPage() {
           <p>Chưa có sơ đồ nào. Tạo sơ đồ đầu tiên!</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {floors.map(floor => (
-            <div key={floor.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden hover:shadow-md transition-shadow">
-              <div className="aspect-video bg-slate-100 overflow-hidden">
-                <img src={getBackendUrl(floor.imageUrl)} alt="Mặt bằng" className="w-full h-full object-cover" />
-              </div>
-              <div className="p-4">
-                <p className="font-semibold text-slate-800">{getLocationName(floor.locationId)}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{floor.imgWidth} × {floor.imgHeight}px</p>
-                <div className="flex gap-2 mt-3">
-                  <button
-                    onClick={() => navigate(`/admin/assets/tree/map/${floor.id}/edit`)}
-                    className="flex-1 flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium py-2 rounded-lg"
-                  >
-                    <Pencil size={14} /> Chỉnh sửa
-                  </button>
-                  <button
-                    onClick={() => handleDelete(floor)}
-                    className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+        <div className="space-y-8">
+          {Object.entries(groupedFloors.groups).map(([bId, bFloors]) => {
+            const buildingLoc = locations.find(l => l.id === Number(bId));
+            const buildingName = buildingLoc ? buildingLoc.name : `Tòa nhà #${bId}`;
+            return (
+              <div key={bId} className="space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+                  <span className="text-xl">🏢</span>
+                  <h3 className="font-bold text-lg text-slate-800">{buildingName}</h3>
+                  <span className="bg-slate-100 text-slate-500 text-xs font-bold px-2 py-0.5 rounded-full">{bFloors.length} sơ đồ</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {bFloors.map(floor => (
+                    <div key={floor.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden hover:shadow-md transition-shadow">
+                      <div className="aspect-video bg-slate-100 overflow-hidden">
+                        <img src={getBackendUrl(floor.imageUrl)} alt="Mặt bằng" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="p-4">
+                        <p className="font-semibold text-slate-800">{getLocationName(floor.locationId)}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">{floor.imgWidth} × {floor.imgHeight}px</p>
+                        <div className="flex gap-2 mt-3">
+                          <button
+                            onClick={() => navigate(`/admin/assets/tree/map/${floor.id}/edit`)}
+                            className="flex-1 flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium py-2 rounded-lg"
+                          >
+                            <Pencil size={14} /> Chỉnh sửa
+                          </button>
+                          <button
+                            onClick={() => handleDelete(floor)}
+                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
+            );
+          })}
+
+          {groupedFloors.unassigned.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+                <span className="text-xl">📁</span>
+                <h3 className="font-bold text-lg text-slate-800">Chưa phân loại tòa nhà</h3>
+                <span className="bg-slate-100 text-slate-500 text-xs font-bold px-2 py-0.5 rounded-full">{groupedFloors.unassigned.length} sơ đồ</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {groupedFloors.unassigned.map(floor => (
+                  <div key={floor.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden hover:shadow-md transition-shadow">
+                    <div className="aspect-video bg-slate-100 overflow-hidden">
+                      <img src={getBackendUrl(floor.imageUrl)} alt="Mặt bằng" className="w-full h-full object-cover" />
+                    </div>
+                    <div className="p-4">
+                      <p className="font-semibold text-slate-800">{getLocationName(floor.locationId)}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{floor.imgWidth} × {floor.imgHeight}px</p>
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          onClick={() => navigate(`/admin/assets/tree/map/${floor.id}/edit`)}
+                          className="flex-1 flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium py-2 rounded-lg"
+                        >
+                          <Pencil size={14} /> Chỉnh sửa
+                        </button>
+                        <button
+                          onClick={() => handleDelete(floor)}
+                          className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          ))}
+          )}
         </div>
       )}
     </div>
