@@ -36,6 +36,26 @@ export const floorName = (floorId: number, floors: MapFloor[], locations: Locati
   return locations.find(l => l?.id === floor.locationId)?.name ?? `Tầng #${floorId}`;
 };
 
+// Landmark node kèm tên hiển thị
+type NearbyNode = { name: string; node: MapNode } | null;
+
+// Target đang ở bên tay nào khi đi từ `from` hướng `to`?
+const sideOf = (from: MapNode, to: MapNode, target: MapNode): 'trái' | 'phải' | null => {
+  const dx = to.x - from.x, dy = to.y - from.y;
+  const rx = target.x - from.x, ry = target.y - from.y;
+  const cross = dx * ry - dy * rx; // screen coords y↓: cross > 0 → phải
+  if (Math.abs(cross) < 0.005) return null;
+  return cross > 0 ? 'phải' : 'trái';
+};
+
+// Phân loại độ dài đoạn thẳng theo normalized distance
+const segDistLabel = (a: MapNode, b: MapNode): string => {
+  const d = Math.hypot(b.x - a.x, b.y - a.y);
+  if (d >= 0.20) return ' một đoạn khá dài';
+  if (d >= 0.08) return ' một đoạn';
+  return '';
+};
+
 export const buildSteps = (
   path: MapNode[],
   allFloorData: MapFloorData[],
@@ -47,40 +67,46 @@ export const buildSteps = (
   const nm = (n: MapNode) => displayName(n, locations);
   const fn = (fid: number) => floorName(fid, floors, locations);
 
-  const getFloorNodes = (node: MapNode) => {
+  const getFloorNodes = (node: MapNode): MapNode[] => {
     if (!node) return [];
     return allFloorData.find(fd => fd?.nodes?.some(n => n?.id === node.id))?.nodes ?? [];
   };
 
-  const doorOf = (node: MapNode): string | null => {
-    if (!node) return null;
-    const fNodes = getFloorNodes(node);
-    let best: { label: string; dist: number } | null = null;
+  // Trả về node cửa phòng gần nhất kèm tên
+  const doorOfNode = (node: MapNode, fNodes: MapNode[]): NearbyNode => {
+    let best: { name: string; node: MapNode; dist: number } | null = null;
     for (const n of fNodes) {
       if (!n || n.id === node.id) continue;
       if (n.type !== 'ROOM' && n.type !== 'DEPARTMENT') continue;
       const lbl = nm(n); if (!lbl) continue;
       const dist = Math.hypot(n.x - node.x, n.y - node.y);
-      if (!best || dist < best.dist) best = { label: lbl, dist };
+      if (!best || dist < best.dist) best = { name: lbl, node: n, dist };
     }
-    return best && best.dist < DOOR_PROXIMITY ? `cửa ${best.label}` : null;
+    return best && best.dist < DOOR_PROXIMITY ? { name: `cửa ${best.name}`, node: best.node } : null;
   };
 
-  const nearbyRoom = (node: MapNode): string | null => {
-    if (!node) return null;
-    const fNodes = getFloorNodes(node);
-    let best: { label: string; dist: number } | null = null;
+  // Trả về node phòng gần nhất trong ngưỡng NEARBY_ROOM_PROXIMITY
+  const nearbyRoomNode = (node: MapNode, fNodes: MapNode[]): NearbyNode => {
+    let best: { name: string; node: MapNode; dist: number } | null = null;
     for (const n of fNodes) {
       if (!n || n.id === node.id) continue;
       const lbl = nm(n); if (!lbl) continue;
       const dist = Math.hypot(n.x - node.x, n.y - node.y);
-      if (!best || dist < best.dist) best = { label: lbl, dist };
+      if (!best || dist < best.dist) best = { name: lbl, node: n, dist };
     }
-    return best && best.dist < NEARBY_ROOM_PROXIMITY ? best.label : null;
+    return best && best.dist < NEARBY_ROOM_PROXIMITY ? { name: best.name, node: best.node } : null;
   };
 
-  const junctionMark = (node: MapNode): string | null => nm(node) ?? doorOf(node) ?? nearbyRoom(node);
-  const straightDest = (toNode: MapNode): string | null => nm(toNode) ?? doorOf(toNode) ?? nearbyRoom(toNode);
+  // Landmark tốt nhất của một node: ưu tiên tên chính → cửa phòng → phòng gần nhất
+  const landmarkOf = (node: MapNode): NearbyNode => {
+    const selfName = nm(node);
+    if (selfName) return { name: selfName, node };
+    const fNodes = getFloorNodes(node);
+    return doorOfNode(node, fNodes) ?? nearbyRoomNode(node, fNodes);
+  };
+
+  // Chỉ cần tên landmark (dùng cho mô tả rẽ)
+  const junctionMark = (node: MapNode): string | null => landmarkOf(node)?.name ?? null;
 
   steps.push({ node: path[0], icon: '📍', text: `Bắt đầu tại ${nm(path[0]) ?? 'điểm xuất phát'}` });
 
@@ -97,20 +123,36 @@ export const buildSteps = (
     needStraight = true;
   }
 
-  const last         = path[path.length - 1];
-  const secondLast   = path[path.length - 2];
-  const endIsRoom    = last?.type === 'ROOM' || last?.type === 'DEPARTMENT';
-  const entryIsJunction = path.length > 2 && secondLast?.type === 'JUNCTION' && endIsRoom;
-  const loopEnd      = entryIsJunction ? path.length - 2 : path.length - 1;
+  const last             = path[path.length - 1];
+  const secondLast       = path[path.length - 2];
+  const endIsRoom        = last?.type === 'ROOM' || last?.type === 'DEPARTMENT';
+  const entryIsJunction  = path.length > 2 && secondLast?.type === 'JUNCTION' && endIsRoom;
+  const loopEnd          = entryIsJunction ? path.length - 2 : path.length - 1;
 
   let lastStraightDest: string | null = null;
   let skipNextJunction = false;
 
-  const addStraight = (toNode: MapNode) => {
+  const addStraight = (fromNode: MapNode, toNode: MapNode) => {
     if (!needStraight) return;
-    const dest = straightDest(toNode);
-    lastStraightDest = dest;
-    steps.push({ node: toNode, icon: '➡️', text: dest ? `Đi thẳng đến ${dest}` : 'Đi thẳng' });
+
+    const lm   = landmarkOf(toNode);
+    const dist = segDistLabel(fromNode, toNode);
+    let text: string;
+
+    if (lm) {
+      // Xác định landmark đang ở phía trước hay sang một bên
+      const side = lm.node.id !== toNode.id
+        ? sideOf(fromNode, toNode, lm.node)
+        : null;
+      text = side
+        ? `Đi thẳng${dist}, thấy ${lm.name} bên tay ${side}`
+        : `Đi thẳng${dist} đến ${lm.name}`;
+    } else {
+      text = dist ? `Đi thẳng${dist}` : 'Đi thẳng';
+    }
+
+    lastStraightDest = lm?.name ?? null;
+    steps.push({ node: toNode, icon: '➡️', text });
     needStraight = false;
   };
 
@@ -134,8 +176,8 @@ export const buildSteps = (
     if (justArrived) {
       const transitType = prev.type === 'STAIRS' ? 'cầu thang' : 'thang máy';
       const exitTurn = turnDir(prev, curr, next);
-      const dirText   = exitTurn === 'right' ? 'rẽ phải' : exitTurn === 'left' ? 'rẽ trái' : 'đi thẳng';
-      const icon      = exitTurn === 'right' ? '↪️' : exitTurn === 'left' ? '↩️' : '➡️';
+      const dirText  = exitTurn === 'right' ? 'rẽ phải' : exitTurn === 'left' ? 'rẽ trái' : 'đi thẳng';
+      const icon     = exitTurn === 'right' ? '↪️' : exitTurn === 'left' ? '↩️' : '➡️';
       steps.push({ node: curr, icon, text: `Ra khỏi ${transitType}, ${dirText}` });
       needStraight = true;
       skipNextJunction = true;
@@ -150,17 +192,25 @@ export const buildSteps = (
     skipNextJunction = false;
 
     if (curr.type === 'STAIRS') {
-      addStraight(curr);
-      steps.push({ node: curr, icon: '🪜', text: nextFloor ? `Lên/xuống cầu thang sang ${nextFloor}` : `Đi qua cầu thang${n ? ` ${n}` : ''}` });
+      addStraight(prev, curr);
+      const goingUp = next.floorId > curr.floorId;
+      const stairText = nextFloor
+        ? (goingUp ? `Đi lên cầu thang sang ${nextFloor}` : `Đi xuống cầu thang sang ${nextFloor}`)
+        : `Đi qua cầu thang${n ? ` ${n}` : ''}`;
+      steps.push({ node: curr, icon: '🪜', text: stairText });
       needStraight = true; continue;
     }
     if (curr.type === 'ELEVATOR') {
-      addStraight(curr);
-      steps.push({ node: curr, icon: '🛗', text: nextFloor ? `Đi thang máy đến ${nextFloor}` : `Vào thang máy${n ? ` ${n}` : ''}` });
+      addStraight(prev, curr);
+      const goingUp = next.floorId > curr.floorId;
+      const elevText = nextFloor
+        ? (goingUp ? `Đi thang máy lên ${nextFloor}` : `Đi thang máy xuống ${nextFloor}`)
+        : `Vào thang máy${n ? ` ${n}` : ''}`;
+      steps.push({ node: curr, icon: '🛗', text: elevText });
       needStraight = true; continue;
     }
     if (curr.type === 'ENTRANCE') {
-      addStraight(curr);
+      addStraight(prev, curr);
       steps.push({ node: curr, icon: '🚪', text: `Đi qua ${n || 'lối vào'}` });
       needStraight = true; continue;
     }
@@ -176,21 +226,40 @@ export const buildSteps = (
     const icon = turn === 'right' ? '↪️' : '↩️';
     const mark = junctionMark(curr);
     if (mark && !mergeWithPrevStraight(`Rẽ ${dir} vào ${mark}`, icon, curr)) {
-      addStraight(curr);
-      steps.push({ node: curr, icon, text: mark ? `Rẽ ${dir} tại ${mark}` : `Rẽ ${dir}` });
+      addStraight(prev, curr);
+      steps.push({ node: curr, icon, text: `Rẽ ${dir} tại ${mark}` });
     } else if (!mark) {
-      addStraight(curr);
+      addStraight(prev, curr);
       steps.push({ node: curr, icon, text: `Rẽ ${dir}` });
     }
     needStraight = true;
   }
 
   if (needStraight && last) {
-    const dest = entryIsJunction
-      ? (nm(last) ? `cửa ${nm(last)}` : null)
-      : (doorOf(secondLast) ?? straightDest(last));
-    steps.push({ node: last, icon: '➡️', text: dest ? `Đi thẳng đến ${dest}` : 'Đi thẳng' });
+    const fromNode = secondLast ?? path[0];
+    const dist = segDistLabel(fromNode, last);
+    let text: string;
+
+    if (entryIsJunction) {
+      const finalName = nm(last);
+      text = finalName
+        ? `Đi thẳng${dist} đến cửa ${finalName}`
+        : `Đi thẳng${dist}`;
+    } else {
+      const fNodes  = getFloorNodes(secondLast);
+      const lm = doorOfNode(secondLast, fNodes) ?? landmarkOf(last);
+      if (lm) {
+        const side = lm.node.id !== last.id ? sideOf(fromNode, last, lm.node) : null;
+        text = side
+          ? `Đi thẳng${dist}, thấy ${lm.name} bên tay ${side}`
+          : `Đi thẳng${dist} đến ${lm.name}`;
+      } else {
+        text = dist ? `Đi thẳng${dist}` : 'Đi thẳng';
+      }
+    }
+    steps.push({ node: last, icon: '➡️', text });
   }
+
   if (last) {
     steps.push({ node: last, icon: '🎯', text: 'Bạn đã đến nơi', sub: nm(last) ?? undefined, highlight: true });
   }
