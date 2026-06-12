@@ -85,11 +85,15 @@ export const buildSteps = (
     return best && best.dist < DOOR_PROXIMITY ? { name: `cửa ${best.name}`, node: best.node } : null;
   };
 
-  // Trả về node phòng gần nhất trong ngưỡng NEARBY_ROOM_PROXIMITY
-  const nearbyRoomNode = (node: MapNode, fNodes: MapNode[]): NearbyNode => {
+  // Trả về node phòng gần nhất trong ngưỡng NEARBY_ROOM_PROXIMITY.
+  // Bỏ qua ELEVATOR/STAIRS (waypoint điều hướng, không phải landmark phòng)
+  // và bỏ qua excludeId (thường là node vừa rời khỏi, tránh quay lại phía sau lưng)
+  const nearbyRoomNode = (node: MapNode, fNodes: MapNode[], excludeId?: number): NearbyNode => {
     let best: { name: string; node: MapNode; dist: number } | null = null;
     for (const n of fNodes) {
       if (!n || n.id === node.id) continue;
+      if (excludeId !== undefined && n.id === excludeId) continue;
+      if (n.type === 'ELEVATOR' || n.type === 'STAIRS') continue;
       const lbl = nm(n); if (!lbl) continue;
       const dist = Math.hypot(n.x - node.x, n.y - node.y);
       if (!best || dist < best.dist) best = { name: lbl, node: n, dist };
@@ -97,16 +101,17 @@ export const buildSteps = (
     return best && best.dist < NEARBY_ROOM_PROXIMITY ? { name: best.name, node: best.node } : null;
   };
 
-  // Landmark tốt nhất của một node: ưu tiên tên chính → cửa phòng → phòng gần nhất
-  const landmarkOf = (node: MapNode): NearbyNode => {
+  // Landmark tốt nhất của một node: ưu tiên tên chính → cửa phòng → phòng gần nhất.
+  // excludeId: bỏ qua node cụ thể (thường là node vừa xuất phát)
+  const landmarkOf = (node: MapNode, excludeId?: number): NearbyNode => {
     const selfName = nm(node);
     if (selfName) return { name: selfName, node };
     const fNodes = getFloorNodes(node);
-    return doorOfNode(node, fNodes) ?? nearbyRoomNode(node, fNodes);
+    return doorOfNode(node, fNodes) ?? nearbyRoomNode(node, fNodes, excludeId);
   };
 
-  // Chỉ cần tên landmark (dùng cho mô tả rẽ)
-  const junctionMark = (node: MapNode): string | null => landmarkOf(node)?.name ?? null;
+  // Chỉ cần tên landmark (dùng cho mô tả rẽ), bỏ qua prevId để tránh tham chiếu node phía sau lưng
+  const junctionMark = (node: MapNode, prevId?: number): string | null => landmarkOf(node, prevId)?.name ?? null;
 
   steps.push({ node: path[0], icon: '📍', text: `Bắt đầu tại ${nm(path[0]) ?? 'điểm xuất phát'}` });
 
@@ -135,7 +140,8 @@ export const buildSteps = (
   const addStraight = (fromNode: MapNode, toNode: MapNode) => {
     if (!needStraight) return;
 
-    const lm   = landmarkOf(toNode);
+    // Exclude fromNode.id: tránh lấy node vừa rời làm landmark của toNode
+    const lm   = landmarkOf(toNode, fromNode.id);
     const dist = segDistLabel(fromNode, toNode);
     let text: string;
 
@@ -224,7 +230,8 @@ export const buildSteps = (
 
     const dir  = turn === 'right' ? 'phải' : 'trái';
     const icon = turn === 'right' ? '↪️' : '↩️';
-    const mark = junctionMark(curr);
+    // prevId: bỏ qua node vừa rời khi tìm landmark tại điểm rẽ
+    const mark = junctionMark(curr, prev.id);
     if (mark && !mergeWithPrevStraight(`Rẽ ${dir} vào ${mark}`, icon, curr)) {
       addStraight(prev, curr);
       steps.push({ node: curr, icon, text: `Rẽ ${dir} tại ${mark}` });
