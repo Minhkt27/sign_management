@@ -118,12 +118,20 @@ export const buildSteps = (
   let needStraight = true;
   let startIdx = 1;
 
-  const startIsRoom = path[0].type === 'ROOM' || path[0].type === 'DEPARTMENT';
-  if (startIsRoom && path.length > 2 && path[1].type === 'JUNCTION') {
+  const startType = path[0].type;
+  const isExitableStart = (startType === 'ROOM' || startType === 'DEPARTMENT'
+    || startType === 'ELEVATOR' || startType === 'STAIRS')
+    && path.length > 2 && path[1].type === 'JUNCTION';
+  if (isExitableStart) {
     const exitTurn = turnDir(path[0], path[1], path[2]);
     const dirText  = exitTurn === 'right' ? 'rẽ phải' : exitTurn === 'left' ? 'rẽ trái' : 'đi thẳng';
     const icon     = exitTurn === 'right' ? '↪️' : exitTurn === 'left' ? '↩️' : '➡️';
-    steps.push({ node: path[1], icon, text: `Ra hành lang, ${dirText}` });
+    const startName = nm(path[0]);
+    const exitText  = startName ? `Ra khỏi ${startName}` : (
+      startType === 'ELEVATOR' ? 'Ra khỏi thang máy' :
+      startType === 'STAIRS'   ? 'Ra khỏi cầu thang' : 'Ra hành lang'
+    );
+    steps.push({ node: path[1], icon, text: `${exitText}, ${dirText}` });
     startIdx = 2;
     needStraight = true;
   }
