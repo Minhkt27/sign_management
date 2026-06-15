@@ -53,7 +53,7 @@ public class TicketPersistenceIntegrationTest extends AbstractIntegrationTest {
                 .username("test_admin_" + UUID.randomUUID())
                 .password("hashed")
                 .fullName("Test Admin")
-                .role(Role.ADMIN)
+                .roleId(1L)
                 .isActive(true)
                 .build());
 
@@ -86,7 +86,7 @@ public class TicketPersistenceIntegrationTest extends AbstractIntegrationTest {
                 .username("tech_" + UUID.randomUUID())
                 .password("hashed")
                 .fullName("Test Tech")
-                .role(Role.TECHNICAL)
+                .roleId(2L)
                 .isActive(true)
                 .build());
 

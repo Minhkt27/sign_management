@@ -13,7 +13,9 @@ public interface UserUseCase {
 
     List<User> getTechnicians();
 
-    User createTechnician(CreateTechnicianCommand command);
+    User createUser(CreateUserCommand command);
+
+    User updateUserRoleAndPermissions(Long userId, Long roleId, List<String> customPermissions);
 
     User setUserActive(Long id, boolean active);
 
@@ -21,7 +23,7 @@ public interface UserUseCase {
 
     void resetPassword(Long userId);
 
-    record CreateTechnicianCommand(String username, String fullName, String password) {}
+    record CreateUserCommand(String username, String fullName, String password, Long roleId, List<String> customPermissions) {}
 
     record ChangePasswordCommand(Long userId, String currentPassword, String newPassword) {}
 }

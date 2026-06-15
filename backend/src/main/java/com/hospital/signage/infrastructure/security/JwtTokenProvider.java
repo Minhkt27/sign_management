@@ -34,9 +34,9 @@ public class JwtTokenProvider {
         this.key = Keys.hmacShaKeyFor(jwtSecret.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
-    public String generateToken(String username, String role) {
+    public String generateToken(String username, java.util.List<String> permissions) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("role", role);
+        claims.put("permissions", permissions);
         return createToken(claims, username, jwtExpirationInMs);
     }
 
@@ -58,8 +58,9 @@ public class JwtTokenProvider {
         return extractClaim(token, Claims::getSubject);
     }
 
-    public String extractRole(String token) {
-        return extractAllClaims(token).get("role", String.class);
+    @SuppressWarnings("unchecked")
+    public java.util.List<String> extractPermissions(String token) {
+        return extractAllClaims(token).get("permissions", java.util.List.class);
     }
 
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {

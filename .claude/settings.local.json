@@ -44,7 +44,10 @@
       "Bash(SPRING_PROFILES_ACTIVE=dev mvn spring-boot:run)",
       "Bash(fuser -k 8080/tcp)",
       "Bash(SPRING_PROFILES_ACTIVE=dev POSTGRES_PASSWORD=change_me_in_production MINIO_ACCESS_KEY=minioadmin MINIO_SECRET_KEY=change_me_strong_password MINIO_BUCKET=signage-assets MINIO_PUBLIC_URL=http://localhost:9000 JWT_SECRET=hospital-signage-secret-key-must-be-at-least-256-bits-long-for-hs256 CORS_ALLOWED_ORIGINS=\"http://localhost:5173,http://192.168.1.4:5173\" mvn spring-boot:run)",
-      "Bash(echo \"PID: $!\")"
+      "Bash(echo \"PID: $!\")",
+      "Bash(Get-Content \"C:\\\\Users\\\\minh4\\\\.claude\\\\projects\\\\d--sign-management\\\\c2a4ec4b-6a13-4bc5-9980-fac9639ea864\\\\tool-results\\\\bh2fbfaoy.txt\" -Head 2000)",
+      "Bash(head -c 50000 /c/Users/minh4/.claude/projects/d--sign-management/c2a4ec4b-6a13-4bc5-9980-fac9639ea864/tool-results/bh2fbfaoy.txt)",
+      "Read(//c/Users/minh4/.claude/projects/d--sign-management/c2a4ec4b-6a13-4bc5-9980-fac9639ea864/tool-results/**)"
     ]
   }
 }

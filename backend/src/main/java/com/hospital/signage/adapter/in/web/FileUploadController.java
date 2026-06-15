@@ -19,7 +19,7 @@ public class FileUploadController {
 
     @Operation(summary = "Tải ảnh lên (trả về URL)")
     @PostMapping("/upload")
-    @PreAuthorize("hasAnyRole('ADMIN', 'TECHNICAL')")
+    @PreAuthorize("hasAnyAuthority('ASSET_MANAGE', 'TICKET_MANAGE')")
     public ResponseEntity<UploadResponse> uploadFile(@RequestParam("file") MultipartFile file) {
         try {
             String url = fileUploadUseCase.upload(file);

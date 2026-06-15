@@ -5,6 +5,7 @@ import com.hospital.signage.application.port.out.UserDatabasePort;
 import com.hospital.signage.domain.model.User;
 import com.hospital.signage.infrastructure.security.JwtTokenProvider;
 import com.hospital.signage.infrastructure.security.LoginAttemptService;
+import com.hospital.signage.application.port.out.RoleDatabasePort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,7 @@ public class AuthService implements AuthUseCase {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final LoginAttemptService loginAttemptService;
+    private final RoleDatabasePort roleDatabasePort;
 
     @Override
     @Transactional
@@ -43,7 +45,19 @@ public class AuthService implements AuthUseCase {
 
         loginAttemptService.recordSuccess(command.username());
 
-        String token = jwtTokenProvider.generateToken(user.getUsername(), user.getRole().name());
+        java.util.List<String> permissions = new java.util.ArrayList<>();
+        if (user.getRoleId() != null) {
+            roleDatabasePort.findById(user.getRoleId()).ifPresent(role -> {
+                if (role.getPermissions() != null) {
+                    permissions.addAll(role.getPermissions());
+                }
+            });
+        }
+        if (user.getCustomPermissions() != null) {
+            permissions.addAll(user.getCustomPermissions());
+        }
+
+        String token = jwtTokenProvider.generateToken(user.getUsername(), permissions);
         String refreshToken = jwtTokenProvider.generateRefreshToken(user.getUsername());
 
         user.setRefreshToken(refreshToken);
@@ -67,7 +81,19 @@ public class AuthService implements AuthUseCase {
             throw new IllegalArgumentException("Invalid or expired refresh token");
         }
 
-        String newToken = jwtTokenProvider.generateToken(user.getUsername(), user.getRole().name());
+        java.util.List<String> permissions = new java.util.ArrayList<>();
+        if (user.getRoleId() != null) {
+            roleDatabasePort.findById(user.getRoleId()).ifPresent(role -> {
+                if (role.getPermissions() != null) {
+                    permissions.addAll(role.getPermissions());
+                }
+            });
+        }
+        if (user.getCustomPermissions() != null) {
+            permissions.addAll(user.getCustomPermissions());
+        }
+
+        String newToken = jwtTokenProvider.generateToken(user.getUsername(), permissions);
 
         return new RefreshResult(newToken, refreshToken);
     }

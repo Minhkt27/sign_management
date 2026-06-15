@@ -13,6 +13,14 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
+vi.mock('@/app/store/authStore', () => ({
+  getPermissionsFromToken: vi.fn(),
+  authStore: {
+    getToken: vi.fn(),
+    getUser: vi.fn(),
+  }
+}));
+
 vi.mock('@/services/authService', () => ({
   authService: { login: vi.fn() },
 }));
@@ -32,10 +40,12 @@ describe('LoginPage', () => {
   });
 
   it('navigates to /admin/assets after ADMIN login', async () => {
+    const { getPermissionsFromToken } = await import('@/app/store/authStore');
+    vi.mocked(getPermissionsFromToken).mockReturnValue(['ASSET_VIEW']);
     vi.mocked(authServiceModule.authService.login).mockResolvedValueOnce({
       token: 'tok',
       refreshToken: 'ref',
-      user: { id: 1, username: 'admin', fullName: 'Admin', role: 'ADMIN' },
+      user: { id: 1, username: 'admin', fullName: 'Admin', roleId: 1, customPermissions: [] },
     });
 
     renderPage();
@@ -47,10 +57,12 @@ describe('LoginPage', () => {
   });
 
   it('navigates to /tech/dashboard after TECHNICAL login', async () => {
+    const { getPermissionsFromToken } = await import('@/app/store/authStore');
+    vi.mocked(getPermissionsFromToken).mockReturnValue(['TICKET_VIEW']);
     vi.mocked(authServiceModule.authService.login).mockResolvedValueOnce({
       token: 'tok',
       refreshToken: 'ref',
-      user: { id: 2, username: 'tech', fullName: 'Tech', role: 'TECHNICAL' },
+      user: { id: 2, username: 'tech', fullName: 'Tech', roleId: 2, customPermissions: [] },
     });
 
     renderPage();

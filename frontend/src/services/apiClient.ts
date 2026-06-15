@@ -5,11 +5,14 @@ interface RetryableRequest extends InternalAxiosRequestConfig {
   _retry?: boolean;
 }
 
+const baseHeaders: Record<string, string> = {
+  'Content-Type': 'application/json',
+  'ngrok-skip-browser-warning': 'true',
+};
+
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080/api',
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL: import.meta.env.VITE_API_URL || '/api',
+  headers: baseHeaders,
 });
 
 apiClient.interceptors.request.use(
@@ -42,12 +45,15 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config as RetryableRequest;
 
-    if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry) {
+    if (error.response?.status === 401 && !originalRequest._retry) {
       const refreshToken = authStore.getRefreshToken();
 
+      const isPublicRoute = /^\/(map|scan)(\/|$)/.test(window.location.pathname);
       if (!refreshToken) {
-        authStore.logout();
-        window.location.href = '/login';
+        if (!isPublicRoute) {
+          authStore.logout();
+          window.location.href = '/login';
+        }
         return Promise.reject(error);
       }
 
@@ -78,8 +84,11 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (refreshError) {
         processPendingQueue(refreshError, null);
-        authStore.logout();
-        window.location.href = '/login';
+        const isPublicRoute = /^\/(map|scan)(\/|$)/.test(window.location.pathname);
+        if (!isPublicRoute) {
+          authStore.logout();
+          window.location.href = '/login';
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

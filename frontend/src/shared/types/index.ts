@@ -42,12 +42,61 @@ export interface Asset {
   updatedAt?: string;
 }
 
+export interface Role {
+  id: number;
+  code: string;
+  name: string;
+  description?: string;
+  permissions: string[];
+}
+
 export interface User {
   id: number;
   username: string;
   fullName: string;
-  role: 'ADMIN' | 'TECHNICAL';
+  roleId: number;
+  customPermissions: string[];
   isActive: boolean;
+}
+
+export type NodeType = 'ROOM' | 'DEPARTMENT' | 'JUNCTION' | 'STAIRS' | 'ELEVATOR' | 'ENTRANCE';
+
+export interface MapFloor {
+  id: number;
+  locationId: number;
+  imageUrl: string;
+  imgWidth: number;
+  imgHeight: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface MapNode {
+  id: number;
+  floorId: number;
+  x: number;
+  y: number;
+  type: NodeType;
+  label?: string;
+  locationId?: number;
+  assetId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface MapEdge {
+  id: number;
+  nodeFromId: number;
+  nodeToId: number;
+  weight: number;
+  bidirectional: boolean;
+  createdAt?: string;
+}
+
+export interface MapFloorData {
+  floor: MapFloor;
+  nodes: MapNode[];
+  edges: MapEdge[];
 }
 
 export interface MaintenanceTicket {

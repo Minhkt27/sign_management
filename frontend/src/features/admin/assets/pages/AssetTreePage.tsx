@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useQueries } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { locationService } from '@/services/locationService';
 import { assetService } from '@/services/assetService';
@@ -50,9 +50,29 @@ export default function AssetTreePage() {
     queryFn: locationService.getAllLocations,
   });
 
-  const { data: assets = [] } = useQuery<Asset[]>({
+  // Chỉ load TẤT CẢ assets khi đang search — khi không search thì lazy load theo location
+  const { data: searchAssets = [] } = useQuery<Asset[]>({
     queryKey: ['assets', 'all'],
     queryFn: assetService.getAllAssets,
+    enabled: !!searchTerm.trim(),
+  });
+
+  // Lazy load assets theo từng location đang được expand
+  const expandedNodeIds = Object.keys(expandedNodes)
+    .filter(id => expandedNodes[Number(id)])
+    .map(Number);
+
+  const locationAssetQueries = useQueries({
+    queries: expandedNodeIds.map(locId => ({
+      queryKey: ['locationAssets', locId],
+      queryFn: () => assetService.getAssetsByLocation(locId, 0, 200).then(r => r.content),
+      staleTime: 5 * 60 * 1000,
+    })),
+  });
+
+  const assetsByLocation = new Map<number, Asset[]>();
+  expandedNodeIds.forEach((locId, i) => {
+    assetsByLocation.set(locId, locationAssetQueries[i]?.data ?? []);
   });
 
   const { data: signTypes = [] } = useQuery<SignType[]>({
@@ -74,8 +94,8 @@ export default function AssetTreePage() {
 
     const term = searchTerm.toLowerCase().trim();
 
-    // 1. Find matching assets
-    const matchingAssets = assets.filter(a => {
+    // 1. Find matching assets (searchAssets có dữ liệu vì enabled: !!searchTerm.trim())
+    const matchingAssets = searchAssets.filter(a => {
       return (
         a.assetCode.toLowerCase().includes(term) ||
         (a.description && a.description.toLowerCase().includes(term)) ||
@@ -106,7 +126,7 @@ export default function AssetTreePage() {
         addSubtreeVisible(child.id);
       });
       // Show all assets at this location (not just search-matching ones)
-      assets.filter(a => a.location?.id === locId).forEach(a => matchingAssetIds.add(a.id));
+      searchAssets.filter(a => a.location?.id === locId).forEach(a => matchingAssetIds.add(a.id));
     };
 
     matchingLocs.forEach(l => {
@@ -238,7 +258,10 @@ export default function AssetTreePage() {
     return childLocs.map(loc => {
       const isExpanded = expandedLocIds ? expandedLocIds.has(loc.id) : !!expandedNodes[loc.id];
       
-      let childAssets = assets.filter(a => a.location?.id === loc.id);
+      // Khi search: lấy từ searchAssets (đã load all). Khi không search: lấy từ lazy-loaded per-location
+      let childAssets: Asset[] = searchTerm.trim()
+        ? searchAssets.filter(a => a.location?.id === loc.id)
+        : (assetsByLocation.get(loc.id) ?? []);
       if (matchingAssetIds) {
         childAssets = childAssets.filter(a => matchingAssetIds.has(a.id));
       }

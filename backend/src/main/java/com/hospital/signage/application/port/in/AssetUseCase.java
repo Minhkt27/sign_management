@@ -14,6 +14,6 @@ public interface AssetUseCase {
     Optional<Asset> getAssetByCode(String assetCode);
     List<Asset> getAllAssets();
     Page<Asset> getAssetsPage(int page, int size, String search);
-    List<Asset> getAssetsByLocation(Long locationId);
+    Page<Asset> getAssetsByLocation(Long locationId, int page, int size);
     void deleteAsset(UUID id);
 }

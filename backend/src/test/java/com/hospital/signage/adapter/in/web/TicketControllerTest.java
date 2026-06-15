@@ -32,7 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(TicketController.class)
 @Import({SecurityConfig.class, JwtAuthenticationFilter.class})
-@WithMockUser(username = "admin", roles = {"ADMIN"})
+@WithMockUser(username = "admin", authorities = {"TICKET_MANAGE"})
 public class TicketControllerTest {
 
     @Autowired

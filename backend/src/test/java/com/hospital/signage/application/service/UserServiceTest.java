@@ -2,7 +2,7 @@ package com.hospital.signage.application.service;
 
 import com.hospital.signage.application.port.in.UserUseCase;
 import com.hospital.signage.application.port.out.UserDatabasePort;
-import com.hospital.signage.domain.enums.Role;
+
 import com.hospital.signage.domain.model.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,29 +39,29 @@ class UserServiceTest {
         existingUser.setId(2L);
         existingUser.setUsername("tech1");
         existingUser.setPassword("hashed");
-        existingUser.setRole(Role.TECHNICAL);
+        existingUser.setRoleId(2L);
         existingUser.setIsActive(true);
     }
 
     @Test
-    void createTechnician_withNewUsername_savesUser() {
+    void createUser_withNewUsername_savesUser() {
         when(userDatabasePort.findByUsername("tech1")).thenReturn(Optional.empty());
         when(passwordEncoder.encode("pass")).thenReturn("hashed");
         when(userDatabasePort.save(any())).thenReturn(existingUser);
 
-        User result = userService.createTechnician(
-                new UserUseCase.CreateTechnicianCommand("tech1", "Nguyễn Văn A", "pass"));
+        User result = userService.createUser(
+                new UserUseCase.CreateUserCommand("tech1", "Nguyễn Văn A", "pass", 2L, java.util.List.of()));
 
-        assertThat(result.getRole()).isEqualTo(Role.TECHNICAL);
+        assertThat(result.getRoleId()).isEqualTo(2L);
         verify(userDatabasePort).save(any());
     }
 
     @Test
-    void createTechnician_withDuplicateUsername_throwsIllegalArgument() {
+    void createUser_withDuplicateUsername_throwsIllegalArgument() {
         when(userDatabasePort.findByUsername("tech1")).thenReturn(Optional.of(existingUser));
 
-        assertThatThrownBy(() -> userService.createTechnician(
-                new UserUseCase.CreateTechnicianCommand("tech1", "Tên", "pass")))
+        assertThatThrownBy(() -> userService.createUser(
+                new UserUseCase.CreateUserCommand("tech1", "Tên", "pass", 2L, java.util.List.of())))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Tên đăng nhập đã tồn tại");
     }

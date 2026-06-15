@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { authStore } from '@/app/store/authStore';
+import { authStore, getPermissionsFromToken } from '@/app/store/authStore';
 import { authService } from '@/services/authService';
-import { LayoutDashboard, Signpost, Ticket, LogOut, Tags, Users, KeyRound, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Signpost, Ticket, LogOut, Tags, Users, KeyRound, Menu, X, Shield } from 'lucide-react';
 import ChangePasswordModal from '@/components/ChangePasswordModal';
 
 export default function AdminLayout() {
@@ -16,13 +16,19 @@ export default function AdminLayout() {
     authService.logout().then(() => navigate('/login'));
   };
 
-  const navItems = [
-    { to: '/admin/assets/tree', label: 'Sơ đồ Vị trí', icon: LayoutDashboard, end: false },
-    { to: '/admin/assets', label: 'Quản lý Biển báo', icon: Signpost, end: true },
-    { to: '/admin/sign-types', label: 'Quản lý Loại biển', icon: Tags, end: false },
-    { to: '/admin/tickets', label: 'Phiếu Bảo trì', icon: Ticket, end: false },
-    { to: '/admin/users', label: 'Quản lý Nhân viên', icon: Users, end: false },
+  const token = authStore.getToken();
+  const permissions = getPermissionsFromToken(token);
+
+  const allNavItems = [
+    { to: '/admin/assets/tree', label: 'Sơ đồ Vị trí', icon: LayoutDashboard, end: false, reqAuth: 'MAP_VIEW' },
+    { to: '/admin/assets', label: 'Quản lý Biển báo', icon: Signpost, end: true, reqAuth: 'ASSET_VIEW' },
+    { to: '/admin/sign-types', label: 'Quản lý Loại biển', icon: Tags, end: false, reqAuth: 'ASSET_MANAGE' },
+    { to: '/admin/tickets', label: 'Phiếu Bảo trì', icon: Ticket, end: false, reqAuth: 'TICKET_VIEW' },
+    { to: '/admin/users', label: 'Quản lý Nhân viên', icon: Users, end: false, reqAuth: 'USER_VIEW' },
+    { to: '/admin/roles', label: 'Quản lý Nhóm quyền', icon: Shield, end: false, reqAuth: 'ROLE_VIEW' },
   ];
+
+  const navItems = allNavItems.filter(item => permissions.includes(item.reqAuth));
 
   const pageTitle = navItems.find(item => location.pathname.startsWith(item.to))?.label ?? 'Bảng điều khiển';
 

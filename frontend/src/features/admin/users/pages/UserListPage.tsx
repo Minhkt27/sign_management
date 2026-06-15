@@ -10,7 +10,9 @@ import { Pagination } from '@/shared/components/Pagination';
 import { getApiError } from '@/shared/helpers/apiError';
 import { UserTable } from '../components/UserTable';
 import { CreateUserDialog } from '../components/CreateUserDialog';
+import { EditUserRoleDialog } from '../components/EditUserRoleDialog';
 import ChangePasswordModal from '@/components/ChangePasswordModal';
+import { roleService } from '../services/roleService';
 
 const PAGE_SIZE = 10;
 
@@ -23,6 +25,14 @@ export default function UserListPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [createError, setCreateError] = useState('');
+  
+  const [selectedUserForRole, setSelectedUserForRole] = useState<User | null>(null);
+  const [editRoleError, setEditRoleError] = useState('');
+
+  const { data: roles = [], isLoading: isLoadingRoles } = useQuery({
+    queryKey: ['roles'],
+    queryFn: roleService.getAllRoles,
+  });
 
   const { data: pagedUsers, isLoading } = useQuery({
     queryKey: ['users', page, search],
@@ -34,13 +44,24 @@ export default function UserListPage() {
   const totalElements = pagedUsers?.totalElements ?? 0;
 
   const createMutation = useMutation({
-    mutationFn: userService.createTechnician,
+    mutationFn: userService.createUser,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       setIsCreateOpen(false);
       setCreateError('');
     },
     onError: (err: unknown) => setCreateError(getApiError(err, 'Tạo tài khoản thất bại')),
+  });
+
+  const editRoleMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: { roleId: number; customPermissions: string[] } }) => 
+      userService.updateRoleAndPermissions(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setSelectedUserForRole(null);
+      setEditRoleError('');
+    },
+    onError: (err: unknown) => setEditRoleError(getApiError(err, 'Cập nhật quyền thất bại')),
   });
 
   const toggleActiveMutation = useMutation({
@@ -73,7 +94,7 @@ export default function UserListPage() {
             <KeyRound size={16} className="mr-2" />Đổi mật khẩu
           </Button>
           <Button onClick={() => setIsCreateOpen(true)}>
-            <Plus size={16} className="mr-2" />Thêm kỹ thuật viên
+            <Plus size={16} className="mr-2" />Thêm tài khoản
           </Button>
         </div>
       </div>
@@ -93,10 +114,12 @@ export default function UserListPage() {
 
         <UserTable
           users={users}
-          isLoading={isLoading}
+          roles={roles}
+          isLoading={isLoading || isLoadingRoles}
           currentUserId={currentUser?.id}
           onToggleActive={handleToggleActive}
           onResetPassword={handleResetPassword}
+          onEditRole={setSelectedUserForRole}
           isTogglePending={toggleActiveMutation.isPending}
           isResetPending={resetPasswordMutation.isPending}
         />
@@ -119,6 +142,15 @@ export default function UserListPage() {
         onSubmit={createMutation.mutate}
         isPending={createMutation.isPending}
         error={createError}
+      />
+
+      <EditUserRoleDialog
+        user={selectedUserForRole}
+        open={selectedUserForRole !== null}
+        onOpenChange={(open) => !open && setSelectedUserForRole(null)}
+        onSubmit={(id, data) => editRoleMutation.mutate({ id, data })}
+        isPending={editRoleMutation.isPending}
+        error={editRoleError}
       />
 
       <ChangePasswordModal open={isChangePasswordOpen} onClose={() => setIsChangePasswordOpen(false)} />

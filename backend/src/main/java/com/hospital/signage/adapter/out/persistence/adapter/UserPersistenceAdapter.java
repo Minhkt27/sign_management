@@ -38,8 +38,8 @@ public class UserPersistenceAdapter implements UserDatabasePort {
     }
 
     @Override
-    public List<User> findByRole(com.hospital.signage.domain.enums.Role role) {
-        return repository.findByRole(role).stream()
+    public List<User> findByRoleId(Long roleId) {
+        return repository.findByRoleId(roleId).stream()
                 .map(mapper::toDomain)
                 .collect(java.util.stream.Collectors.toList());
     }

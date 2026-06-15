@@ -2,7 +2,7 @@ package com.hospital.signage.application.service;
 
 import com.hospital.signage.application.port.in.AuthUseCase;
 import com.hospital.signage.application.port.out.UserDatabasePort;
-import com.hospital.signage.domain.enums.Role;
+
 import com.hospital.signage.domain.model.User;
 import com.hospital.signage.infrastructure.security.JwtTokenProvider;
 import com.hospital.signage.infrastructure.security.LoginAttemptService;
@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import com.hospital.signage.application.port.out.RoleDatabasePort;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -25,6 +26,9 @@ class AuthServiceTest {
 
     @Mock
     private UserDatabasePort userDatabasePort;
+
+    @Mock
+    private RoleDatabasePort roleDatabasePort;
 
     @Mock
     private PasswordEncoder passwordEncoder;
@@ -46,7 +50,7 @@ class AuthServiceTest {
         activeUser.setId(1L);
         activeUser.setUsername("admin");
         activeUser.setPassword("hashed_password");
-        activeUser.setRole(Role.ADMIN);
+        activeUser.setRoleId(1L);
         activeUser.setIsActive(true);
     }
 
@@ -54,7 +58,7 @@ class AuthServiceTest {
     void login_withValidCredentials_returnsTokens() {
         when(userDatabasePort.findByUsername("admin")).thenReturn(Optional.of(activeUser));
         when(passwordEncoder.matches("plain", "hashed_password")).thenReturn(true);
-        when(jwtTokenProvider.generateToken("admin", "ADMIN")).thenReturn("access-token");
+        when(jwtTokenProvider.generateToken(eq("admin"), anyList())).thenReturn("access-token");
         when(jwtTokenProvider.generateRefreshToken("admin")).thenReturn("refresh-token");
         when(userDatabasePort.save(any())).thenReturn(activeUser);
 
@@ -99,7 +103,7 @@ class AuthServiceTest {
         activeUser.setRefreshToken("valid-refresh");
         when(jwtTokenProvider.extractUsername("valid-refresh")).thenReturn("admin");
         when(userDatabasePort.findByUsername("admin")).thenReturn(Optional.of(activeUser));
-        when(jwtTokenProvider.generateToken("admin", "ADMIN")).thenReturn("new-access-token");
+        when(jwtTokenProvider.generateToken(eq("admin"), anyList())).thenReturn("new-access-token");
 
         AuthUseCase.RefreshResult result = authService.refreshToken("valid-refresh");
 
@@ -145,7 +149,7 @@ class AuthServiceTest {
         when(loginAttemptService.isBlocked("admin")).thenReturn(false);
         when(userDatabasePort.findByUsername("admin")).thenReturn(Optional.of(activeUser));
         when(passwordEncoder.matches("plain", "hashed_password")).thenReturn(true);
-        when(jwtTokenProvider.generateToken("admin", "ADMIN")).thenReturn("access-token");
+        when(jwtTokenProvider.generateToken(eq("admin"), anyList())).thenReturn("access-token");
         when(jwtTokenProvider.generateRefreshToken("admin")).thenReturn("refresh-token");
         when(userDatabasePort.save(any())).thenReturn(activeUser);
 

@@ -2,8 +2,19 @@ export interface AuthUser {
   id: number;
   username: string;
   fullName: string;
-  role: 'ADMIN' | 'TECHNICAL';
+  roleId: number;
+  customPermissions: string[];
 }
+
+export const getPermissionsFromToken = (token: string | null): string[] => {
+  if (!token) return [];
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.permissions || [];
+  } catch {
+    return [];
+  }
+};
 
 export const authStore = {
   getUser: (): AuthUser | null => {

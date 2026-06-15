@@ -28,7 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(LocationController.class)
 @Import({ SecurityConfig.class, JwtAuthenticationFilter.class })
-@WithMockUser(username = "admin", roles = { "ADMIN" })
+@WithMockUser(username = "admin", authorities = {"MAP_MANAGE"})
 public class LocationControllerTest {
 
     @Autowired

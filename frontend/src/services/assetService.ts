@@ -32,8 +32,9 @@ export const assetService = {
     return response.data;
   },
 
-  getAssetsByLocation: async (locationId: number): Promise<Asset[]> => {
-    const response = await apiClient.get<Asset[]>(`/assets/location/${locationId}`);
+  getAssetsByLocation: async (locationId: number, page = 0, size = 50): Promise<PagedResponse<Asset>> => {
+    const params = new URLSearchParams({ page: String(page), size: String(size) });
+    const response = await apiClient.get<PagedResponse<Asset>>(`/assets/location/${locationId}?${params}`);
     return response.data;
   },
 

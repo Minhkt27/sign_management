@@ -42,7 +42,7 @@ public class FileUploadControllerTest {
     private UserDatabasePort userDatabasePort;
 
     @Test
-    @WithMockUser(roles = {"ADMIN"})
+    @WithMockUser(authorities = {"ASSET_MANAGE"})
     void upload_withValidFile_returns200() throws Exception {
         when(fileUploadUseCase.upload(any())).thenReturn("http://minio/bucket/file.jpg");
 
@@ -54,7 +54,7 @@ public class FileUploadControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = {"ADMIN"})
+    @WithMockUser(authorities = {"ASSET_MANAGE"})
     void upload_whenUseCaseThrowsIllegalArgument_returns400() throws Exception {
         when(fileUploadUseCase.upload(any())).thenThrow(new IllegalArgumentException("invalid"));
 
@@ -66,7 +66,7 @@ public class FileUploadControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = {"ADMIN"})
+    @WithMockUser(authorities = {"ASSET_MANAGE"})
     void upload_whenUseCaseThrowsRuntimeException_returns500() throws Exception {
         when(fileUploadUseCase.upload(any())).thenThrow(new RuntimeException("storage error"));
 
@@ -78,7 +78,7 @@ public class FileUploadControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = {"TECHNICAL"})
+    @WithMockUser(authorities = {"ASSET_MANAGE"})
     void upload_withTechnicianRole_returns200() throws Exception {
         when(fileUploadUseCase.upload(any())).thenReturn("http://localhost:9000/signage-assets/test.jpg");
 

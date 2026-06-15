@@ -1,7 +1,7 @@
 package com.hospital.signage.adapter.in.web;
 
 import com.hospital.signage.application.port.in.UserUseCase;
-import com.hospital.signage.domain.enums.Role;
+
 import com.hospital.signage.domain.model.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,7 +26,7 @@ public class UserController {
 
     @Operation(summary = "Danh sách người dùng (phân trang)")
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('USER_VIEW')")
     public ResponseEntity<PagedResponse<UserResponse>> getAllUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -37,24 +37,32 @@ public class UserController {
 
     @Operation(summary = "Danh sách kỹ thuật viên")
     @GetMapping("/technicians")
-    @PreAuthorize("hasAnyRole('ADMIN', 'TECHNICAL')")
+    @PreAuthorize("hasAuthority('USER_VIEW') or hasAuthority('TICKET_MANAGE')")
     public ResponseEntity<List<UserResponse>> getTechnicians() {
         return ResponseEntity.ok(userUseCase.getTechnicians().stream().map(UserResponse::from).toList());
     }
 
-    @Operation(summary = "Tạo tài khoản kỹ thuật viên")
+    @Operation(summary = "Tạo tài khoản")
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<UserResponse> createTechnician(@Valid @RequestBody CreateTechnicianRequest req) {
-        User user = userUseCase.createTechnician(
-                new UserUseCase.CreateTechnicianCommand(req.username(), req.fullName(), req.password())
+    @PreAuthorize("hasAuthority('USER_MANAGE')")
+    public ResponseEntity<UserResponse> createUser(@Valid @RequestBody CreateUserRequest req) {
+        User user = userUseCase.createUser(
+                new UserUseCase.CreateUserCommand(req.username(), req.fullName(), req.password(), req.roleId(), req.customPermissions())
         );
+        return ResponseEntity.ok(UserResponse.from(user));
+    }
+
+    @Operation(summary = "Sửa quyền và vai trò của tài khoản")
+    @PutMapping("/{id}/role-permissions")
+    @PreAuthorize("hasAuthority('USER_MANAGE')")
+    public ResponseEntity<UserResponse> updateRoleAndPermissions(@PathVariable Long id, @RequestBody UpdateRolePermissionsRequest req) {
+        User user = userUseCase.updateUserRoleAndPermissions(id, req.roleId(), req.customPermissions());
         return ResponseEntity.ok(UserResponse.from(user));
     }
 
     @Operation(summary = "Kích hoạt / vô hiệu hóa tài khoản")
     @PutMapping("/{id}/active")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('USER_MANAGE')")
     public ResponseEntity<UserResponse> setActive(@PathVariable Long id, @RequestBody SetActiveRequest req) {
         User user = userUseCase.setUserActive(id, req.active());
         return ResponseEntity.ok(UserResponse.from(user));
@@ -62,7 +70,7 @@ public class UserController {
 
     @Operation(summary = "Đặt lại mật khẩu về mặc định")
     @PutMapping("/{id}/reset-password")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('USER_MANAGE')")
     public ResponseEntity<Void> resetPassword(@PathVariable Long id) {
         try {
             userUseCase.resetPassword(id);
@@ -85,20 +93,23 @@ public class UserController {
         return ResponseEntity.ok().build();
     }
 
-    public record CreateTechnicianRequest(
+    public record CreateUserRequest(
             @NotBlank @Size(max = 100) String username,
             @NotBlank @Size(max = 200) String fullName,
-            @NotBlank @Size(min = 6, max = 200) String password
+            @NotBlank @Size(min = 6, max = 200) String password,
+            Long roleId,
+            java.util.List<String> customPermissions
     ) {}
+    public record UpdateRolePermissionsRequest(Long roleId, java.util.List<String> customPermissions) {}
     public record SetActiveRequest(boolean active) {}
     public record ChangePasswordRequest(
             @NotBlank String currentPassword,
             @NotBlank @Size(min = 6, max = 200) String newPassword
     ) {}
 
-    public record UserResponse(Long id, String username, String fullName, Role role, boolean isActive) {
+    public record UserResponse(Long id, String username, String fullName, Long roleId, boolean isActive) {
         static UserResponse from(User u) {
-            return new UserResponse(u.getId(), u.getUsername(), u.getFullName(), u.getRole(),
+            return new UserResponse(u.getId(), u.getUsername(), u.getFullName(), u.getRoleId(),
                     Boolean.TRUE.equals(u.getIsActive()));
         }
     }

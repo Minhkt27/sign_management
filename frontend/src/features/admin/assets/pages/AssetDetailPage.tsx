@@ -7,6 +7,7 @@ import { locationService } from '@/services/locationService';
 import { ticketService } from '@/services/ticketService';
 import { signTypeService } from '@/services/signTypeService';
 import { fileService } from '@/services/fileService';
+import { mapService } from '@/services/mapService';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
 import { PRIORITY_LABELS, TICKET_STATUS_LABELS } from '@/shared/helpers/ticketBadges';
 import { getFullLocationPath, resolveLocationLevels } from '@/shared/helpers/locationHelper';
@@ -14,7 +15,7 @@ import { Asset, Location, SignType } from '@/shared/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, QrCode, Calendar, Wrench, CheckCircle2, AlertCircle, HardDrive, PenTool, FileText, MapPin, Layers, Maximize2, Building, Image as ImageIcon, Plus } from 'lucide-react';
+import { ArrowLeft, QrCode, Calendar, Wrench, CheckCircle2, AlertCircle, HardDrive, PenTool, FileText, MapPin, Layers, Maximize2, Building, Image as ImageIcon, Plus, Map as MapIcon, Tag } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -29,33 +30,38 @@ export default function AssetDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [qrBaseUrl, setQrBaseUrl] = useState(() => {
+    return localStorage.getItem('qrBaseUrl') || window.location.origin;
+  });
+
+  const handleQrBaseUrlChange = (val: string) => {
+    setQrBaseUrl(val);
+    localStorage.setItem('qrBaseUrl', val);
+  };
   
-  // Editing State
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [assetCode, setAssetCode] = useState('');
-  const [assetName, setAssetName] = useState('');
-  const [description, setDescription] = useState('');
-  const [locationDescription, setLocationDescription] = useState('');
-  const [selectedBuildingId, setSelectedBuildingId] = useState<number | ''>('');
-  const [selectedFloorId, setSelectedFloorId] = useState<number | ''>('');
-  const [selectedRoomId, setSelectedRoomId] = useState<number | ''>('');
-  const [selectedSubRoomId, setSelectedSubRoomId] = useState<number | ''>('');
-  const locationId = selectedSubRoomId || selectedRoomId || selectedFloorId || selectedBuildingId || undefined;
-  const [editSignTypeId, setEditSignTypeId] = useState<number | undefined>(undefined);
-  const [material, setMaterial] = useState<'MICA' | 'INOX' | 'LED' | 'ALU'>('MICA');
-  const [size, setSize] = useState('');
-  const [supplier, setSupplier] = useState('');
-  const [installedAt, setInstalledAt] = useState('');
-  const [status, setStatus] = useState<Asset['status']>('ACTIVE');
+  const [isTicketDialogOpen, setIsTicketDialogOpen] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const qrRef = useRef<HTMLDivElement>(null);
 
-  // Create Ticket State
-  const [isTicketDialogOpen, setIsTicketDialogOpen] = useState(false);
-  const [ticketDesc, setTicketDesc] = useState('');
-  const [ticketPriority, setTicketPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM');
+  type EditForm = {
+    assetCode: string; assetName: string; description: string; locationDescription: string;
+    buildingId: number | ''; floorId: number | ''; roomId: number | ''; subRoomId: number | '';
+    signTypeId: number | undefined; material: 'MICA' | 'INOX' | 'LED' | 'ALU';
+    size: string; supplier: string; installedAt: string; status: Asset['status'];
+  };
+  const [editForm, setEditForm] = useState<EditForm>({
+    assetCode: '', assetName: '', description: '', locationDescription: '',
+    buildingId: '', floorId: '', roomId: '', subRoomId: '',
+    signTypeId: undefined, material: 'MICA', size: '', supplier: '', installedAt: '', status: 'ACTIVE',
+  });
+  const setField = <K extends keyof EditForm>(key: K, val: EditForm[K]) =>
+    setEditForm(prev => ({ ...prev, [key]: val }));
+  const locationId = editForm.subRoomId || editForm.roomId || editForm.floorId || editForm.buildingId || undefined;
+
+  const [ticketForm, setTicketForm] = useState({ desc: '', priority: 'MEDIUM' as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' });
 
   // Fetch Asset Detail
   const { data: asset, isLoading: isAssetLoading } = useQuery<Asset>({
@@ -68,6 +74,7 @@ export default function AssetDetailPage() {
   const { data: locations = [] } = useQuery<Location[]>({
     queryKey: ['locations'],
     queryFn: locationService.getAllLocations,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Fetch Tickets for this asset
@@ -82,30 +89,51 @@ export default function AssetDetailPage() {
   const { data: signTypes = [] } = useQuery<SignType[]>({
     queryKey: ['signTypes'],
     queryFn: signTypeService.getAllSignTypes,
+    staleTime: 5 * 60 * 1000,
   });
+
+  // Fetch linked map node (if asset is pinned on a floor map)
+  const { data: linkedNode } = useQuery({
+    queryKey: ['nodeByAsset', id],
+    queryFn: () => mapService.getNodeByAsset(id!),
+    enabled: !!id,
+    retry: false,
+  });
+
+  const { data: allFloors = [] } = useQuery({
+    queryKey: ['mapFloors'],
+    queryFn: mapService.getAllFloors,
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const linkedFloor = linkedNode ? allFloors.find(f => f.id === linkedNode.floorId) : undefined;
+  const linkedFloorName = linkedFloor
+    ? (locations.find(l => l.id === linkedFloor.locationId)?.name ?? `Sơ đồ #${linkedFloor.id}`)
+    : undefined;
 
   // Initialize edit fields when asset and locations are loaded
   useEffect(() => {
-    if (asset && locations.length > 0 && !assetCode) {
-      setAssetCode(asset.assetCode);
-      setAssetName(asset.name || '');
-      setDescription(asset.description || '');
-      setLocationDescription(asset.locationDescription || '');
-      
+    if (asset && locations.length > 0 && !editForm.assetCode) {
       const levels = resolveLocationLevels(asset.location?.id, locations);
-      setSelectedBuildingId(levels.buildingId);
-      setSelectedFloorId(levels.floorId);
-      setSelectedRoomId(levels.roomId);
-      setSelectedSubRoomId(levels.subRoomId);
-
-      setEditSignTypeId(asset.signTypeId);
-      setMaterial(asset.material);
-      setSize(asset.size);
-      setSupplier(asset.supplier || '');
-      setInstalledAt(asset.installedAt ? asset.installedAt.split('T')[0] : '');
-      setStatus(asset.status);
+      setEditForm({
+        assetCode: asset.assetCode,
+        assetName: asset.name || '',
+        description: asset.description || '',
+        locationDescription: asset.locationDescription || '',
+        buildingId: levels.buildingId,
+        floorId: levels.floorId,
+        roomId: levels.roomId,
+        subRoomId: levels.subRoomId,
+        signTypeId: asset.signTypeId,
+        material: asset.material,
+        size: asset.size,
+        supplier: asset.supplier || '',
+        installedAt: asset.installedAt ? asset.installedAt.split('T')[0] : '',
+        status: asset.status,
+      });
     }
-  }, [asset, locations, assetCode]);
+  }, [asset, locations]);
 
   const signTypeMap = new Map(signTypes.map(st => [st.id, st.name]));
 
@@ -127,8 +155,7 @@ export default function AssetDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['assetTickets', id] });
       queryClient.invalidateQueries({ queryKey: ['asset', id] });
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
-      setTicketDesc('');
-      setTicketPriority('MEDIUM');
+      setTicketForm({ desc: '', priority: 'MEDIUM' });
       setIsTicketDialogOpen(false);
     },
   });
@@ -145,17 +172,17 @@ export default function AssetDetailPage() {
       }
 
       updateMutation.mutate({
-        assetCode,
-        name: assetName,
-        description,
-        locationDescription,
+        assetCode: editForm.assetCode,
+        name: editForm.assetName,
+        description: editForm.description,
+        locationDescription: editForm.locationDescription,
         locationId,
-        signTypeId: editSignTypeId,
-        material,
-        size,
-        supplier,
-        installedAt: installedAt ? `${installedAt}T00:00:00` : undefined,
-        status,
+        signTypeId: editForm.signTypeId,
+        material: editForm.material,
+        size: editForm.size,
+        supplier: editForm.supplier,
+        installedAt: editForm.installedAt ? `${editForm.installedAt}T00:00:00` : undefined,
+        status: editForm.status,
         imageUrl: uploadedUrl || undefined,
       });
     } catch (err) {
@@ -167,12 +194,12 @@ export default function AssetDetailPage() {
 
   const handleCreateTicket = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id || !ticketDesc) return;
+    if (!id || !ticketForm.desc) return;
 
     createTicketMutation.mutate({
       assetId: id,
-      description: ticketDesc,
-      priority: ticketPriority,
+      description: ticketForm.desc,
+      priority: ticketForm.priority,
       source: 'MANUAL',
     });
   };
@@ -246,16 +273,36 @@ export default function AssetDetailPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Left Card: QR Code & Actions */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col items-center justify-between text-center space-y-6">
-          <div className="space-y-4">
+          <div className="space-y-4 w-full flex flex-col items-center">
             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Mã QR Biển Báo</h3>
             <div ref={qrRef} className="w-48 h-48 border-2 border-slate-200 rounded-xl p-3 bg-white flex flex-col items-center justify-center relative shadow-inner">
               <QRCode
-                value={`${window.location.origin}/tech/assets/${asset.assetCode}`}
+                value={`${qrBaseUrl}/scan/${asset.assetCode}`}
                 size={160}
                 level="M"
               />
             </div>
             <p className="text-xs text-slate-400 max-w-[200px]">Quét mã để truy cập thông tin biển trên điện thoại.</p>
+            
+            <div className="w-full space-y-1 text-left">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Base URL của QR</label>
+              <div className="flex gap-1.5 items-center">
+                <input
+                  value={qrBaseUrl}
+                  onChange={e => handleQrBaseUrlChange(e.target.value)}
+                  placeholder="https://xxxx.ngrok-free.app"
+                  className="flex-1 border border-slate-350 rounded-lg px-2.5 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-blue-500 bg-slate-50"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleQrBaseUrlChange(window.location.origin)}
+                  className="text-[10px] font-bold text-blue-600 hover:text-blue-800 whitespace-nowrap"
+                >
+                  Đặt lại
+                </button>
+              </div>
+            </div>
+
             <Button
               type="button"
               variant="outline"
@@ -298,7 +345,7 @@ export default function AssetDetailPage() {
                 </Button>
               } />
 
-              <DialogContent className="bg-white sm:max-w-[550px] rounded-2xl border-slate-100 p-0 overflow-hidden shadow-2xl">
+              <DialogContent className="bg-white sm:max-w-[620px] rounded-2xl border-slate-100 p-0 overflow-hidden shadow-2xl">
                 <form onSubmit={handleUpdateAsset} className="flex flex-col h-full">
                   <div className="bg-slate-50/80 backdrop-blur px-6 py-5 border-b border-slate-100">
                     <DialogHeader>
@@ -312,24 +359,31 @@ export default function AssetDetailPage() {
                     </DialogHeader>
                   </div>
 
-                  <div className="px-6 py-5 space-y-4 text-left max-h-[480px] overflow-y-auto">
-                    <div className="grid grid-cols-2 gap-4">
+                  <div className="px-6 py-5 space-y-5 text-left max-h-[500px] overflow-y-auto">
+                    {/* Mã và Trạng thái */}
+                    <div className="bg-blue-50/30 border border-blue-100/50 p-4 rounded-xl grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">Mã biển hiệu</label>
+                        <label className="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center space-x-1 mb-2">
+                          <Tag size={13} />
+                          <span>Mã biển hiệu</span>
+                        </label>
                         <Input
                           id="edit-asset-code"
                           required
-                          value={assetCode}
-                          onChange={(e) => setAssetCode(e.target.value)}
-                          className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg bg-slate-50 font-medium"
+                          value={editForm.assetCode}
+                          onChange={(e) => setField('assetCode', e.target.value)}
+                          className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg bg-white font-medium"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">Trạng thái</label>
+                        <label className="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center space-x-1 mb-2">
+                          <AlertCircle size={13} />
+                          <span>Trạng thái</span>
+                        </label>
                         <select
                           id="edit-asset-status"
-                          value={status}
-                          onChange={(e) => setStatus(e.target.value as any)}
+                          value={editForm.status}
+                          onChange={(e) => setField('status', e.target.value as Asset['status'])}
                           className="w-full border border-slate-200 bg-white text-slate-750 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300"
                         >
                           <option value="ACTIVE">Hoạt động</option>
@@ -340,200 +394,76 @@ export default function AssetDetailPage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    {/* Thông tin biển báo */}
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100 pb-1.5">
+                        Thông tin biển báo
+                      </h4>
+                      
                       <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">Tên biển</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
+                          <Tag size={13} className="text-slate-400" />
+                          <span>Tên biển báo *</span>
+                        </label>
                         <Input
-                          placeholder="Tên hiển thị của biển..."
-                          value={assetName}
-                          onChange={(e) => setAssetName(e.target.value)}
+                          required
+                          placeholder="Ví dụ: Biển phòng khám 101..."
+                          value={editForm.assetName}
+                          onChange={(e) => setField('assetName', e.target.value)}
                           className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg"
                         />
                       </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">Loại biển</label>
-                        <select
-                          value={editSignTypeId ?? ''}
-                          onChange={(e) => setEditSignTypeId(e.target.value ? Number(e.target.value) : undefined)}
-                          className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300"
-                        >
-                          <option value="">— Không phân loại —</option>
-                          {signTypes.map(st => (
-                            <option key={st.id} value={st.id}>{st.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
 
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
-                        <Calendar size={13} className="text-slate-400" />
-                        <span>Ngày lắp đặt</span>
-                      </label>
-                      <Input
-                        type="date"
-                        value={installedAt}
-                        onChange={(e) => setInstalledAt(e.target.value)}
-                        className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
-                        <FileText size={13} className="text-slate-400" />
-                        <span>Mô tả biển báo *</span>
-                      </label>
-                      <Input
-                        id="edit-asset-description"
-                        required
-                        placeholder="Mô tả hiển thị trên biển báo..."
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="block text-xs font-bold text-slate-500 flex items-center space-x-1">
-                        <MapPin size={13} className="text-slate-400" />
-                        <span>Vị trí lắp đặt *</span>
-                      </label>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <span className="block text-xs font-bold text-slate-400 uppercase mb-1">Tòa nhà</span>
+                          <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
+                            <Layers size={13} className="text-slate-400" />
+                            <span>Loại biển</span>
+                          </label>
                           <select
-                            value={selectedBuildingId}
-                            onChange={(e) => {
-                              const val = e.target.value ? Number(e.target.value) : '';
-                              setSelectedBuildingId(val);
-                              setSelectedFloorId('');
-                              setSelectedRoomId('');
-                              setSelectedSubRoomId('');
-                            }}
-                            className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            value={editForm.signTypeId ?? ''}
+                            onChange={(e) => setField('signTypeId', e.target.value ? Number(e.target.value) : undefined)}
+                            className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300"
                           >
-                            <option value="">— Chọn Tòa nhà —</option>
-                            {locations.filter(loc => loc.parentId === null).map(loc => (
-                              <option key={loc.id} value={loc.id}>{loc.name}</option>
+                            <option value="">— Không phân loại —</option>
+                            {signTypes.map(st => (
+                              <option key={st.id} value={st.id}>{st.name}</option>
                             ))}
                           </select>
                         </div>
                         <div>
-                          <span className="block text-xs font-bold text-slate-400 uppercase mb-1">Tầng</span>
+                          <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
+                            <Layers size={13} className="text-slate-400" />
+                            <span>Chất liệu</span>
+                          </label>
                           <select
-                            disabled={!selectedBuildingId}
-                            value={selectedFloorId}
-                            onChange={(e) => {
-                              const val = e.target.value ? Number(e.target.value) : '';
-                              setSelectedFloorId(val);
-                              setSelectedRoomId('');
-                              setSelectedSubRoomId('');
-                            }}
-                            className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+                            id="edit-asset-material"
+                            value={editForm.material}
+                            onChange={(e) => setField('material', e.target.value as EditForm['material'])}
+                            className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300"
                           >
-                            <option value="">— Chọn Tầng —</option>
-                            {locations.filter(loc => loc.parentId === selectedBuildingId).map(loc => (
-                              <option key={loc.id} value={loc.id}>{loc.name}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <span className="block text-xs font-bold text-slate-400 uppercase mb-1">Khoa (tuỳ chọn)</span>
-                          <select
-                            disabled={!selectedFloorId}
-                            value={selectedRoomId}
-                            onChange={(e) => {
-                              const val = e.target.value ? Number(e.target.value) : '';
-                              setSelectedRoomId(val);
-                              setSelectedSubRoomId('');
-                            }}
-                            className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
-                          >
-                            <option value="">— Chọn Khoa —</option>
-                            {locations.filter(loc => loc.parentId === selectedFloorId).map(loc => (
-                              <option key={loc.id} value={loc.id}>{loc.name}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <span className="block text-xs font-bold text-slate-400 uppercase mb-1">Phòng (nếu có)</span>
-                          <select
-                            disabled={!selectedRoomId || locations.filter(loc => loc.parentId === selectedRoomId).length === 0}
-                            value={selectedSubRoomId}
-                            onChange={(e) => setSelectedSubRoomId(e.target.value ? Number(e.target.value) : '')}
-                            className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
-                          >
-                            <option value="">— Chọn Phòng —</option>
-                            {locations.filter(loc => loc.parentId === selectedRoomId).map(loc => (
-                              <option key={loc.id} value={loc.id}>{loc.name}</option>
-                            ))}
+                            <option value="MICA">MICA</option>
+                            <option value="INOX">INOX</option>
+                            <option value="LED">LED</option>
+                            <option value="ALU">ALU</option>
                           </select>
                         </div>
                       </div>
-                      {!locationId && <p className="text-xs text-rose-500 font-medium">Vui lòng chọn ít nhất Tòa nhà.</p>}
-                    </div>
 
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
-                        <Building size={13} className="text-slate-400" />
-                        <span>Nhà cung cấp</span>
-                      </label>
-                      <Input
-                        placeholder="Đơn vị sản xuất..."
-                        value={supplier}
-                        onChange={(e) => setSupplier(e.target.value)}
-                        className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
-                        <ImageIcon size={13} className="text-slate-400" />
-                        <span>Hình ảnh biển báo mới</span>
-                      </label>
-                      <input
-                        id="edit-asset-image"
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                        className="w-full text-xs text-slate-550 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
-                        <MapPin size={13} className="text-slate-400" />
-                        <span>Mô tả cụ thể vị trí lắp đặt *</span>
-                      </label>
-                      <textarea
-                        id="edit-asset-location-description"
-                        required
-                        rows={2}
-                        placeholder="Mô tả cụ thể vị trí lắp đặt..."
-                        value={locationDescription}
-                        onChange={(e) => setLocationDescription(e.target.value)}
-                        className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300 transition-colors"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
-                          <Layers size={13} className="text-slate-400" />
-                          <span>Chất liệu</span>
+                          <FileText size={13} className="text-slate-400" />
+                          <span>Mô tả biển báo</span>
                         </label>
-                        <select
-                          id="edit-asset-material"
-                          value={material}
-                          onChange={(e) => setMaterial(e.target.value as any)}
-                          className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300"
-                        >
-                          <option value="MICA">MICA</option>
-                          <option value="INOX">INOX</option>
-                          <option value="LED">LED</option>
-                          <option value="ALU">ALU</option>
-                        </select>
+                        <Input
+                          id="edit-asset-description"
+                          placeholder="Mô tả chi tiết..."
+                          value={editForm.description}
+                          onChange={(e) => setField('description', e.target.value)}
+                          className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg"
+                        />
                       </div>
+
                       <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
                           <Maximize2 size={13} className="text-slate-400" />
@@ -542,9 +472,148 @@ export default function AssetDetailPage() {
                         <Input
                           id="edit-asset-size"
                           required
-                          value={size}
-                          onChange={(e) => setSize(e.target.value)}
+                          placeholder="Ví dụ: 40x30 cm"
+                          value={editForm.size}
+                          onChange={(e) => setField('size', e.target.value)}
                           className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
+                            <Building size={13} className="text-slate-400" />
+                            <span>Nhà cung cấp</span>
+                          </label>
+                          <Input
+                            placeholder="Đơn vị sản xuất..."
+                            value={editForm.supplier}
+                            onChange={(e) => setField('supplier', e.target.value)}
+                            className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
+                            <Calendar size={13} className="text-slate-400" />
+                            <span>Ngày lắp đặt</span>
+                          </label>
+                          <Input
+                            type="date"
+                            value={editForm.installedAt}
+                            onChange={(e) => setField('installedAt', e.target.value)}
+                            className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Vị trí lắp đặt */}
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100 pb-1.5">
+                        Vị trí lắp đặt chi tiết
+                      </h4>
+                      
+                      <div className="space-y-3">
+                        <label className="block text-xs font-bold text-slate-655 flex items-center space-x-1">
+                          <MapPin size={13} className="text-slate-400" />
+                          <span>Vị trí lắp đặt *</span>
+                        </label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Tòa nhà</span>
+                            <select
+                              value={editForm.buildingId}
+                              onChange={(e) => {
+                                const val = e.target.value ? Number(e.target.value) : '';
+                                setEditForm(prev => ({ ...prev, buildingId: val, floorId: '', roomId: '', subRoomId: '' }));
+                              }}
+                              className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300"
+                            >
+                              <option value="">— Chọn Tòa nhà —</option>
+                              {locations.filter(loc => loc.parentId === null).map(loc => (
+                                <option key={loc.id} value={loc.id}>{loc.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Tầng</span>
+                            <select
+                              disabled={!editForm.buildingId}
+                              value={editForm.floorId}
+                              onChange={(e) => {
+                                const val = e.target.value ? Number(e.target.value) : '';
+                                setEditForm(prev => ({ ...prev, floorId: val, roomId: '', subRoomId: '' }));
+                              }}
+                              className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+                            >
+                              <option value="">— Chọn Tầng —</option>
+                              {locations.filter(loc => loc.parentId === editForm.buildingId).map(loc => (
+                                <option key={loc.id} value={loc.id}>{loc.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Khoa / Phòng ban</span>
+                            <select
+                              disabled={!editForm.floorId}
+                              value={editForm.roomId}
+                              onChange={(e) => {
+                                const val = e.target.value ? Number(e.target.value) : '';
+                                setEditForm(prev => ({ ...prev, roomId: val, subRoomId: '' }));
+                              }}
+                              className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+                            >
+                              <option value="">— Chọn Khoa (tuỳ chọn) —</option>
+                              {locations.filter(loc => loc.parentId === editForm.floorId).map(loc => (
+                                <option key={loc.id} value={loc.id}>{loc.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Phòng cụ thể</span>
+                            <select
+                              disabled={!editForm.roomId || locations.filter(loc => loc.parentId === editForm.roomId).length === 0}
+                              value={editForm.subRoomId}
+                              onChange={(e) => setField('subRoomId', e.target.value ? Number(e.target.value) : '')}
+                              className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+                            >
+                              <option value="">— Chọn Phòng (nếu có) —</option>
+                              {locations.filter(loc => loc.parentId === editForm.roomId).map(loc => (
+                                <option key={loc.id} value={loc.id}>{loc.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        {!locationId && <p className="text-xs text-rose-500 font-medium mt-1">Vui lòng chọn ít nhất Tòa nhà.</p>}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
+                          <MapPin size={13} className="text-slate-400" />
+                          <span>Mô tả cụ thể vị trí lắp đặt *</span>
+                        </label>
+                        <textarea
+                          id="edit-asset-location-description"
+                          required
+                          rows={2}
+                          placeholder="Ví dụ: Treo trên tường hành lang, cạnh thang máy tầng 1..."
+                          value={editForm.locationDescription}
+                          onChange={(e) => setField('locationDescription', e.target.value)}
+                          className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-slate-300 transition-colors"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-1">
+                          <ImageIcon size={13} className="text-slate-400" />
+                          <span>Hình ảnh biển báo mới</span>
+                        </label>
+                        <input
+                          id="edit-asset-image"
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                          className="w-full text-xs text-slate-550 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
                         />
                       </div>
                     </div>
@@ -594,16 +663,16 @@ export default function AssetDetailPage() {
                         required
                         rows={3}
                         placeholder="Mô tả chi tiết tình trạng hư hỏng..."
-                        value={ticketDesc}
-                        onChange={(e) => setTicketDesc(e.target.value)}
+                        value={ticketForm.desc}
+                        onChange={(e) => setTicketForm(prev => ({ ...prev, desc: e.target.value }))}
                         className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Độ ưu tiên</label>
                       <select
-                        value={ticketPriority}
-                        onChange={(e) => setTicketPriority(e.target.value as any)}
+                        value={ticketForm.priority}
+                        onChange={(e) => setTicketForm(prev => ({ ...prev, priority: e.target.value as typeof ticketForm.priority }))}
                         className="w-full border border-slate-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                       >
                         <option value="LOW">Thấp (Low)</option>
@@ -683,6 +752,26 @@ export default function AssetDetailPage() {
               </p>
             </div>
           </div>
+
+          {linkedNode && (
+            <div className="col-span-2 bg-slate-50/50 p-4 rounded-xl border border-slate-100/80 flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <MapIcon size={14} className="text-blue-500" />
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Vị trí trên sơ đồ</span>
+              </div>
+              <div className="flex items-center gap-3">
+                {linkedFloorName && (
+                  <span className="text-sm font-semibold text-slate-700">{linkedFloorName}</span>
+                )}
+                <button
+                  onClick={() => navigate(`/admin/assets/tree/map/${linkedNode.floorId}/edit?nodeId=${linkedNode.id}`)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  <MapIcon size={13} /> Xem trên sơ đồ
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

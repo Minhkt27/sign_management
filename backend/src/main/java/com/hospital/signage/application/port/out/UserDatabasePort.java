@@ -1,6 +1,6 @@
 package com.hospital.signage.application.port.out;
 
-import com.hospital.signage.domain.enums.Role;
+
 import com.hospital.signage.domain.model.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,7 +12,7 @@ public interface UserDatabasePort {
     User save(User user);
     Optional<User> findById(Long id);
     Optional<User> findByUsername(String username);
-    List<User> findByRole(Role role);
+    List<User> findByRoleId(Long roleId);
     List<User> findAll();
     Page<User> findPage(String search, Pageable pageable);
 }

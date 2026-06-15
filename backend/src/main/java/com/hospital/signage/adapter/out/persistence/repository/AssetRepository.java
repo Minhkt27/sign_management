@@ -8,20 +8,28 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.jpa.repository.EntityGraph;
+
 @Repository
 public interface AssetRepository extends JpaRepository<AssetEntity, UUID> {
+    
+    @EntityGraph(attributePaths = {"location"})
     Optional<AssetEntity> findByAssetCode(String assetCode);
-    List<AssetEntity> findByLocationId(Long locationId);
-    List<AssetEntity> findBySignTypeId(Long signTypeId);
+
+    @EntityGraph(attributePaths = {"location"})
+    Page<AssetEntity> findByLocationId(Long locationId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"location"})
+    Page<AssetEntity> findBySignTypeId(Long signTypeId, Pageable pageable);
+
     boolean existsByLocationId(Long locationId);
     boolean existsBySignTypeId(Long signTypeId);
 
-    @Query(value = "SELECT * FROM assets WHERE unaccent(asset_code) ILIKE unaccent('%' || :search || '%') OR unaccent(COALESCE(name, '')) ILIKE unaccent('%' || :search || '%') ORDER BY created_at DESC",
-           countQuery = "SELECT count(*) FROM assets WHERE unaccent(asset_code) ILIKE unaccent('%' || :search || '%') OR unaccent(COALESCE(name, '')) ILIKE unaccent('%' || :search || '%')",
+    @Query(value = "SELECT * FROM assets WHERE f_unaccent(asset_code) ILIKE f_unaccent('%' || :search || '%') OR f_unaccent(COALESCE(name, '')) ILIKE f_unaccent('%' || :search || '%') ORDER BY created_at DESC",
+           countQuery = "SELECT count(*) FROM assets WHERE f_unaccent(asset_code) ILIKE f_unaccent('%' || :search || '%') OR f_unaccent(COALESCE(name, '')) ILIKE f_unaccent('%' || :search || '%')",
            nativeQuery = true)
     Page<AssetEntity> search(@Param("search") String search, Pageable pageable);
 }
