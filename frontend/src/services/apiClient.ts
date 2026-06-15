@@ -5,10 +5,10 @@ interface RetryableRequest extends InternalAxiosRequestConfig {
   _retry?: boolean;
 }
 
-const baseHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
-if (import.meta.env.DEV || import.meta.env.VITE_USE_NGROK === 'true') {
-  baseHeaders['ngrok-skip-browser-warning'] = 'true';
-}
+const baseHeaders: Record<string, string> = {
+  'Content-Type': 'application/json',
+  'ngrok-skip-browser-warning': 'true',
+};
 
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',

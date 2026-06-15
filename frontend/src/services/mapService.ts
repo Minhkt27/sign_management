@@ -5,6 +5,8 @@ export const mapService = {
   // Floors
   getAllFloors: () => apiClient.get<MapFloor[]>('/map/floors').then(r => r.data),
   getFloorData: (id: number) => apiClient.get<MapFloorData>(`/map/floors/${id}`).then(r => r.data),
+  getFloorDataBatch: (ids: number[]) =>
+    apiClient.get<MapFloorData[]>(`/map/floors/batch?ids=${ids.join(',')}`).then(r => r.data),
   getFloorByLocation: (locationId: number) =>
     apiClient.get<MapFloorData>(`/map/floors/by-location/${locationId}`).then(r => r.data),
   createFloor: (data: { locationId: number; imageUrl: string; imgWidth: number; imgHeight: number }) =>

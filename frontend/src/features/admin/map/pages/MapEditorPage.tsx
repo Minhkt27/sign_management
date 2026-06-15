@@ -61,7 +61,7 @@ export default function MapEditorPage() {
 
   const { data: allFloorData = [] } = useQuery({
     queryKey: ['mapAllFloorData', otherFloors.map(f => f.id)],
-    queryFn: () => Promise.all(otherFloors.map(f => mapService.getFloorData(f.id))),
+    queryFn: () => mapService.getFloorDataBatch(otherFloors.map(f => f.id)),
     enabled: otherFloors.length > 0 && isTransitNode,
   });
 

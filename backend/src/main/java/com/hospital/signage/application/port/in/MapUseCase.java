@@ -18,6 +18,7 @@ public interface MapUseCase {
     List<MapFloor> getAllFloors();
     void deleteFloor(Long id);
     MapFloorData getFloorData(Long floorId);
+    List<MapFloorData> getFloorDataBatch(List<Long> floorIds);
 
     // Node
     MapNode createNode(MapNode node);

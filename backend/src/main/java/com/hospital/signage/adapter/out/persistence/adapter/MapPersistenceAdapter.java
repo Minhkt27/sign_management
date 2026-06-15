@@ -52,6 +52,11 @@ public class MapPersistenceAdapter implements MapDatabasePort {
     }
 
     @Override
+    public List<MapFloor> findFloorsByIds(List<Long> ids) {
+        return floorRepository.findAllById(ids).stream().map(floorMapper::toDomain).collect(Collectors.toList());
+    }
+
+    @Override
     public void deleteFloorById(Long id) {
         floorRepository.deleteById(id);
     }
@@ -71,6 +76,11 @@ public class MapPersistenceAdapter implements MapDatabasePort {
     @Override
     public List<MapNode> findNodesByFloorId(Long floorId) {
         return nodeRepository.findByFloorId(floorId).stream().map(nodeMapper::toDomain).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<MapNode> findNodesByFloorIds(List<Long> floorIds) {
+        return nodeRepository.findByFloorIdIn(floorIds).stream().map(nodeMapper::toDomain).collect(Collectors.toList());
     }
 
     @Override
@@ -103,6 +113,11 @@ public class MapPersistenceAdapter implements MapDatabasePort {
     @Override
     public List<MapEdge> findEdgesByFloorId(Long floorId) {
         return edgeRepository.findByFloorId(floorId).stream().map(edgeMapper::toDomain).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<MapEdge> findEdgesByFloorIds(List<Long> floorIds) {
+        return edgeRepository.findByFloorIds(floorIds).stream().map(edgeMapper::toDomain).collect(Collectors.toList());
     }
 
     @Override

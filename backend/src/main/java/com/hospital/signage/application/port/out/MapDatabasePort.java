@@ -15,12 +15,14 @@ public interface MapDatabasePort {
     Optional<MapFloor> findFloorById(Long id);
     Optional<MapFloor> findFloorByLocationId(Long locationId);
     List<MapFloor> findAllFloors();
+    List<MapFloor> findFloorsByIds(List<Long> ids);
     void deleteFloorById(Long id);
 
     // Node
     MapNode saveNode(MapNode node);
     Optional<MapNode> findNodeById(Long id);
     List<MapNode> findNodesByFloorId(Long floorId);
+    List<MapNode> findNodesByFloorIds(List<Long> floorIds);
     Optional<MapNode> findNodeByAssetId(UUID assetId);
     Optional<MapNode> findNodeByLocationId(Long locationId);
     void deleteNodeById(Long id);
@@ -29,6 +31,7 @@ public interface MapDatabasePort {
     MapEdge saveEdge(MapEdge edge);
     Optional<MapEdge> findEdgeById(Long id);
     List<MapEdge> findEdgesByFloorId(Long floorId);
+    List<MapEdge> findEdgesByFloorIds(List<Long> floorIds);
     List<MapEdge> findAllEdges();
     void deleteEdgeById(Long id);
 

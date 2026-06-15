@@ -40,6 +40,12 @@ public class MapController {
         return ResponseEntity.ok(mapUseCase.getFloorData(id));
     }
 
+    @Operation(summary = "Lấy nhiều sơ đồ tầng theo danh sách ID (batch)")
+    @GetMapping("/floors/batch")
+    public ResponseEntity<List<MapFloorData>> getFloorDataBatch(@RequestParam List<Long> ids) {
+        return ResponseEntity.ok(mapUseCase.getFloorDataBatch(ids));
+    }
+
     @Operation(summary = "Sơ đồ tầng theo locationId")
     @GetMapping("/floors/by-location/{locationId}")
     public ResponseEntity<MapFloorData> getFloorByLocation(@PathVariable Long locationId) {

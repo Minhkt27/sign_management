@@ -1,11 +1,5 @@
 import { MapNode, MapFloorData, Location, MapFloor } from '@/shared/types';
 
-// Node coordinates are normalised 0–1. These thresholds are in that space.
-// DOOR_PROXIMITY: junction nằm sát cửa phòng (≈ 5% chiều dài floor map)
-const DOOR_PROXIMITY = 0.05;
-// NEARBY_ROOM: ngưỡng "gần nhất" để gợi ý tên landmark khi không có cửa trực tiếp
-const NEARBY_ROOM_PROXIMITY = 0.12;
-
 export type PathStep = {
   node: MapNode;
   icon: string;
@@ -67,51 +61,70 @@ export const buildSteps = (
   const nm = (n: MapNode) => displayName(n, locations);
   const fn = (fid: number) => floorName(fid, floors, locations);
 
-  const getFloorNodes = (node: MapNode): MapNode[] => {
-    if (!node) return [];
-    return allFloorData.find(fd => fd?.nodes?.some(n => n?.id === node.id))?.nodes ?? [];
-  };
-
-  // Trả về node cửa phòng gần nhất kèm tên
-  const doorOfNode = (node: MapNode, fNodes: MapNode[]): NearbyNode => {
-    let best: { name: string; node: MapNode; dist: number } | null = null;
-    for (const n of fNodes) {
-      if (!n || n.id === node.id) continue;
-      if (n.type !== 'ROOM' && n.type !== 'DEPARTMENT') continue;
-      const lbl = nm(n); if (!lbl) continue;
-      const dist = Math.hypot(n.x - node.x, n.y - node.y);
-      if (!best || dist < best.dist) best = { name: lbl, node: n, dist };
+  // Lookup nhanh: nodeId → node object và type
+  const nodeMap = new Map<number, MapNode>();
+  const nodeTypeMap = new Map<number, string>();
+  for (const fd of allFloorData) {
+    for (const n of fd.nodes ?? []) {
+      if (n) { nodeMap.set(n.id, n); nodeTypeMap.set(n.id, n.type); }
     }
-    return best && best.dist < DOOR_PROXIMITY ? { name: `cửa ${best.name}`, node: best.node } : null;
-  };
+  }
 
-  // Trả về node phòng gần nhất trong ngưỡng NEARBY_ROOM_PROXIMITY.
-  // Bỏ qua ELEVATOR/STAIRS (waypoint điều hướng, không phải landmark phòng)
-  // và bỏ qua excludeId (thường là node vừa rời khỏi, tránh quay lại phía sau lưng)
-  const nearbyRoomNode = (node: MapNode, fNodes: MapNode[], excludeId?: number): NearbyNode => {
-    let best: { name: string; node: MapNode; dist: number } | null = null;
-    for (const n of fNodes) {
-      if (!n || n.id === node.id) continue;
-      if (excludeId !== undefined && n.id === excludeId) continue;
-      if (n.type === 'ELEVATOR' || n.type === 'STAIRS') continue;
-      const lbl = nm(n); if (!lbl) continue;
-      const dist = Math.hypot(n.x - node.x, n.y - node.y);
-      if (!best || dist < best.dist) best = { name: lbl, node: n, dist };
+  // adjacencyMap: nodeId → danh sách neighbor id (từ edges, có bidirectional)
+  // navDegreeMap: số cạnh JUNCTION↔JUNCTION — dùng để xác định ngã 3/4/cuối đường
+  const NAV_TYPES = new Set(['JUNCTION', 'ENTRANCE']);
+  const adjacencyMap = new Map<number, number[]>();
+  const navDegreeMap = new Map<number, number>();
+  for (const fd of allFloorData) {
+    for (const edge of fd.edges ?? []) {
+      if (!edge) continue;
+      const { nodeFromId: f, nodeToId: t, bidirectional: bi } = edge;
+      if (!adjacencyMap.has(f)) adjacencyMap.set(f, []);
+      adjacencyMap.get(f)!.push(t);
+      if (bi) {
+        if (!adjacencyMap.has(t)) adjacencyMap.set(t, []);
+        adjacencyMap.get(t)!.push(f);
+      }
+      const ft = nodeTypeMap.get(f), tt = nodeTypeMap.get(t);
+      if (NAV_TYPES.has(ft ?? '') && NAV_TYPES.has(tt ?? '')) {
+        navDegreeMap.set(f, (navDegreeMap.get(f) ?? 0) + 1);
+        if (bi) navDegreeMap.set(t, (navDegreeMap.get(t) ?? 0) + 1);
+      }
     }
-    return best && best.dist < NEARBY_ROOM_PROXIMITY ? { name: best.name, node: best.node } : null;
+  }
+
+  // Phòng/khoa nối trực tiếp qua cạnh đồ thị — không dùng proximity/radius
+  const connectedRoom = (node: MapNode, excludeId?: number): NearbyNode => {
+    for (const nid of adjacencyMap.get(node.id) ?? []) {
+      if (excludeId !== undefined && nid === excludeId) continue;
+      const t = nodeTypeMap.get(nid);
+      if (t !== 'ROOM' && t !== 'DEPARTMENT') continue;
+      const n = nodeMap.get(nid);
+      if (!n) continue;
+      const lbl = nm(n);
+      if (lbl) return { name: lbl, node: n };
+    }
+    return null;
   };
 
-  // Landmark tốt nhất của một node: ưu tiên tên chính → cửa phòng → phòng gần nhất.
-  // excludeId: bỏ qua node cụ thể (thường là node vừa xuất phát)
+  // Landmark: tên chính của node → phòng nối trực tiếp qua cạnh → null
   const landmarkOf = (node: MapNode, excludeId?: number): NearbyNode => {
     const selfName = nm(node);
     if (selfName) return { name: selfName, node };
-    const fNodes = getFloorNodes(node);
-    return doorOfNode(node, fNodes) ?? nearbyRoomNode(node, fNodes, excludeId);
+    return connectedRoom(node, excludeId);
   };
 
-  // Chỉ cần tên landmark (dùng cho mô tả rẽ), bỏ qua prevId để tránh tham chiếu node phía sau lưng
   const junctionMark = (node: MapNode, prevId?: number): string | null => landmarkOf(node, prevId)?.name ?? null;
+
+  // Mô tả topo điểm rẽ khi không có landmark: dựa trên số cạnh JUNCTION↔JUNCTION
+  const topoLabel = (node: MapNode): string | null => {
+    if (!NAV_TYPES.has(node.type)) return null;
+    const deg = navDegreeMap.get(node.id) ?? 0;
+    if (deg <= 2) return 'cuối đường';
+    if (deg === 3) return 'ngã 3';
+    if (deg === 4) return 'ngã 4';
+    return null;
+  };
 
   steps.push({ node: path[0], icon: '📍', text: `Bắt đầu tại ${nm(path[0]) ?? 'điểm xuất phát'}` });
 
@@ -162,7 +175,10 @@ export const buildSteps = (
         ? `Đi thẳng${dist}, thấy ${lm.name} bên tay ${side}`
         : `Đi thẳng${dist} đến ${lm.name}`;
     } else {
-      text = dist ? `Đi thẳng${dist}` : 'Đi thẳng';
+      const topo = topoLabel(toNode);
+      text = topo
+        ? `Đi thẳng đến ${topo}`
+        : (dist ? `Đi thẳng${dist}` : 'Đi thẳng');
     }
 
     lastStraightDest = lm?.name ?? null;
@@ -261,8 +277,7 @@ export const buildSteps = (
         ? `Đi thẳng${dist} đến cửa ${finalName}`
         : `Đi thẳng${dist}`;
     } else {
-      const fNodes  = getFloorNodes(secondLast);
-      const lm = doorOfNode(secondLast, fNodes) ?? landmarkOf(last);
+      const lm = connectedRoom(secondLast) ?? landmarkOf(last);
       if (lm) {
         const side = lm.node.id !== last.id ? sideOf(fromNode, last, lm.node) : null;
         text = side

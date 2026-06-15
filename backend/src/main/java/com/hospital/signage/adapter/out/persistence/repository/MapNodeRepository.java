@@ -11,6 +11,7 @@ import java.util.UUID;
 @Repository
 public interface MapNodeRepository extends JpaRepository<MapNodeEntity, Long> {
     List<MapNodeEntity> findByFloorId(Long floorId);
+    List<MapNodeEntity> findByFloorIdIn(List<Long> floorIds);
     Optional<MapNodeEntity> findByAssetId(UUID assetId);
     Optional<MapNodeEntity> findByLocationId(Long locationId);
 }

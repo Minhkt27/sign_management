@@ -78,6 +78,40 @@ public class MapService implements MapUseCase {
         return new MapFloorData(floor, nodes, edges);
     }
 
+    @Override
+    public List<MapFloorData> getFloorDataBatch(List<Long> floorIds) {
+        if (floorIds == null || floorIds.isEmpty()) return Collections.emptyList();
+        List<MapFloor> floors = mapDatabasePort.findFloorsByIds(floorIds);
+        List<MapNode> allNodes = mapDatabasePort.findNodesByFloorIds(floorIds);
+        List<MapEdge> allEdges = mapDatabasePort.findEdgesByFloorIds(floorIds);
+
+        Map<Long, List<MapNode>> nodesByFloor = allNodes.stream()
+                .collect(Collectors.groupingBy(MapNode::getFloorId));
+
+        // nodeId → floorId lookup for efficient edge grouping
+        Map<Long, Long> nodeFloorMap = allNodes.stream()
+                .collect(Collectors.toMap(MapNode::getId, MapNode::getFloorId));
+
+        // Edge belongs to a floor if either endpoint is on that floor (same logic as findByFloorId)
+        Map<Long, List<MapEdge>> edgesByFloor = new HashMap<>();
+        for (MapEdge edge : allEdges) {
+            Long fromFloor = nodeFloorMap.get(edge.getNodeFromId());
+            Long toFloor   = nodeFloorMap.get(edge.getNodeToId());
+            if (fromFloor != null) edgesByFloor.computeIfAbsent(fromFloor, k -> new ArrayList<>()).add(edge);
+            if (toFloor != null && !toFloor.equals(fromFloor)) {
+                edgesByFloor.computeIfAbsent(toFloor, k -> new ArrayList<>()).add(edge);
+            }
+        }
+
+        return floors.stream()
+                .map(f -> new MapFloorData(
+                        f,
+                        nodesByFloor.getOrDefault(f.getId(), Collections.emptyList()),
+                        edgesByFloor.getOrDefault(f.getId(), Collections.emptyList())
+                ))
+                .collect(Collectors.toList());
+    }
+
     // ── Node ───────────────────────────────────────────────────────────────
 
     @Override
@@ -163,14 +197,27 @@ public class MapService implements MapUseCase {
     @Override
     public List<MapNode> findPath(Long fromNodeId, Long toNodeId, boolean avoidStairs) {
         if (fromNodeId.equals(toNodeId)) {
-            return mapDatabasePort.findAllNodes().stream()
-                    .filter(n -> n.getId().equals(fromNodeId))
-                    .findFirst()
+            return mapDatabasePort.findNodeById(fromNodeId)
                     .map(Collections::singletonList)
                     .orElse(Collections.emptyList());
         }
-        List<MapNode> allNodes = mapDatabasePort.findAllNodes();
-        List<MapEdge> allEdges = mapDatabasePort.findAllEdges();
+
+        MapNode fromNode = mapDatabasePort.findNodeById(fromNodeId)
+                .orElseThrow(() -> new IllegalArgumentException("Node không tồn tại: " + fromNodeId));
+        MapNode toNode = mapDatabasePort.findNodeById(toNodeId)
+                .orElseThrow(() -> new IllegalArgumentException("Node không tồn tại: " + toNodeId));
+
+        List<MapNode> allNodes;
+        List<MapEdge> allEdges;
+        if (fromNode.getFloorId().equals(toNode.getFloorId())) {
+            // Cùng tầng: chỉ load data tầng đó thay vì toàn bộ bản đồ
+            allNodes = mapDatabasePort.findNodesByFloorId(fromNode.getFloorId());
+            allEdges = mapDatabasePort.findEdgesByFloorId(fromNode.getFloorId());
+        } else {
+            // Khác tầng: cần toàn bộ để tìm đường qua elevator/stairs
+            allNodes = mapDatabasePort.findAllNodes();
+            allEdges = mapDatabasePort.findAllEdges();
+        }
 
         if (avoidStairs) {
             Set<Long> stairIds = allNodes.stream()

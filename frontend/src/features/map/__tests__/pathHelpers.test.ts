@@ -139,7 +139,10 @@ describe('Scenario 3 — side detection: thấy Khoa Nội bên tay trái', () =
 
   const path = [start, junc2, junc3, room4];
   const allFloorData: MapFloorData[] = [
-    { floor: FLOOR_1, nodes: [start, junc2, roomL, junc3, room4], edges: [] },
+    { floor: FLOOR_1, nodes: [start, junc2, roomL, junc3, room4], edges: [
+      // roomL nối trực tiếp với junc2 → phát hiện side landmark
+      { id: 1, nodeFromId: 2, nodeToId: 6, weight: 0.1, bidirectional: true },
+    ]},
   ];
 
   const steps = buildSteps(path, allFloorData, LOCATIONS, FLOORS);

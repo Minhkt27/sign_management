@@ -53,8 +53,29 @@ const FLOOR_1_NODES: MapNode[] = [
   { id: 56, floorId: 1, x: 0.3462913189538607,  y: 0.781179681767903,   type: 'DEPARTMENT', label: 'khoa cấp cứu',        locationId: 5  },
 ];
 
+// Edges thật từ GET /api/map/floors/1 (chỉ lấy các cạnh JUNCTION↔JUNCTION liên quan)
+const FLOOR_1_EDGES = [
+  { id: 2,  nodeFromId: 44, nodeToId: 46, weight: 0.0534, bidirectional: true },
+  { id: 4,  nodeFromId: 46, nodeToId: 6,  weight: 0.0499, bidirectional: true },
+  { id: 7,  nodeFromId: 6,  nodeToId: 47, weight: 0.0336, bidirectional: true },
+  { id: 8,  nodeFromId: 47, nodeToId: 48, weight: 0.0317, bidirectional: true },
+  { id: 9,  nodeFromId: 48, nodeToId: 49, weight: 0.0280, bidirectional: true },
+  { id: 10, nodeFromId: 49, nodeToId: 50, weight: 0.0259, bidirectional: true },
+  { id: 11, nodeFromId: 51, nodeToId: 52, weight: 0.0604, bidirectional: true },
+  { id: 12, nodeFromId: 52, nodeToId: 53, weight: 0.1136, bidirectional: true },
+  { id: 13, nodeFromId: 53, nodeToId: 54, weight: 0.2664, bidirectional: true },
+  { id: 16, nodeFromId: 50, nodeToId: 51, weight: 0.0229, bidirectional: true },
+  // Cạnh đến ROOM/ELEVATOR (không tính nav-degree nhưng vẫn giữ để đúng data)
+  { id: 1,  nodeFromId: 1,  nodeToId: 44, weight: 0.0689, bidirectional: true },
+  { id: 3,  nodeFromId: 46, nodeToId: 2,  weight: 0.0551, bidirectional: true },
+  { id: 5,  nodeFromId: 6,  nodeToId: 3,  weight: 0.0220, bidirectional: true },
+  { id: 6,  nodeFromId: 6,  nodeToId: 4,  weight: 0.0197, bidirectional: true },
+  { id: 14, nodeFromId: 54, nodeToId: 8,  weight: 0.0286, bidirectional: true },
+  { id: 15, nodeFromId: 54, nodeToId: 7,  weight: 0.0529, bidirectional: true },
+];
+
 const ALL_FLOOR_DATA: MapFloorData[] = [
-  { floor: FLOOR_1, nodes: FLOOR_1_NODES, edges: [] },
+  { floor: FLOOR_1, nodes: FLOOR_1_NODES, edges: FLOOR_1_EDGES },
 ];
 
 // ── Real locations (từ GET /api/locations) ──

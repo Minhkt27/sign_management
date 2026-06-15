@@ -74,6 +74,7 @@ export default function AssetDetailPage() {
   const { data: locations = [] } = useQuery<Location[]>({
     queryKey: ['locations'],
     queryFn: locationService.getAllLocations,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Fetch Tickets for this asset
@@ -88,6 +89,7 @@ export default function AssetDetailPage() {
   const { data: signTypes = [] } = useQuery<SignType[]>({
     queryKey: ['signTypes'],
     queryFn: signTypeService.getAllSignTypes,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Fetch linked map node (if asset is pinned on a floor map)
@@ -101,7 +103,8 @@ export default function AssetDetailPage() {
   const { data: allFloors = [] } = useQuery({
     queryKey: ['mapFloors'],
     queryFn: mapService.getAllFloors,
-    enabled: !!linkedNode,
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000,
   });
 
   const linkedFloor = linkedNode ? allFloors.find(f => f.id === linkedNode.floorId) : undefined;
