@@ -73,7 +73,7 @@ export default function MapListPage() {
     if (!file) return;
     setUploading(true);
     try {
-      const url = await fileService.uploadFile(file);
+      const url = await fileService.uploadFile(file, 'FLOOR_MAP');
       const img = new Image();
       img.onload = () => setUploadedImage({ url, width: img.naturalWidth, height: img.naturalHeight });
       img.src = url;
