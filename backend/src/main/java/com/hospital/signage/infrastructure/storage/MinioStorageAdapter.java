@@ -59,7 +59,7 @@ public class MinioStorageAdapter implements FileStoragePort {
                     .stream(content, size, -1)
                     .contentType(contentType)
                     .build());
-            return publicUrl + "/" + bucketName + "/" + filename;
+            return publicUrl + "/" + filename;
         } catch (Exception e) {
             throw new RuntimeException("File upload failed: " + e.getMessage(), e);
         }

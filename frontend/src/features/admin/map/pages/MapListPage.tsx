@@ -68,15 +68,24 @@ export default function MapListPage() {
     onError: (e: unknown) => alert(getApiError(e, 'Không thể xóa sơ đồ')),
   });
 
+  const readImageDimensions = (file: File): Promise<{ width: number; height: number }> =>
+    new Promise((resolve) => {
+      const objectUrl = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => { resolve({ width: img.naturalWidth, height: img.naturalHeight }); URL.revokeObjectURL(objectUrl); };
+      img.onerror = () => { resolve({ width: 0, height: 0 }); URL.revokeObjectURL(objectUrl); };
+      img.src = objectUrl;
+    });
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
     try {
+      // Đọc kích thước từ file local trước — không phụ thuộc vào URL server có load được không
+      const { width, height } = await readImageDimensions(file);
       const url = await fileService.uploadFile(file, 'FLOOR_MAP');
-      const img = new Image();
-      img.onload = () => setUploadedImage({ url, width: img.naturalWidth, height: img.naturalHeight });
-      img.src = url;
+      setUploadedImage({ url, width, height });
     } catch (err) {
       alert(getApiError(err, 'Upload ảnh thất bại'));
     } finally {
@@ -219,7 +228,7 @@ export default function MapListPage() {
             </button>
             {uploadedImage && (
               <div className="mt-3">
-                <img src={uploadedImage.url} alt="Preview" className="max-h-48 rounded-lg border border-slate-200" />
+                <img src={getBackendUrl(uploadedImage.url)} alt="Preview" className="max-h-48 rounded-lg border border-slate-200" />
                 <p className="text-xs text-slate-400 mt-1">{uploadedImage.width} × {uploadedImage.height}px</p>
               </div>
             )}
