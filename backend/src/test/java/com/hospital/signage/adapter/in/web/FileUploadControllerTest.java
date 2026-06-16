@@ -44,7 +44,7 @@ public class FileUploadControllerTest {
     @Test
     @WithMockUser(authorities = {"ASSET_MANAGE"})
     void upload_withValidFile_returns200() throws Exception {
-        when(fileUploadUseCase.upload(any())).thenReturn("http://minio/bucket/file.jpg");
+        when(fileUploadUseCase.upload(any(), any())).thenReturn("http://minio/bucket/file.jpg");
 
         MockMultipartFile file = new MockMultipartFile(
                 "file", "photo.jpg", "image/jpeg", JPEG_HEADER);
@@ -56,7 +56,7 @@ public class FileUploadControllerTest {
     @Test
     @WithMockUser(authorities = {"ASSET_MANAGE"})
     void upload_whenUseCaseThrowsIllegalArgument_returns400() throws Exception {
-        when(fileUploadUseCase.upload(any())).thenThrow(new IllegalArgumentException("invalid"));
+        when(fileUploadUseCase.upload(any(), any())).thenThrow(new IllegalArgumentException("invalid"));
 
         MockMultipartFile file = new MockMultipartFile(
                 "file", "photo.jpg", "image/jpeg", JPEG_HEADER);
@@ -68,7 +68,7 @@ public class FileUploadControllerTest {
     @Test
     @WithMockUser(authorities = {"ASSET_MANAGE"})
     void upload_whenUseCaseThrowsRuntimeException_returns500() throws Exception {
-        when(fileUploadUseCase.upload(any())).thenThrow(new RuntimeException("storage error"));
+        when(fileUploadUseCase.upload(any(), any())).thenThrow(new RuntimeException("storage error"));
 
         MockMultipartFile file = new MockMultipartFile(
                 "file", "photo.jpg", "image/jpeg", JPEG_HEADER);
@@ -80,7 +80,7 @@ public class FileUploadControllerTest {
     @Test
     @WithMockUser(authorities = {"ASSET_MANAGE"})
     void upload_withTechnicianRole_returns200() throws Exception {
-        when(fileUploadUseCase.upload(any())).thenReturn("http://localhost:9000/signage-assets/test.jpg");
+        when(fileUploadUseCase.upload(any(), any())).thenReturn("http://localhost:9000/signage-assets/test.jpg");
 
         MockMultipartFile file = new MockMultipartFile(
                 "file", "photo.jpg", "image/jpeg", JPEG_HEADER);

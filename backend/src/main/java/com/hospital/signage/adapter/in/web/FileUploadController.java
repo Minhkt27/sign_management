@@ -17,12 +17,14 @@ public class FileUploadController {
 
     private final FileUploadUseCase fileUploadUseCase;
 
-    @Operation(summary = "Tải ảnh lên (trả về URL)")
+    @Operation(summary = "Tải ảnh lên (trả về URL). type=FLOOR_MAP cho phép tối đa 20MB, mặc định 5MB.")
     @PostMapping("/upload")
     @PreAuthorize("hasAnyAuthority('ASSET_MANAGE', 'TICKET_MANAGE')")
-    public ResponseEntity<UploadResponse> uploadFile(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<UploadResponse> uploadFile(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "type", defaultValue = "ASSET") String type) {
         try {
-            String url = fileUploadUseCase.upload(file);
+            String url = fileUploadUseCase.upload(file, type);
             return ResponseEntity.ok(new UploadResponse(url));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();

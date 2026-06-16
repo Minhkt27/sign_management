@@ -17,18 +17,24 @@ import java.util.UUID;
 public class FileUploadService implements FileUploadUseCase {
 
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png", "gif", "webp");
-    private static final long MAX_SIZE_BYTES = 5 * 1024 * 1024;
+    private static final long MAX_SIZE_ASSET    = 5L  * 1024 * 1024;  // 5MB  — ảnh tài sản/công việc
+    private static final long MAX_SIZE_FLOOR_MAP = 20L * 1024 * 1024; // 20MB — ảnh sơ đồ tầng
 
     private final FileStoragePort fileStoragePort;
 
     @Override
     @Transactional
-    public String upload(MultipartFile file) {
+    public String upload(MultipartFile file, String type) {
+        long maxBytes = "FLOOR_MAP".equalsIgnoreCase(type) ? MAX_SIZE_FLOOR_MAP : MAX_SIZE_ASSET;
         if (file.isEmpty()) {
             throw new IllegalArgumentException("File không được rỗng");
         }
-        if (file.getSize() > MAX_SIZE_BYTES) {
-            throw new IllegalArgumentException("File vượt quá giới hạn 5MB");
+        if (file.getSize() > maxBytes) {
+            throw new IllegalArgumentException(
+                "FLOOR_MAP".equalsIgnoreCase(type)
+                    ? "File vượt quá giới hạn 20MB"
+                    : "File vượt quá giới hạn 5MB"
+            );
         }
         String ext = extractExtension(file.getOriginalFilename());
         if (!ALLOWED_EXTENSIONS.contains(ext)) {
