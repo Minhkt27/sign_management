@@ -181,7 +181,7 @@ export default function AssetDetailPage() {
         material: editForm.material,
         size: editForm.size,
         supplier: editForm.supplier,
-        installedAt: editForm.installedAt ? `${editForm.installedAt}T00:00:00` : undefined,
+        installedAt: editForm.installedAt ? `${editForm.installedAt}T00:00:00Z` : undefined,
         status: editForm.status,
         imageUrl: uploadedUrl || undefined,
       });
