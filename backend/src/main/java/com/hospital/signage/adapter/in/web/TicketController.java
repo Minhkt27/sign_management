@@ -102,8 +102,13 @@ public class TicketController {
             @RequestBody UpdateStatusRequest request) {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Long technicianId = null;
-        if (principal instanceof User caller && Long.valueOf(2).equals(caller.getRoleId())) {
-            technicianId = caller.getId();
+        if (principal instanceof User caller) {
+            var authorities = SecurityContextHolder.getContext().getAuthentication().getAuthorities();
+            boolean hasTicketManage = authorities.stream().anyMatch(a -> "TICKET_MANAGE".equals(a.getAuthority()));
+            boolean hasAssetManage  = authorities.stream().anyMatch(a -> "ASSET_MANAGE".equals(a.getAuthority()));
+            if (hasTicketManage && !hasAssetManage) {
+                technicianId = caller.getId();
+            }
         }
         return ResponseEntity.ok(ticketUseCase.updateTicketStatus(
                 id,
