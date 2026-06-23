@@ -1,6 +1,14 @@
 import { useState, useEffect } from "react";
 
-export function SafeImage({ src, alt, className, style, onClick }: any) {
+interface SafeImageProps {
+  src?: string;
+  alt?: string;
+  className?: string;
+  style?: React.CSSProperties;
+  onClick?: () => void;
+}
+
+export function SafeImage({ src, alt, className, style, onClick }: SafeImageProps) {
   const [blobUrl, setBlobUrl] = useState<string>("");
 
   useEffect(() => {

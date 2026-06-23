@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 public class MapService implements MapUseCase {
 
     private final MapDatabasePort mapDatabasePort;
+    private final MapGraphCache mapGraphCache;
 
     // ── Floor ──────────────────────────────────────────────────────────────
 
@@ -120,6 +121,7 @@ public class MapService implements MapUseCase {
         mapDatabasePort.findFloorById(node.getFloorId())
                 .orElseThrow(() -> new IllegalArgumentException("Sơ đồ không tồn tại: " + node.getFloorId()));
         MapNode saved = mapDatabasePort.saveNode(node);
+        mapGraphCache.invalidateAll();
         log.info("MapNode created: id={}, floorId={}, type={}", saved.getId(), saved.getFloorId(), saved.getType());
         return saved;
     }
@@ -135,7 +137,9 @@ public class MapService implements MapUseCase {
         existing.setLabel(node.getLabel());
         existing.setLocationId(node.getLocationId());
         existing.setAssetId(node.getAssetId());
-        return mapDatabasePort.saveNode(existing);
+        MapNode saved = mapDatabasePort.saveNode(existing);
+        mapGraphCache.invalidateAll();
+        return saved;
     }
 
     @Override
@@ -144,6 +148,7 @@ public class MapService implements MapUseCase {
         mapDatabasePort.findNodeById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Node không tồn tại: " + id));
         mapDatabasePort.deleteNodeById(id);
+        mapGraphCache.invalidateAll();
         log.info("MapNode deleted: id={}", id);
     }
 
@@ -179,6 +184,7 @@ public class MapService implements MapUseCase {
                 .build();
 
         MapEdge saved = mapDatabasePort.saveEdge(edge);
+        mapGraphCache.invalidateAll();
         log.info("MapEdge created: id={}, from={}, to={}, weight={}", saved.getId(), nodeFromId, nodeToId, String.format("%.4f", weight));
         return saved;
     }
@@ -189,6 +195,7 @@ public class MapService implements MapUseCase {
         mapDatabasePort.findEdgeById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Edge không tồn tại: " + id));
         mapDatabasePort.deleteEdgeById(id);
+        mapGraphCache.invalidateAll();
         log.info("MapEdge deleted: id={}", id);
     }
 
@@ -209,14 +216,22 @@ public class MapService implements MapUseCase {
 
         List<MapNode> allNodes;
         List<MapEdge> allEdges;
-        if (fromNode.getFloorId().equals(toNode.getFloorId())) {
-            // Cùng tầng: chỉ load data tầng đó thay vì toàn bộ bản đồ
-            allNodes = mapDatabasePort.findNodesByFloorId(fromNode.getFloorId());
-            allEdges = mapDatabasePort.findEdgesByFloorId(fromNode.getFloorId());
+        if (java.util.Objects.equals(fromNode.getFloorId(), toNode.getFloorId())) {
+            // Thử tìm đường nội tầng trước; nếu không có (chỉ đi được qua tầng khác) thì load toàn bộ
+            MapGraphCache.GraphData floorData = mapGraphCache.loadFloorGraph(fromNode.getFloorId());
+            allNodes = floorData.nodes();
+            allEdges = floorData.edges();
+            boolean reachable = isReachable(fromNodeId, toNodeId, buildAdjacency(allNodes, allEdges));
+            if (!reachable) {
+                MapGraphCache.GraphData fullData = mapGraphCache.loadFullGraph();
+                allNodes = fullData.nodes();
+                allEdges = fullData.edges();
+            }
         } else {
             // Khác tầng: cần toàn bộ để tìm đường qua elevator/stairs
-            allNodes = mapDatabasePort.findAllNodes();
-            allEdges = mapDatabasePort.findAllEdges();
+            MapGraphCache.GraphData fullData = mapGraphCache.loadFullGraph();
+            allNodes = fullData.nodes();
+            allEdges = fullData.edges();
         }
 
         if (avoidStairs) {
@@ -258,7 +273,7 @@ public class MapService implements MapUseCase {
             }
         }
 
-        if (dist.getOrDefault(toNodeId, Double.MAX_VALUE) == Double.MAX_VALUE) {
+        if (dist.getOrDefault(toNodeId, Double.MAX_VALUE) >= Double.MAX_VALUE) {
             return Collections.emptyList();
         }
 
@@ -272,6 +287,21 @@ public class MapService implements MapUseCase {
             cur = prev.get(cur);
         }
         return path;
+    }
+
+    private boolean isReachable(Long from, Long to, Map<Long, List<long[]>> adj) {
+        Set<Long> visited = new HashSet<>();
+        Queue<Long> queue = new java.util.ArrayDeque<>();
+        queue.add(from);
+        visited.add(from);
+        while (!queue.isEmpty()) {
+            Long cur = queue.poll();
+            if (cur.equals(to)) return true;
+            for (long[] neighbor : adj.getOrDefault(cur, Collections.emptyList())) {
+                if (visited.add(neighbor[0])) queue.add(neighbor[0]);
+            }
+        }
+        return false;
     }
 
     private Map<Long, List<long[]>> buildAdjacency(List<MapNode> nodes, List<MapEdge> edges) {

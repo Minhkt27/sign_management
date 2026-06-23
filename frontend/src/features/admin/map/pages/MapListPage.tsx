@@ -1,36 +1,16 @@
-import { useState, useRef, useCallback, useMemo } from 'react';
-import { QRCode } from 'react-qr-code';
+import { useState, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { mapService } from '@/services/mapService';
 import { locationService } from '@/services/locationService';
 import { fileService } from '@/services/fileService';
 import { MapFloor } from '@/shared/types';
-import { Map, Plus, Pencil, Trash2, Upload, Loader2, Download } from 'lucide-react';
+import { Map, Plus, Pencil, Trash2, Upload, Loader2 } from 'lucide-react';
 import { getApiError } from '@/shared/helpers/apiError';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
 
 export default function MapListPage() {
   const navigate = useNavigate();
-  const [baseUrl, setBaseUrl] = useState(() => {
-    return localStorage.getItem('qrBaseUrl') || window.location.origin;
-  });
-
-  const handleBaseUrlChange = (val: string) => {
-    setBaseUrl(val);
-    localStorage.setItem('qrBaseUrl', val);
-  };
-
-  const handleDownloadEntranceQR = useCallback(() => {
-    const svg = document.getElementById('entrance-qr')?.querySelector('svg');
-    if (!svg) return;
-    const blob = new Blob([svg.outerHTML], { type: 'image/svg+xml' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'QR-benhnhan.svg';
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }, []);
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -142,38 +122,6 @@ export default function MapListPage() {
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm"
         >
           <Plus size={18} /> Tạo sơ đồ mới
-        </button>
-      </div>
-
-      {/* Patient entrance QR */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-start gap-6">
-        <div id="entrance-qr" className="flex-shrink-0 p-2 bg-white border border-slate-200 rounded-xl">
-          <QRCode value={`${baseUrl}/map`} size={100} />
-        </div>
-        <div className="flex-1 min-w-0 space-y-2">
-          <p className="font-semibold text-slate-800">QR dẫn đường cho bệnh nhân</p>
-          <p className="text-sm text-slate-500">In và dán tại sảnh, thang máy, hành lang để bệnh nhân quét vào trang tìm đường.</p>
-          <div className="flex gap-2 items-center">
-            <input
-              value={baseUrl}
-              onChange={e => handleBaseUrlChange(e.target.value)}
-              placeholder="https://xxxx.ngrok-free.app"
-              className="flex-1 border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              onClick={() => handleBaseUrlChange(window.location.origin)}
-              className="text-xs text-slate-400 hover:text-slate-600 whitespace-nowrap"
-            >
-              Đặt lại
-            </button>
-          </div>
-          <p className="text-xs text-slate-400 font-mono truncate">{baseUrl}/map</p>
-        </div>
-        <button
-          onClick={handleDownloadEntranceQR}
-          className="flex items-center gap-1.5 border border-slate-300 hover:bg-slate-50 text-slate-600 text-sm font-medium px-3 py-2 rounded-lg flex-shrink-0"
-        >
-          <Download size={15} /> Tải SVG
         </button>
       </div>
 

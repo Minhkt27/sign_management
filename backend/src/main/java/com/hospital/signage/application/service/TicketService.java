@@ -20,9 +20,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
@@ -31,6 +33,13 @@ import java.util.UUID;
 public class TicketService implements TicketUseCase {
 
     private static final int MAX_REJECTION_LIMIT = 3;
+
+    private static final java.util.Map<TicketStatus, Set<TicketStatus>> ALLOWED_TRANSITIONS = Map.of(
+        TicketStatus.OPEN,       EnumSet.of(TicketStatus.IN_PROGRESS, TicketStatus.CLOSED),
+        TicketStatus.IN_PROGRESS, EnumSet.of(TicketStatus.IN_PROGRESS, TicketStatus.RESOLVED, TicketStatus.CLOSED),
+        TicketStatus.RESOLVED,   EnumSet.of(TicketStatus.IN_PROGRESS, TicketStatus.CLOSED),
+        TicketStatus.CLOSED,     EnumSet.noneOf(TicketStatus.class)
+    );
 
     private final TicketDatabasePort ticketDatabasePort;
     private final AssetDatabasePort assetDatabasePort;
@@ -85,7 +94,15 @@ public class TicketService implements TicketUseCase {
         MaintenanceTicket ticket = ticketDatabasePort.findById(ticketId)
                 .orElseThrow(() -> new TicketNotFoundException(ticketId));
 
-        boolean isRejection = status == TicketStatus.IN_PROGRESS && rejectionNote != null && !rejectionNote.isBlank();
+        TicketStatus current = ticket.getTicketStatus();
+        Set<TicketStatus> allowed = ALLOWED_TRANSITIONS.getOrDefault(current, EnumSet.noneOf(TicketStatus.class));
+        if (!allowed.contains(status)) {
+            throw new IllegalStateException(
+                "Không thể chuyển trạng thái từ " + current + " sang " + status);
+        }
+
+        boolean isRejection = status == TicketStatus.IN_PROGRESS && current == TicketStatus.IN_PROGRESS
+                && rejectionNote != null && !rejectionNote.isBlank();
 
         validateRejectionLimit(ticket, isRejection);
         validateTechnicianPermission(ticket, status, isRejection, technicianId);
@@ -165,6 +182,12 @@ public class TicketService implements TicketUseCase {
         User technician = userDatabasePort.findById(technicianId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         ticket.setAssignee(technician);
+        ticket.setTicketStatus(TicketStatus.IN_PROGRESS);
+        Asset asset = ticket.getAsset();
+        if (asset != null && asset.getStatus() != com.hospital.signage.domain.enums.AssetStatus.SCRAPPED) {
+            asset.setStatus(com.hospital.signage.domain.enums.AssetStatus.REPAIRING);
+            assetDatabasePort.save(asset);
+        }
         MaintenanceTicket saved = ticketDatabasePort.save(ticket);
         log.info("Ticket {} self-taken by technician {}", ticketId, technicianId);
         return saved;

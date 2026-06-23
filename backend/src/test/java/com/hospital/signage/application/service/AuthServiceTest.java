@@ -58,7 +58,7 @@ class AuthServiceTest {
     void login_withValidCredentials_returnsTokens() {
         when(userDatabasePort.findByUsername("admin")).thenReturn(Optional.of(activeUser));
         when(passwordEncoder.matches("plain", "hashed_password")).thenReturn(true);
-        when(jwtTokenProvider.generateToken(eq("admin"), anyList())).thenReturn("access-token");
+        when(jwtTokenProvider.generateToken(eq("admin"), anyList(), anyString())).thenReturn("access-token");
         when(jwtTokenProvider.generateRefreshToken("admin")).thenReturn("refresh-token");
         when(userDatabasePort.save(any())).thenReturn(activeUser);
 
@@ -103,12 +103,13 @@ class AuthServiceTest {
         activeUser.setRefreshToken("valid-refresh");
         when(jwtTokenProvider.extractUsername("valid-refresh")).thenReturn("admin");
         when(userDatabasePort.findByUsername("admin")).thenReturn(Optional.of(activeUser));
-        when(jwtTokenProvider.generateToken(eq("admin"), anyList())).thenReturn("new-access-token");
+        when(jwtTokenProvider.generateToken(eq("admin"), anyList(), anyString())).thenReturn("new-access-token");
+        when(jwtTokenProvider.generateRefreshToken("admin")).thenReturn("new-refresh-token");
 
         AuthUseCase.RefreshResult result = authService.refreshToken("valid-refresh");
 
         assertThat(result.token()).isEqualTo("new-access-token");
-        assertThat(result.refreshToken()).isEqualTo("valid-refresh");
+        assertThat(result.refreshToken()).isEqualTo("new-refresh-token");
     }
 
     @Test
@@ -149,7 +150,7 @@ class AuthServiceTest {
         when(loginAttemptService.isBlocked("admin")).thenReturn(false);
         when(userDatabasePort.findByUsername("admin")).thenReturn(Optional.of(activeUser));
         when(passwordEncoder.matches("plain", "hashed_password")).thenReturn(true);
-        when(jwtTokenProvider.generateToken(eq("admin"), anyList())).thenReturn("access-token");
+        when(jwtTokenProvider.generateToken(eq("admin"), anyList(), anyString())).thenReturn("access-token");
         when(jwtTokenProvider.generateRefreshToken("admin")).thenReturn("refresh-token");
         when(userDatabasePort.save(any())).thenReturn(activeUser);
 

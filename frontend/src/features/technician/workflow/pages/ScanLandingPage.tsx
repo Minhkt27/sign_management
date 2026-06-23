@@ -225,7 +225,7 @@ export default function ScanLandingPage() {
             <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Độ ưu tiên</label>
             <select
               value={priority}
-              onChange={(e) => setPriority(e.target.value as any)}
+              onChange={(e) => setPriority(e.target.value as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL')}
               className="w-full border border-slate-200 bg-white text-slate-700 p-3 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="LOW">Thấp</option>

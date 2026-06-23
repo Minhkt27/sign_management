@@ -54,4 +54,9 @@ public class UserPersistenceAdapter implements UserDatabasePort {
         String s = search == null ? "" : search;
         return repository.search(s, pageable).map(mapper::toDomain);
     }
+
+    @Override
+    public void deleteById(Long id) {
+        repository.deleteById(id);
+    }
 }

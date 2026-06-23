@@ -2,7 +2,7 @@ package com.hospital.signage.adapter.in.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hospital.signage.application.port.in.AssetUseCase;
-import com.hospital.signage.application.port.out.UserDatabasePort;
+import com.hospital.signage.application.service.UserCacheService;
 import com.hospital.signage.domain.enums.Material;
 import com.hospital.signage.domain.enums.AssetStatus;
 import com.hospital.signage.domain.model.Asset;
@@ -47,7 +47,7 @@ public class AssetControllerTest {
     private AssetUseCase assetUseCase;
 
     @MockBean
-    private UserDatabasePort userDatabasePort;
+    private UserCacheService userCacheService;
 
     @MockBean
     private JwtTokenProvider jwtTokenProvider;

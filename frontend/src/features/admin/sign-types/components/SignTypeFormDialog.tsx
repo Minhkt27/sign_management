@@ -20,8 +20,11 @@ export function SignTypeFormDialog({ open, onOpenChange, editingItem, onSubmit, 
 
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCode(editingItem?.code ?? '');
+       
       setName(editingItem?.name ?? '');
+       
       setDescription(editingItem?.description ?? '');
     }
   }, [open, editingItem]);

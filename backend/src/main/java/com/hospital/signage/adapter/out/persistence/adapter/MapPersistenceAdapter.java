@@ -85,7 +85,7 @@ public class MapPersistenceAdapter implements MapDatabasePort {
 
     @Override
     public Optional<MapNode> findNodeByAssetId(UUID assetId) {
-        return nodeRepository.findByAssetId(assetId).map(nodeMapper::toDomain);
+        return nodeRepository.findFirstByAssetId(assetId).map(nodeMapper::toDomain);
     }
 
     @Override

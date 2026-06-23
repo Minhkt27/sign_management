@@ -1,13 +1,16 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, lazy, Suspense } from 'react';
 import { MapNode, MapFloor, MapFloorData, Location } from '@/shared/types';
 import { mapService } from '@/services/mapService';
 import { Search, Navigation, Accessibility, X, MapPin, Camera } from 'lucide-react';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
 import { displayName, floorName, buildSteps, turnDir } from '../utils/pathHelpers';
 import { SafeImage } from '@/components/SafeImage';
-import { QRScannerModal } from './QRScannerModal';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { ZoomIn, ZoomOut, Maximize } from 'lucide-react';
+
+const QRScannerModal = lazy(() =>
+  import('./QRScannerModal').then(mod => ({ default: mod.QRScannerModal }))
+);
 
 interface Props {
   fromNodeId: number | null;
@@ -52,6 +55,7 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
 
   useEffect(() => {
     if (destNodeId == null) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setToNodeId(destNodeId);
     const fd = allFloorData.find(f => f?.nodes?.some(n => n?.id === destNodeId));
     if (fd) {
@@ -409,16 +413,18 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
         )}
       </div>
 
-      <QRScannerModal
-        open={isScannerOpen}
-        onClose={() => setIsScannerOpen(false)}
-        onScanSuccess={(node, label) => {
-          onSetLocation(node, label);
-          if (toNodeId) {
-            handleFindPath(node.id, toNodeId);
-          }
-        }}
-      />
+      <Suspense fallback={null}>
+        <QRScannerModal
+          open={isScannerOpen}
+          onClose={() => setIsScannerOpen(false)}
+          onScanSuccess={(node, label) => {
+            onSetLocation(node, label);
+            if (toNodeId) {
+              handleFindPath(node.id, toNodeId);
+            }
+          }}
+        />
+      </Suspense>
     </div>
   );
 }

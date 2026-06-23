@@ -80,7 +80,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<Map<String, String>> handleNotReadable(HttpMessageNotReadableException ex) {
-        return error(HttpStatus.BAD_REQUEST, "Bad Request", "Dữ liệu gửi lên không đúng định dạng: " + ex.getMostSpecificCause().getMessage());
+        log.debug("Unreadable HTTP message", ex);
+        return error(HttpStatus.BAD_REQUEST, "Bad Request", "Dữ liệu gửi lên không đúng định dạng hoặc thiếu trường bắt buộc.");
     }
 
     @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)

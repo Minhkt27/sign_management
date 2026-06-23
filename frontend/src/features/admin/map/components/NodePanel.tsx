@@ -43,15 +43,24 @@ export function NodePanel({ node, locations, assets, onUpdate, onDelete, onClose
 
   useEffect(() => {
     if (node) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLabel(node.label ?? '');
+       
       setType(node.type);
+       
       setLocationId(node.locationId?.toString() ?? '');
+       
       setAssetId(node.assetId ?? '');
+       
       setLocSearch('');
+       
       setAssetSearch('');
+       
       setLocDropdownOpen(false);
+       
       setAssetDropdownOpen(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [node?.id]);
 
   if (!node) return null;

@@ -1,6 +1,7 @@
 package com.hospital.signage.adapter.in.web;
 
 import com.hospital.signage.application.port.in.RoleUseCase;
+import com.hospital.signage.domain.enums.UiMode;
 import com.hospital.signage.domain.model.Role;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -40,7 +41,7 @@ public class RoleController {
     @PreAuthorize("hasAuthority('ROLE_MANAGE')")
     public ResponseEntity<Role> createRole(@Valid @RequestBody CreateRoleRequest request) {
         Role role = roleUseCase.createRole(new RoleUseCase.CreateRoleCommand(
-                request.code(), request.name(), request.description(), request.permissions()));
+                request.code(), request.name(), request.description(), request.uiMode(), request.permissions()));
         return ResponseEntity.ok(role);
     }
 
@@ -49,7 +50,7 @@ public class RoleController {
     @PreAuthorize("hasAuthority('ROLE_MANAGE')")
     public ResponseEntity<Role> updateRole(@PathVariable Long id, @Valid @RequestBody CreateRoleRequest request) {
         Role role = roleUseCase.updateRole(new RoleUseCase.UpdateRoleCommand(
-                id, request.code(), request.name(), request.description(), request.permissions()));
+                id, request.code(), request.name(), request.description(), request.uiMode(), request.permissions()));
         return ResponseEntity.ok(role);
     }
 
@@ -65,6 +66,7 @@ public class RoleController {
             @NotBlank String code,
             @NotBlank String name,
             String description,
+            UiMode uiMode,
             List<String> permissions
     ) {}
 }

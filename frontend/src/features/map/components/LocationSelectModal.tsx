@@ -44,7 +44,7 @@ export function LocationSelectModal({ open, onClose, allFloorData, locations, on
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const processingRef = useRef(false);
 
-  const startPromiseRef = useRef<Promise<any> | null>(null);
+  const startPromiseRef = useRef<Promise<unknown> | null>(null);
 
   const stopScanner = async () => {
     if (scannerRef.current) {
@@ -54,7 +54,7 @@ export function LocationSelectModal({ open, onClose, allFloorData, locations, on
       setScanning(false);
       
       if (startPromise) {
-        try { await startPromise; } catch (e) {}
+        try { await startPromise; } catch { /* ignore */ }
       }
       try {
         await scanner.stop();

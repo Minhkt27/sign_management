@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 
-// Prevent html5-qrcode camera cleanup errors from crashing the React tree
+// Suppress known camera cleanup errors from html5-qrcode library
 window.addEventListener('unhandledrejection', (event) => {
   const msg = event.reason?.message ?? String(event.reason ?? '');
   if (

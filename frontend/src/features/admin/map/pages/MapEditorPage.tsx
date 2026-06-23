@@ -67,6 +67,7 @@ export default function MapEditorPage() {
 
   useEffect(() => {
     if (floorData && selectedNodeId && !floorData.nodes.find(n => n.id === selectedNodeId)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedNodeId(null);
     }
   }, [floorData, selectedNodeId]);
@@ -208,11 +209,9 @@ export default function MapEditorPage() {
         <div className="flex-1 p-4 min-h-0 overflow-auto flex items-start justify-center">
           <MapCanvas
             imageUrl={getBackendUrl(floorData.floor.imageUrl)}
-
             nodes={floorData.nodes}
             edges={floorData.edges}
             tool={tool}
-
             selectedNodeId={selectedNodeId}
             edgeStartId={edgeStartId}
             onCanvasClick={handleCanvasClick}
@@ -221,63 +220,68 @@ export default function MapEditorPage() {
           />
         </div>
 
-        {selectedNode && tool === 'select' && (
-          <div className="flex flex-col w-64 flex-shrink-0 border-l border-slate-200 overflow-y-auto">
-            <NodePanel
-              node={selectedNode}
-              locations={locations}
-              assets={assets}
-              onUpdate={handleUpdateNode}
-              onDelete={handleDeleteNode}
-              onClose={() => setSelectedNodeId(null)}
-            />
+        {/* Panel — animate width, canvas thu hẹp mượt không giật */}
+        <div
+          style={{ width: selectedNode && tool === 'select' ? 256 : 0 }}
+          className="flex-shrink-0 overflow-hidden transition-[width] duration-200 ease-in-out border-l border-slate-200 flex flex-col"
+        >
+          {selectedNode && (
+            <>
+              <NodePanel
+                node={selectedNode}
+                locations={locations}
+                assets={assets}
+                onUpdate={handleUpdateNode}
+                onDelete={handleDeleteNode}
+                onClose={() => setSelectedNodeId(null)}
+              />
 
-            {/* Cross-floor connections for STAIRS / ELEVATOR */}
-            {isTransitNode && (
-              <div className="p-3 border-t border-slate-200 space-y-2">
-                <p className="text-xs font-bold text-slate-600 uppercase tracking-wide">
-                  Nối với tầng khác
-                </p>
-                {allFloorData.length === 0 && (
-                  <p className="text-xs text-slate-400">Đang tải...</p>
-                )}
-                {allFloorData.map(fd => {
-                  const transitNodes = fd.nodes.filter(n => n.type === selectedNodeType);
-                  const floorLoc = locations.find(l => l.id === fd.floor.locationId);
-                  const floorLabel = floorLoc?.name ?? `Tầng #${fd.floor.id}`;
-                  return transitNodes.map(n => {
-                    const alreadyConnected =
-                      floorData.edges.some(e =>
-                        (e.nodeFromId === selectedNodeId && e.nodeToId === n.id) ||
-                        (e.nodeToId === selectedNodeId && e.nodeFromId === n.id)
-                      );
-                    return (
-                      <div key={n.id} className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-slate-700 truncate">
-                            {n.label || selectedNodeType}
-                          </p>
-                          <p className="text-xs text-slate-400">{floorLabel}</p>
+              {isTransitNode && (
+                <div className="p-3 border-t border-slate-200 space-y-2">
+                  <p className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+                    Nối với tầng khác
+                  </p>
+                  {allFloorData.length === 0 && (
+                    <p className="text-xs text-slate-400">Đang tải...</p>
+                  )}
+                  {allFloorData.map(fd => {
+                    const transitNodes = fd.nodes.filter(n => n.type === selectedNodeType);
+                    const floorLoc = locations.find(l => l.id === fd.floor.locationId);
+                    const floorLabel = floorLoc?.name ?? `Tầng #${fd.floor.id}`;
+                    return transitNodes.map(n => {
+                      const alreadyConnected =
+                        floorData.edges.some(e =>
+                          (e.nodeFromId === selectedNodeId && e.nodeToId === n.id) ||
+                          (e.nodeToId === selectedNodeId && e.nodeFromId === n.id)
+                        );
+                      return (
+                        <div key={n.id} className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-slate-700 truncate">
+                              {n.label || selectedNodeType}
+                            </p>
+                            <p className="text-xs text-slate-400">{floorLabel}</p>
+                          </div>
+                          {alreadyConnected ? (
+                            <span className="text-xs text-emerald-600 font-medium flex-shrink-0">✓ Đã nối</span>
+                          ) : (
+                            <button
+                              onClick={() => createEdgeMutation.mutate({ from: selectedNodeId!, to: n.id })}
+                              disabled={createEdgeMutation.isPending}
+                              className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded flex-shrink-0"
+                            >
+                              Nối
+                            </button>
+                          )}
                         </div>
-                        {alreadyConnected ? (
-                          <span className="text-xs text-emerald-600 font-medium flex-shrink-0">✓ Đã nối</span>
-                        ) : (
-                          <button
-                            onClick={() => createEdgeMutation.mutate({ from: selectedNodeId!, to: n.id })}
-                            disabled={createEdgeMutation.isPending}
-                            className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded flex-shrink-0"
-                          >
-                            Nối
-                          </button>
-                        )}
-                      </div>
-                    );
-                  });
-                })}
-              </div>
-            )}
-          </div>
-        )}
+                      );
+                    });
+                  })}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

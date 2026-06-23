@@ -6,14 +6,26 @@ export interface AuthUser {
   customPermissions: string[];
 }
 
+const decodeJwtPayload = (token: string): Record<string, unknown> | null => {
+  try {
+    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+    return JSON.parse(atob(padded));
+  } catch {
+    return null;
+  }
+};
+
 export const getPermissionsFromToken = (token: string | null): string[] => {
   if (!token) return [];
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.permissions || [];
-  } catch {
-    return [];
-  }
+  const payload = decodeJwtPayload(token);
+  return (payload?.permissions as string[]) || [];
+};
+
+export const getUiModeFromToken = (token: string | null): 'ADMIN' | 'TECHNICIAN' => {
+  if (!token) return 'ADMIN';
+  const payload = decodeJwtPayload(token);
+  return payload?.uiMode === 'TECHNICIAN' ? 'TECHNICIAN' : 'ADMIN';
 };
 
 export const authStore = {

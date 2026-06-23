@@ -7,6 +7,9 @@ import { Pagination } from '@/shared/components/Pagination';
 import { TicketStatsCards } from '../components/TicketStatsCards';
 import { TicketFilters } from '../components/TicketFilters';
 import { TicketTable } from '../components/TicketTable';
+import { exportService } from '@/services/exportService';
+import { Button } from '@/components/ui/button';
+import { FileDown } from 'lucide-react';
 
 const PAGE_SIZE = 10;
 
@@ -15,6 +18,19 @@ export default function TicketListPage() {
   const [priorityFilter, setPriorityFilter] = useState('ALL');
   const [assigneeFilter, setAssigneeFilter] = useState('ALL');
   const [page, setPage] = useState(0);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await exportService.exportTickets({
+        status: statusFilter !== 'ALL' ? statusFilter : undefined,
+        assigneeId: assigneeFilter !== 'ALL' ? Number(assigneeFilter) : undefined,
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const { data: summary } = useQuery<TicketSummary>({
     queryKey: ['tickets-summary'],
@@ -57,7 +73,14 @@ export default function TicketListPage() {
 
       <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <h2 className="text-xl font-bold text-slate-800">Danh sách Phiếu Bảo trì</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-bold text-slate-800">Danh sách Phiếu Bảo trì</h2>
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting}
+              className="flex items-center gap-1.5 text-green-700 border-green-300 hover:bg-green-50">
+              <FileDown size={15} />
+              {exporting ? 'Đang xuất...' : 'Xuất Excel'}
+            </Button>
+          </div>
           <TicketFilters
             statusFilter={statusFilter}
             onStatusChange={handleFilterChange(setStatusFilter)}

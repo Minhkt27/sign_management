@@ -3,14 +3,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Shield } from 'lucide-react';
-import { Role } from '@/shared/types';
+import { Role, UiMode } from '@/shared/types';
 import { PermissionMatrix } from './PermissionMatrix';
 
 interface Props {
   role: Role | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: { code: string; name: string; description?: string; permissions: string[] }) => void;
+  onSubmit: (data: { code: string; name: string; description?: string; uiMode: UiMode; permissions: string[] }) => void;
   isPending: boolean;
   error: string;
 }
@@ -19,22 +19,36 @@ export function EditRoleDialog({ role, open, onOpenChange, onSubmit, isPending, 
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [uiMode, setUiMode] = useState<UiMode>('ADMIN');
   const [permissions, setPermissions] = useState<string[]>([]);
   const [localError, setLocalError] = useState('');
 
   useEffect(() => {
     if (open) {
       if (role) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setCode(role.code);
+         
         setName(role.name);
+         
         setDescription(role.description || '');
+         
+        setUiMode(role.uiMode ?? 'ADMIN');
+         
         setPermissions(role.permissions);
       } else {
+         
         setCode('');
+         
         setName('');
+         
         setDescription('');
+         
+        setUiMode('ADMIN');
+         
         setPermissions([]);
       }
+       
       setLocalError('');
     }
   }, [role, open]);
@@ -43,7 +57,7 @@ export function EditRoleDialog({ role, open, onOpenChange, onSubmit, isPending, 
     e.preventDefault();
     setLocalError('');
     if (!code || !name) { setLocalError('Vui lòng điền đủ mã và tên nhóm quyền'); return; }
-    onSubmit({ code: code.toUpperCase(), name, description, permissions });
+    onSubmit({ code: code.toUpperCase(), name, description, uiMode, permissions });
   };
 
   const displayError = localError || error;
@@ -88,11 +102,24 @@ export function EditRoleDialog({ role, open, onOpenChange, onSubmit, isPending, 
 
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-slate-700">Mô tả chi tiết</label>
-            <Input 
-              value={description} 
-              onChange={e => setDescription(e.target.value)} 
+            <Input
+              value={description}
+              onChange={e => setDescription(e.target.value)}
               placeholder="Nhóm quyền dành cho..."
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-slate-700">Giao diện hiển thị</label>
+            <select
+              value={uiMode}
+              onChange={e => setUiMode(e.target.value as UiMode)}
+              className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="ADMIN">Admin — Giao diện quản trị</option>
+              <option value="TECHNICIAN">Kỹ thuật viên — Giao diện mobile</option>
+            </select>
+            <p className="text-xs text-slate-500">Quyết định giao diện mà người dùng thuộc nhóm này sẽ thấy sau khi đăng nhập.</p>
           </div>
 
           <div className="space-y-3">

@@ -2,6 +2,7 @@ package com.hospital.signage.application.service;
 
 import com.hospital.signage.application.port.in.RoleUseCase;
 import com.hospital.signage.application.port.out.RoleDatabasePort;
+import com.hospital.signage.domain.enums.UiMode;
 import com.hospital.signage.domain.model.Role;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,7 @@ public class RoleService implements RoleUseCase {
                 .code(command.code())
                 .name(command.name())
                 .description(command.description())
+                .uiMode(command.uiMode() != null ? command.uiMode() : UiMode.ADMIN)
                 .permissions(command.permissions() != null ? command.permissions() : List.of())
                 .build();
         return roleDatabasePort.save(role);
@@ -52,6 +54,7 @@ public class RoleService implements RoleUseCase {
         role.setCode(command.code());
         role.setName(command.name());
         role.setDescription(command.description());
+        role.setUiMode(command.uiMode() != null ? command.uiMode() : UiMode.ADMIN);
         role.setPermissions(command.permissions() != null ? command.permissions() : List.of());
         return roleDatabasePort.save(role);
     }

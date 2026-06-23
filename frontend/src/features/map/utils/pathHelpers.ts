@@ -277,7 +277,7 @@ export const buildSteps = (
         ? `Đi thẳng${dist} đến cửa ${finalName}`
         : `Đi thẳng${dist}`;
     } else {
-      const lm = connectedRoom(secondLast) ?? landmarkOf(last);
+      const lm = connectedRoom(fromNode) ?? landmarkOf(last);
       if (lm) {
         const side = lm.node.id !== last.id ? sideOf(fromNode, last, lm.node) : null;
         text = side

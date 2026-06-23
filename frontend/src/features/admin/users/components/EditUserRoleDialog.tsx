@@ -32,9 +32,13 @@ export function EditUserRoleDialog({ user, open, onOpenChange, onSubmit, isPendi
 
   useEffect(() => {
     if (user && open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRoleId(user.roleId.toString());
+       
       setCustomPermissions(user.customPermissions || []);
+       
       setShowAdvanced((user.customPermissions || []).length > 0);
+       
       setLocalError('');
     }
   }, [user, open]);

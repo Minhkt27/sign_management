@@ -2,7 +2,7 @@ package com.hospital.signage.adapter.in.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hospital.signage.application.port.in.LocationUseCase;
-import com.hospital.signage.application.port.out.UserDatabasePort;
+import com.hospital.signage.application.service.UserCacheService;
 import com.hospital.signage.domain.model.Location;
 import com.hospital.signage.infrastructure.security.JwtAuthenticationFilter;
 import com.hospital.signage.infrastructure.security.JwtTokenProvider;
@@ -41,7 +41,7 @@ public class LocationControllerTest {
     private LocationUseCase locationUseCase;
 
     @MockBean
-    private UserDatabasePort userDatabasePort;
+    private UserCacheService userCacheService;
 
     @MockBean
     private JwtTokenProvider jwtTokenProvider;

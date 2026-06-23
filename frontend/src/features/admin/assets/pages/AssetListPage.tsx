@@ -10,6 +10,9 @@ import { AssetTable } from '../components/AssetTable';
 import { CreateAssetDialog } from '../components/CreateAssetDialog';
 import { Pagination } from '@/shared/components/Pagination';
 import { getApiError } from '@/shared/helpers/apiError';
+import { exportService } from '@/services/exportService';
+import { Button } from '@/components/ui/button';
+import { FileDown } from 'lucide-react';
 
 const PAGE_SIZE = 10;
 
@@ -49,6 +52,13 @@ export default function AssetListPage() {
     }
   };
 
+  const [exporting, setExporting] = useState(false);
+  const handleExport = async () => {
+    setExporting(true);
+    try { await exportService.exportAssets(search); }
+    finally { setExporting(false); }
+  };
+
   const filteredAssets = assets.filter(asset =>
     (statusFilter === 'ALL' || asset.status === statusFilter) &&
     (materialFilter === 'ALL' || asset.material === materialFilter)
@@ -72,6 +82,11 @@ export default function AssetListPage() {
           materialFilter={materialFilter}
           onMaterialFilterChange={(v) => { setMaterialFilter(v); setPage(0); }}
         >
+          <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting}
+            className="flex items-center gap-1.5 text-green-700 border-green-300 hover:bg-green-50">
+            <FileDown size={15} />
+            {exporting ? 'Đang xuất...' : 'Xuất Excel'}
+          </Button>
           <CreateAssetDialog locations={locations} signTypes={signTypes} />
         </AssetFilters>
 

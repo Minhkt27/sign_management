@@ -46,6 +46,9 @@ public class UserEntity {
     @Column(name = "role_id")
     private Long roleId;
 
+    @Column(name = "phone", length = 20)
+    private String phone;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "custom_permissions", columnDefinition = "jsonb")
     @Builder.Default

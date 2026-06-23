@@ -42,11 +42,14 @@ export interface Asset {
   updatedAt?: string;
 }
 
+export type UiMode = 'ADMIN' | 'TECHNICIAN';
+
 export interface Role {
   id: number;
   code: string;
   name: string;
   description?: string;
+  uiMode: UiMode;
   permissions: string[];
 }
 
@@ -55,6 +58,7 @@ export interface User {
   username: string;
   fullName: string;
   roleId: number;
+  phone?: string;
   customPermissions: string[];
   isActive: boolean;
 }

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '@/services/authService';
 import { getApiError } from '@/shared/helpers/apiError';
-import { getPermissionsFromToken } from '@/app/store/authStore';
+import { getUiModeFromToken } from '@/app/store/authStore';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -16,8 +16,8 @@ export default function LoginPage() {
     setError('');
     try {
       const res = await authService.login(u, p);
-      const permissions = getPermissionsFromToken(res.token);
-      navigate(permissions.includes('ASSET_VIEW') ? '/admin/assets/tree' : '/tech/dashboard');
+      const uiMode = getUiModeFromToken(res.token);
+      navigate(uiMode === 'TECHNICIAN' ? '/tech/dashboard' : '/admin/assets/tree');
     } catch (err: unknown) {
       setError(getApiError(err, 'Tên đăng nhập hoặc mật khẩu không chính xác!'));
     } finally {

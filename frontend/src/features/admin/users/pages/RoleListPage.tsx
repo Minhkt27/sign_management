@@ -61,7 +61,7 @@ export default function RoleListPage() {
     }
   };
 
-  const handleSubmit = (data: { code: string; name: string; description?: string; permissions: string[] }) => {
+  const handleSubmit = (data: { code: string; name: string; description?: string; uiMode: import('@/shared/types').UiMode; permissions: string[] }) => {
     if (selectedRole) {
       updateMutation.mutate({ id: selectedRole.id, data });
     } else {
@@ -96,9 +96,12 @@ export default function RoleListPage() {
                 </div>
               </div>
             </div>
-            <p className="text-sm text-slate-600 min-h-[40px] mb-4">
+            <p className="text-sm text-slate-600 min-h-[40px] mb-3">
               {role.description || 'Không có mô tả'}
             </p>
+            <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full mb-3 ${role.uiMode === 'TECHNICIAN' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+              {role.uiMode === 'TECHNICIAN' ? 'Kỹ thuật viên' : 'Admin'}
+            </span>
             <div className="border-t border-slate-100 pt-4 flex items-center justify-between">
               <span className="text-sm font-medium text-slate-700 bg-slate-50 px-2.5 py-1 rounded-md">
                 {role.permissions.length} quyền

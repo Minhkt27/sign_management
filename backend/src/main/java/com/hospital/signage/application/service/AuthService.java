@@ -2,6 +2,8 @@ package com.hospital.signage.application.service;
 
 import com.hospital.signage.application.port.in.AuthUseCase;
 import com.hospital.signage.application.port.out.UserDatabasePort;
+import com.hospital.signage.domain.enums.UiMode;
+import com.hospital.signage.domain.model.Role;
 import com.hospital.signage.domain.model.User;
 import com.hospital.signage.infrastructure.security.JwtTokenProvider;
 import com.hospital.signage.infrastructure.security.LoginAttemptService;
@@ -46,18 +48,19 @@ public class AuthService implements AuthUseCase {
         loginAttemptService.recordSuccess(command.username());
 
         java.util.List<String> permissions = new java.util.ArrayList<>();
+        UiMode uiMode = UiMode.ADMIN;
         if (user.getRoleId() != null) {
-            roleDatabasePort.findById(user.getRoleId()).ifPresent(role -> {
-                if (role.getPermissions() != null) {
-                    permissions.addAll(role.getPermissions());
-                }
-            });
+            Role role = roleDatabasePort.findById(user.getRoleId()).orElse(null);
+            if (role != null) {
+                if (role.getPermissions() != null) permissions.addAll(role.getPermissions());
+                if (role.getUiMode() != null) uiMode = role.getUiMode();
+            }
         }
         if (user.getCustomPermissions() != null) {
             permissions.addAll(user.getCustomPermissions());
         }
 
-        String token = jwtTokenProvider.generateToken(user.getUsername(), permissions);
+        String token = jwtTokenProvider.generateToken(user.getUsername(), permissions, uiMode.name());
         String refreshToken = jwtTokenProvider.generateRefreshToken(user.getUsername());
 
         user.setRefreshToken(refreshToken);
@@ -82,20 +85,25 @@ public class AuthService implements AuthUseCase {
         }
 
         java.util.List<String> permissions = new java.util.ArrayList<>();
+        UiMode uiMode = UiMode.ADMIN;
         if (user.getRoleId() != null) {
-            roleDatabasePort.findById(user.getRoleId()).ifPresent(role -> {
-                if (role.getPermissions() != null) {
-                    permissions.addAll(role.getPermissions());
-                }
-            });
+            Role role = roleDatabasePort.findById(user.getRoleId()).orElse(null);
+            if (role != null) {
+                if (role.getPermissions() != null) permissions.addAll(role.getPermissions());
+                if (role.getUiMode() != null) uiMode = role.getUiMode();
+            }
         }
         if (user.getCustomPermissions() != null) {
             permissions.addAll(user.getCustomPermissions());
         }
 
-        String newToken = jwtTokenProvider.generateToken(user.getUsername(), permissions);
+        String newToken = jwtTokenProvider.generateToken(user.getUsername(), permissions, uiMode.name());
+        String newRefreshToken = jwtTokenProvider.generateRefreshToken(user.getUsername());
 
-        return new RefreshResult(newToken, refreshToken);
+        user.setRefreshToken(newRefreshToken);
+        userDatabasePort.save(user);
+
+        return new RefreshResult(newToken, newRefreshToken);
     }
 
     @Override

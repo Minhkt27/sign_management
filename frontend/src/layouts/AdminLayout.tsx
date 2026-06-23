@@ -1,9 +1,88 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { authStore, getPermissionsFromToken } from '@/app/store/authStore';
+import { authStore, getPermissionsFromToken, AuthUser } from '@/app/store/authStore';
 import { authService } from '@/services/authService';
 import { LayoutDashboard, Signpost, Ticket, LogOut, Tags, Users, KeyRound, Menu, X, Shield } from 'lucide-react';
 import ChangePasswordModal from '@/components/ChangePasswordModal';
+
+type NavItem = { to: string; label: string; icon: React.ElementType; end: boolean; reqAuth: string };
+
+interface SidebarContentProps {
+  user: AuthUser | null;
+  navItems: NavItem[];
+  onNavClick?: () => void;
+  onChangePassword: () => void;
+  onLogout: () => void;
+}
+
+function SidebarContent({ user, navItems, onNavClick, onChangePassword, onLogout }: SidebarContentProps) {
+  return (
+    <>
+      <div className="h-16 border-b border-slate-100 flex items-center pl-4 shrink-0">
+        <div className="bg-blue-600 text-white p-2 rounded-lg shadow-sm shrink-0">
+          <Signpost size={20} />
+        </div>
+        <div className="ml-3 min-w-0">
+          <p className="text-sm font-bold text-slate-800 whitespace-nowrap">Hospital Signage</p>
+          <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest whitespace-nowrap">Admin Control</p>
+        </div>
+      </div>
+
+      {user && (
+        <div className="border-b border-slate-100 flex items-center bg-slate-50 shrink-0 py-3 pl-4">
+          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm shrink-0">
+            {user.fullName.charAt(0)}
+          </div>
+          <div className="ml-3 min-w-0">
+            <p className="text-sm font-semibold text-slate-800 truncate">{user.fullName}</p>
+            <button
+              onClick={() => { onChangePassword(); onNavClick?.(); }}
+              className="text-[11px] text-blue-500 hover:text-blue-700 font-semibold flex items-center gap-1 transition-colors whitespace-nowrap"
+            >
+              <KeyRound size={10} className="shrink-0" />
+              Đổi mật khẩu
+            </button>
+          </div>
+        </div>
+      )}
+
+      <nav className="flex-1 py-2 px-2 space-y-0.5 overflow-y-auto overflow-x-hidden">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              title={item.label}
+              onClick={onNavClick}
+              className={({ isActive }) =>
+                `flex items-center py-2.5 px-3 rounded-xl transition-colors duration-150 gap-3 ${
+                  isActive
+                    ? 'bg-blue-600 text-white shadow-sm shadow-blue-200'
+                    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+                }`
+              }
+            >
+              <Icon size={19} className="shrink-0" />
+              <span className="text-base font-semibold whitespace-nowrap">{item.label}</span>
+            </NavLink>
+          );
+        })}
+      </nav>
+
+      <div className="py-2 px-2 border-t border-slate-100 shrink-0">
+        <button
+          onClick={onLogout}
+          className="w-full flex items-center py-2.5 px-3 rounded-xl text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors duration-150 text-sm font-medium gap-3"
+        >
+          <LogOut size={17} className="shrink-0" />
+          <span className="whitespace-nowrap">Đăng xuất</span>
+        </button>
+      </div>
+    </>
+  );
+}
 
 export default function AdminLayout() {
   const navigate = useNavigate();
@@ -31,77 +110,6 @@ export default function AdminLayout() {
   const navItems = allNavItems.filter(item => permissions.includes(item.reqAuth));
 
   const pageTitle = navItems.find(item => location.pathname.startsWith(item.to))?.label ?? 'Bảng điều khiển';
-
-  const SidebarContent = ({ onNavClick }: { onNavClick?: () => void }) => (
-    <>
-      {/* Brand */}
-      <div className="h-16 border-b border-slate-100 flex items-center pl-4 shrink-0">
-        <div className="bg-blue-600 text-white p-2 rounded-lg shadow-sm shrink-0">
-          <Signpost size={20} />
-        </div>
-        <div className="ml-3 min-w-0">
-          <p className="text-sm font-bold text-slate-800 whitespace-nowrap">Hospital Signage</p>
-          <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest whitespace-nowrap">Admin Control</p>
-        </div>
-      </div>
-
-      {/* User avatar */}
-      {user && (
-        <div className="border-b border-slate-100 flex items-center bg-slate-50 shrink-0 py-3 pl-4">
-          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm shrink-0">
-            {user.fullName.charAt(0)}
-          </div>
-          <div className="ml-3 min-w-0">
-            <p className="text-sm font-semibold text-slate-800 truncate">{user.fullName}</p>
-            <button
-              onClick={() => { setIsChangePasswordOpen(true); onNavClick?.(); }}
-              className="text-[11px] text-blue-500 hover:text-blue-700 font-semibold flex items-center gap-1 transition-colors whitespace-nowrap"
-            >
-              <KeyRound size={10} className="shrink-0" />
-              Đổi mật khẩu
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Navigation */}
-      <nav className="flex-1 py-2 px-2 space-y-0.5 overflow-y-auto overflow-x-hidden">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              title={item.label}
-              onClick={onNavClick}
-              className={({ isActive }) =>
-                `flex items-center py-2.5 px-3 rounded-xl transition-colors duration-150 gap-3 ${
-                  isActive
-                    ? 'bg-blue-600 text-white shadow-sm shadow-blue-200'
-                    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
-                }`
-              }
-            >
-              <Icon size={19} className="shrink-0" />
-              <span className="text-base font-semibold whitespace-nowrap">{item.label}</span>
-            </NavLink>
-          );
-        })}
-      </nav>
-
-      {/* Footer */}
-      <div className="py-2 px-2 border-t border-slate-100 shrink-0">
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center py-2.5 px-3 rounded-xl text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors duration-150 text-sm font-medium gap-3"
-        >
-          <LogOut size={17} className="shrink-0" />
-          <span className="whitespace-nowrap">Đăng xuất</span>
-        </button>
-      </div>
-    </>
-  );
 
   return (
     <div className="flex h-screen bg-slate-100 font-sans overflow-hidden">
@@ -210,7 +218,13 @@ export default function AdminLayout() {
           </button>
         </div>
         <div className="flex flex-col flex-1 overflow-hidden">
-          <SidebarContent onNavClick={() => setMobileOpen(false)} />
+          <SidebarContent
+              user={user}
+              navItems={navItems}
+              onNavClick={() => setMobileOpen(false)}
+              onChangePassword={() => setIsChangePasswordOpen(true)}
+              onLogout={handleLogout}
+            />
         </div>
       </aside>
 
@@ -230,7 +244,7 @@ export default function AdminLayout() {
             <span>Trực tuyến</span>
           </div>
         </header>
-        <div className="p-4 md:p-8 flex-1">
+        <div className="p-4 md:p-8 flex-1 min-w-0">
           <Outlet />
         </div>
       </main>
