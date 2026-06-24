@@ -5,7 +5,7 @@ import type { MapNode, MapFloor, MapFloorData, Location } from '@/shared/types';
 // --- Helpers ---
 
 const mkFloor = (id: number, locId: number): MapFloor => ({
-  id, locationId: locId, imageUrl: '', imgWidth: 0, imgHeight: 0,
+  id, locationId: locId, imageUrl: '', imgWidth: 0, imgHeight: 0, campus: false,
 });
 
 const mkNode = (

@@ -29,7 +29,7 @@ const REAL_PATH: MapNode[] = [
 ];
 
 // ── Real floor 1 data (nodes từ GET /api/map/floors/1) ──
-const FLOOR_1: MapFloor = { id: 1, locationId: 3, imageUrl: '', imgWidth: 14581, imgHeight: 8268 };
+const FLOOR_1: MapFloor = { id: 1, locationId: 3, imageUrl: '', imgWidth: 14581, imgHeight: 8268, campus: false };
 const FLOOR_1_NODES: MapNode[] = [
   { id: 1,  floorId: 1, x: 0.1414680458344645,  y: 0.20023530115856913, type: 'ROOM',       label: 'Phòng cấp cứu số 1', locationId: 7  },
   { id: 2,  floorId: 1, x: 0.19542330052481843, y: 0.20023530115856913, type: 'ROOM',       label: 'phòng chụp X quang', locationId: 8  },

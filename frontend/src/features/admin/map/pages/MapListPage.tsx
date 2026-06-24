@@ -329,7 +329,7 @@ export default function MapListPage() {
                         <img src={getBackendUrl(floor.imageUrl)} alt="Mặt bằng" className="w-full h-full object-cover" />
                       </div>
                       <div className="p-4">
-                        <p className="font-semibold text-slate-800">{getLocationName(floor.locationId)}</p>
+                        <p className="font-semibold text-slate-800">{getLocationName(floor.locationId!)}</p>
                         <p className="text-xs text-slate-400 mt-0.5">{floor.imgWidth} × {floor.imgHeight}px</p>
                         <div className="flex gap-2 mt-3">
                           <button
@@ -367,7 +367,7 @@ export default function MapListPage() {
                       <img src={getBackendUrl(floor.imageUrl)} alt="Mặt bằng" className="w-full h-full object-cover" />
                     </div>
                     <div className="p-4">
-                      <p className="font-semibold text-slate-800">{getLocationName(floor.locationId)}</p>
+                      <p className="font-semibold text-slate-800">{getLocationName(floor.locationId!)}</p>
                       <p className="text-xs text-slate-400 mt-0.5">{floor.imgWidth} × {floor.imgHeight}px</p>
                       <div className="flex gap-2 mt-3">
                         <button
