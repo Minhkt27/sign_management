@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapNode, NodeType, Location, Asset } from '@/shared/types';
 import { X, Trash2, Tag, Search, MapPin, ExternalLink, Link } from 'lucide-react';
-import { NODE_TYPE_OPTIONS } from '../constants';
+import { NODE_TYPE_OPTIONS, CAMPUS_NODE_TYPE_OPTIONS } from '../constants';
 
 interface Props {
   node: MapNode | null;
@@ -154,7 +154,7 @@ export function NodePanel({ node, locations, assets, isCampusFloor, campusNodes 
             onChange={e => handleTypeChange(e.target.value as NodeType)}
             className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            {NODE_TYPE_OPTIONS.map(opt => (
+            {(isCampusFloor ? CAMPUS_NODE_TYPE_OPTIONS : NODE_TYPE_OPTIONS).map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>

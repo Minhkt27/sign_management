@@ -35,7 +35,6 @@ export default function MapListPage() {
   const { data: campusMap } = useQuery({
     queryKey: ['campusMap'],
     queryFn: mapService.getCampusMap,
-    retry: false,
   });
 
   const createCampusMutation = useMutation({

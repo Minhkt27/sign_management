@@ -16,7 +16,10 @@ export const mapService = {
   deleteFloor: (id: number) => apiClient.delete(`/map/floors/${id}`),
 
   // Campus map
-  getCampusMap: () => apiClient.get<MapFloorData>('/map/campus').then(r => r.data),
+  getCampusMap: () => apiClient.get<MapFloorData>('/map/campus').then(r => r.data).catch((e: unknown) => {
+    if ((e as { response?: { status?: number } })?.response?.status === 404) return null;
+    throw e;
+  }),
   createCampusFloor: (data: { imageUrl: string; imgWidth: number; imgHeight: number }) =>
     apiClient.post<MapFloor>('/map/campus', data).then(r => r.data),
   updateCampusFloor: (data: { imageUrl: string; imgWidth: number; imgHeight: number }) =>

@@ -62,6 +62,7 @@ export default function MapEditorPage() {
     queryKey: ['campusMap'],
     queryFn: mapService.getCampusMap,
     enabled: !isCampusFloor,
+    staleTime: 60_000,
   });
   const campusNodes = campusMapData?.nodes ?? [];
 
