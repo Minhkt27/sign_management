@@ -15,6 +15,7 @@ interface Props {
   onCanvasClick: (x: number, y: number) => void;
   onNodeClick: (nodeId: number) => void;
   onNodeDragEnd: (nodeId: number, x: number, y: number) => void;
+  onEdgeClick?: (edgeId: number) => void;
 }
 
 const NODE_COLORS: Record<NodeType, string> = {
@@ -31,10 +32,11 @@ const NODE_COLORS: Record<NodeType, string> = {
 export function MapCanvas({
   imageUrl, nodes, edges, tool,
   selectedNodeId, edgeStartId, pathNodeIds,
-  onCanvasClick, onNodeClick, onNodeDragEnd,
+  onCanvasClick, onNodeClick, onNodeDragEnd, onEdgeClick,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState<{ id: number; x: number; y: number } | null>(null);
+  const [hoveredEdgeId, setHoveredEdgeId] = useState<number | null>(null);
 
   const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (tool !== 'addNode') return;
@@ -97,7 +99,7 @@ export function MapCanvas({
       />
 
       {/* SVG overlay for edges */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none">
+      <svg className={`absolute inset-0 w-full h-full ${tool === 'delete' ? '' : 'pointer-events-none'}`}>
         {edges.map(edge => {
           const from = nodes.find(n => n.id === edge.nodeFromId);
           const to = nodes.find(n => n.id === edge.nodeToId);
@@ -105,15 +107,32 @@ export function MapCanvas({
           const fc = getNodeCoords(from);
           const tc = getNodeCoords(to);
           const onPath = isOnPath(from.id) && isOnPath(to.id);
+          const hovered = hoveredEdgeId === edge.id;
+          const isDeleteMode = tool === 'delete';
           return (
-            <line
-              key={edge.id}
-              x1={`${fc.x * 100}%`} y1={`${fc.y * 100}%`}
-              x2={`${tc.x * 100}%`} y2={`${tc.y * 100}%`}
-              stroke={onPath ? '#3b82f6' : '#94a3b8'}
-              strokeWidth={onPath ? 3 : 1.5}
-              strokeDasharray={onPath ? undefined : '4 3'}
-            />
+            <g key={edge.id}
+              onMouseEnter={() => isDeleteMode && setHoveredEdgeId(edge.id)}
+              onMouseLeave={() => setHoveredEdgeId(null)}
+              onClick={() => isDeleteMode && onEdgeClick?.(edge.id)}
+              className={isDeleteMode ? 'cursor-pointer' : ''}
+            >
+              {/* Visible line */}
+              <line
+                x1={`${fc.x * 100}%`} y1={`${fc.y * 100}%`}
+                x2={`${tc.x * 100}%`} y2={`${tc.y * 100}%`}
+                stroke={hovered ? '#ef4444' : onPath ? '#3b82f6' : '#94a3b8'}
+                strokeWidth={hovered ? 3 : onPath ? 3 : 1.5}
+                strokeDasharray={onPath || hovered ? undefined : '4 3'}
+              />
+              {/* Wide transparent hitbox — easier to click thin edges */}
+              {isDeleteMode && (
+                <line
+                  x1={`${fc.x * 100}%`} y1={`${fc.y * 100}%`}
+                  x2={`${tc.x * 100}%`} y2={`${tc.y * 100}%`}
+                  stroke="transparent" strokeWidth={12}
+                />
+              )}
+            </g>
           );
         })}
       </svg>

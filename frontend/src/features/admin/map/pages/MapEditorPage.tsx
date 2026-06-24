@@ -108,6 +108,12 @@ export default function MapEditorPage() {
     onError: (e: unknown) => toast.error(getApiError(e, 'Không thể tạo đường nối')),
   });
 
+  const deleteEdgeMutation = useMutation({
+    mutationFn: mapService.deleteEdge,
+    onSuccess: invalidate,
+    onError: (e: unknown) => toast.error(getApiError(e, 'Không thể xóa đường nối')),
+  });
+
 
   const handleCanvasClick = (x: number, y: number) => {
     createNodeMutation.mutate({ floorId: Number(floorId), x, y, type: pendingType });
@@ -235,6 +241,7 @@ export default function MapEditorPage() {
             onCanvasClick={handleCanvasClick}
             onNodeClick={handleNodeClick}
             onNodeDragEnd={handleNodeDragEnd}
+            onEdgeClick={edgeId => deleteEdgeMutation.mutate(edgeId)}
           />
         </div>
 
