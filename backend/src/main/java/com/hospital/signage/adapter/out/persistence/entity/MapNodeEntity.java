@@ -44,6 +44,9 @@ public class MapNodeEntity {
     @Column(name = "asset_id", columnDefinition = "uuid")
     private UUID assetId;
 
+    @Column(name = "linked_campus_node_id")
+    private Long linkedCampusNodeId;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;

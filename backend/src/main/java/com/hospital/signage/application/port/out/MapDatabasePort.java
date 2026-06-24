@@ -14,6 +14,8 @@ public interface MapDatabasePort {
     MapFloor saveFloor(MapFloor floor);
     Optional<MapFloor> findFloorById(Long id);
     Optional<MapFloor> findFloorByLocationId(Long locationId);
+    Optional<MapFloor> findCampusFloor();
+    List<MapFloor> findAllIndoorFloors();
     List<MapFloor> findAllFloors();
     List<MapFloor> findFloorsByIds(List<Long> ids);
     void deleteFloorById(Long id);

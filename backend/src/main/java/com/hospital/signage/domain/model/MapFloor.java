@@ -17,6 +17,7 @@ public class MapFloor {
     private String imageUrl;
     private int imgWidth;
     private int imgHeight;
+    private boolean campus;
     private Instant createdAt;
     private Instant updatedAt;
 }

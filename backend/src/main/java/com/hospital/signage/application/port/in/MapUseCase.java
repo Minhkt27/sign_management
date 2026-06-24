@@ -20,6 +20,12 @@ public interface MapUseCase {
     MapFloorData getFloorData(Long floorId);
     List<MapFloorData> getFloorDataBatch(List<Long> floorIds);
 
+    // Campus map
+    MapFloor createCampusFloor(MapFloor floor);
+    MapFloor updateCampusFloor(MapFloor floor);
+    Optional<MapFloorData> getCampusMap();
+    void deleteCampusFloor();
+
     // Node
     MapNode createNode(MapNode node);
     MapNode updateNode(Long id, MapNode node);
@@ -33,6 +39,10 @@ public interface MapUseCase {
 
     // Wayfinding
     List<MapNode> findPath(Long fromNodeId, Long toNodeId, boolean avoidStairs);
+    WayfindingResult findPathWithSegments(Long fromNodeId, Long toNodeId, boolean avoidStairs);
 
+    enum SegmentType { INDOOR, OUTDOOR }
+    record PathSegment(SegmentType type, List<MapNode> nodes) {}
+    record WayfindingResult(List<PathSegment> segments) {}
     record MapFloorData(MapFloor floor, List<MapNode> nodes, List<MapEdge> edges) {}
 }

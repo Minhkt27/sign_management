@@ -22,6 +22,7 @@ public class MapNode {
     private String label;
     private Long locationId;
     private UUID assetId;
+    private Long linkedCampusNodeId;
     private Instant createdAt;
     private Instant updatedAt;
 }

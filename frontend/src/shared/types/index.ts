@@ -67,10 +67,11 @@ export type NodeType = 'ROOM' | 'DEPARTMENT' | 'JUNCTION' | 'STAIRS' | 'ELEVATOR
 
 export interface MapFloor {
   id: number;
-  locationId: number;
+  locationId: number | null;
   imageUrl: string;
   imgWidth: number;
   imgHeight: number;
+  campus: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -84,8 +85,20 @@ export interface MapNode {
   label?: string;
   locationId?: number;
   assetId?: string;
+  linkedCampusNodeId?: number;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export type SegmentType = 'INDOOR' | 'OUTDOOR';
+
+export interface PathSegment {
+  type: SegmentType;
+  nodes: MapNode[];
+}
+
+export interface WayfindingResult {
+  segments: PathSegment[];
 }
 
 export interface MapEdge {

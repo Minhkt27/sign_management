@@ -10,7 +10,7 @@ import { NodePanel } from '../components/NodePanel';
 import { MousePointer, Plus, GitBranch, Trash2, ArrowLeft } from 'lucide-react';
 import { getApiError } from '@/shared/helpers/apiError';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
-import { NODE_TYPE_OPTIONS } from '../constants';
+import { NODE_TYPE_OPTIONS, CAMPUS_NODE_TYPE_OPTIONS } from '../constants';
 import { toast } from 'sonner';
 
 const TOOL_BUTTONS: { tool: EditorTool; icon: React.ReactNode; label: string }[] = [
@@ -54,7 +54,16 @@ export default function MapEditorPage() {
     queryFn: mapService.getAllFloors,
   });
 
+  const isCampusFloor = floorData?.floor.campus ?? false;
   const otherFloors = allFloors.filter(f => f.id !== Number(floorId));
+
+  // Load campus nodes for EXIT node linking (only on non-campus floors)
+  const { data: campusMapData } = useQuery({
+    queryKey: ['campusMap'],
+    queryFn: mapService.getCampusMap,
+    enabled: !isCampusFloor,
+  });
+  const campusNodes = campusMapData?.nodes ?? [];
 
   const selectedNodeType = floorData?.nodes.find(n => n.id === selectedNodeId)?.type;
   const isTransitNode = selectedNodeType === 'STAIRS' || selectedNodeType === 'ELEVATOR';
@@ -123,7 +132,7 @@ export default function MapEditorPage() {
   const handleNodeDragEnd = (nodeId: number, x: number, y: number) => {
     const node = floorData?.nodes.find(n => n.id === nodeId);
     if (!node) return;
-    updateNodeMutation.mutate({ id: nodeId, x, y, type: node.type, label: node.label, locationId: node.locationId, assetId: node.assetId });
+    updateNodeMutation.mutate({ id: nodeId, x, y, type: node.type, label: node.label, locationId: node.locationId, assetId: node.assetId, linkedCampusNodeId: node.linkedCampusNodeId });
   };
 
   const handleUpdateNode = (id: number, data: Partial<MapNode>) => {
@@ -182,25 +191,33 @@ export default function MapEditorPage() {
               onChange={e => setPendingType(e.target.value as NodeType)}
               className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
             >
-              {NODE_TYPE_OPTIONS.map(opt => (
+              {(isCampusFloor ? CAMPUS_NODE_TYPE_OPTIONS : NODE_TYPE_OPTIONS).map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
           </>
         )}
 
+        {isCampusFloor && (
+          <span className="ml-2 text-xs font-semibold bg-amber-100 text-amber-700 px-2 py-1 rounded-full">
+            Sơ đồ tổng thể
+          </span>
+        )}
+
         <div className="ml-auto flex items-center gap-2 text-xs text-slate-500">
           <span>{floorData.nodes.length} node</span>
           <span>·</span>
           <span>{floorData.edges.length} đường nối</span>
-          <div className="flex items-center gap-3 ml-3">
-            {([['ROOM','Phòng','bg-blue-500'],['DEPARTMENT','Khoa','bg-teal-500'],['JUNCTION','Hành lang','bg-slate-400'],['STAIRS','Cầu thang','bg-orange-500'],['ELEVATOR','Thang máy','bg-purple-500'],['ENTRANCE','Lối vào','bg-emerald-500']] as const).map(([,label,color]) => (
-              <span key={label} className="flex items-center gap-1">
-                <span className={`w-2.5 h-2.5 rounded-full ${color}`} />
-                {label}
-              </span>
-            ))}
-          </div>
+          {!isCampusFloor && (
+            <div className="flex items-center gap-3 ml-3">
+              {([['ROOM','Phòng','bg-blue-500'],['DEPARTMENT','Khoa','bg-teal-500'],['JUNCTION','Hành lang','bg-slate-400'],['STAIRS','Cầu thang','bg-orange-500'],['ELEVATOR','Thang máy','bg-purple-500'],['ENTRANCE','Lối vào/Ra','bg-emerald-500']] as const).map(([,label,color]) => (
+                <span key={label} className="flex items-center gap-1">
+                  <span className={`w-2.5 h-2.5 rounded-full ${color}`} />
+                  {label}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -231,6 +248,8 @@ export default function MapEditorPage() {
                 node={selectedNode}
                 locations={locations}
                 assets={assets}
+                isCampusFloor={isCampusFloor}
+                campusNodes={campusNodes}
                 onUpdate={handleUpdateNode}
                 onDelete={handleDeleteNode}
                 onClose={() => setSelectedNodeId(null)}

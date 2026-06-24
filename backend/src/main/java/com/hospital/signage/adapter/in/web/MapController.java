@@ -87,6 +87,48 @@ public class MapController {
         return ResponseEntity.ok().build();
     }
 
+    // ── Campus map ────────────────────────────────────────────────────────
+
+    @Operation(summary = "Lấy sơ đồ tổng thể bệnh viện (public)")
+    @GetMapping("/campus")
+    public ResponseEntity<MapFloorData> getCampusMap() {
+        return mapUseCase.getCampusMap()
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @Operation(summary = "Tạo sơ đồ tổng thể bệnh viện")
+    @PreAuthorize("hasAuthority('MAP_MANAGE')")
+    @PostMapping("/campus")
+    public ResponseEntity<MapFloor> createCampusFloor(@Valid @RequestBody CampusFloorRequest req) {
+        MapFloor floor = MapFloor.builder()
+                .imageUrl(req.imageUrl())
+                .imgWidth(req.imgWidth())
+                .imgHeight(req.imgHeight())
+                .build();
+        return ResponseEntity.ok(mapUseCase.createCampusFloor(floor));
+    }
+
+    @Operation(summary = "Cập nhật ảnh sơ đồ tổng thể")
+    @PreAuthorize("hasAuthority('MAP_MANAGE')")
+    @PutMapping("/campus")
+    public ResponseEntity<MapFloor> updateCampusFloor(@Valid @RequestBody CampusFloorRequest req) {
+        MapFloor floor = MapFloor.builder()
+                .imageUrl(req.imageUrl())
+                .imgWidth(req.imgWidth())
+                .imgHeight(req.imgHeight())
+                .build();
+        return ResponseEntity.ok(mapUseCase.updateCampusFloor(floor));
+    }
+
+    @Operation(summary = "Xóa sơ đồ tổng thể")
+    @PreAuthorize("hasAuthority('MAP_MANAGE')")
+    @DeleteMapping("/campus")
+    public ResponseEntity<Void> deleteCampusFloor() {
+        mapUseCase.deleteCampusFloor();
+        return ResponseEntity.ok().build();
+    }
+
     // ── Node ───────────────────────────────────────────────────────────────
 
     @Operation(summary = "Thêm node lên sơ đồ")
@@ -101,6 +143,7 @@ public class MapController {
                 .label(req.label())
                 .locationId(req.locationId())
                 .assetId(req.assetId())
+                .linkedCampusNodeId(req.linkedCampusNodeId())
                 .build();
         return ResponseEntity.ok(mapUseCase.createNode(node));
     }
@@ -116,6 +159,7 @@ public class MapController {
                 .label(req.label())
                 .locationId(req.locationId())
                 .assetId(req.assetId())
+                .linkedCampusNodeId(req.linkedCampusNodeId())
                 .build();
         return ResponseEntity.ok(mapUseCase.updateNode(id, node));
     }
@@ -172,6 +216,15 @@ public class MapController {
         return ResponseEntity.ok(mapUseCase.findPath(from, to, avoidStairs));
     }
 
+    @Operation(summary = "Tìm đường theo đoạn (hỗ trợ liên tòa — public)")
+    @GetMapping("/wayfinding/v2")
+    public ResponseEntity<MapUseCase.WayfindingResult> findPathSegmented(
+            @RequestParam Long from,
+            @RequestParam Long to,
+            @RequestParam(defaultValue = "false") boolean avoidStairs) {
+        return ResponseEntity.ok(mapUseCase.findPathWithSegments(from, to, avoidStairs));
+    }
+
     @Operation(summary = "Tìm đường đến asset (ADMIN/TECHNICAL — cho KTV)")
     @GetMapping("/wayfinding/asset")
     public ResponseEntity<List<MapNode>> findPathToAsset(
@@ -193,6 +246,12 @@ public class MapController {
             @NotNull Integer imgHeight
     ) {}
 
+    public record CampusFloorRequest(
+            @NotNull String imageUrl,
+            @NotNull Integer imgWidth,
+            @NotNull Integer imgHeight
+    ) {}
+
     public record NodeRequest(
             @NotNull Long floorId,
             @NotNull Double x,
@@ -200,7 +259,8 @@ public class MapController {
             @NotNull NodeType type,
             String label,
             Long locationId,
-            UUID assetId
+            UUID assetId,
+            Long linkedCampusNodeId
     ) {}
 
     public record NodeUpdateRequest(
@@ -209,7 +269,8 @@ public class MapController {
             @NotNull NodeType type,
             String label,
             Long locationId,
-            UUID assetId
+            UUID assetId,
+            Long linkedCampusNodeId
     ) {}
 
     public record EdgeRequest(

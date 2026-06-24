@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import { MapFloor, MapFloorData, MapNode, MapEdge, NodeType } from '../shared/types';
+import { MapFloor, MapFloorData, MapNode, MapEdge, NodeType, WayfindingResult } from '../shared/types';
 
 export const mapService = {
   // Floors
@@ -15,6 +15,14 @@ export const mapService = {
     apiClient.put<MapFloor>(`/map/floors/${id}`, data).then(r => r.data),
   deleteFloor: (id: number) => apiClient.delete(`/map/floors/${id}`),
 
+  // Campus map
+  getCampusMap: () => apiClient.get<MapFloorData>('/map/campus').then(r => r.data),
+  createCampusFloor: (data: { imageUrl: string; imgWidth: number; imgHeight: number }) =>
+    apiClient.post<MapFloor>('/map/campus', data).then(r => r.data),
+  updateCampusFloor: (data: { imageUrl: string; imgWidth: number; imgHeight: number }) =>
+    apiClient.put<MapFloor>('/map/campus', data).then(r => r.data),
+  deleteCampusFloor: () => apiClient.delete('/map/campus'),
+
   // Nodes
   createNode: (data: {
     floorId: number;
@@ -24,8 +32,9 @@ export const mapService = {
     label?: string;
     locationId?: number;
     assetId?: string;
+    linkedCampusNodeId?: number;
   }) => apiClient.post<MapNode>('/map/nodes', data).then(r => r.data),
-  updateNode: (id: number, data: Partial<Pick<MapNode, 'x' | 'y' | 'type' | 'label' | 'locationId' | 'assetId'>>) =>
+  updateNode: (id: number, data: Partial<Pick<MapNode, 'x' | 'y' | 'type' | 'label' | 'locationId' | 'assetId' | 'linkedCampusNodeId'>>) =>
     apiClient.put<MapNode>(`/map/nodes/${id}`, data).then(r => r.data),
   deleteNode: (id: number) => apiClient.delete(`/map/nodes/${id}`),
   getNodeByAsset: (assetId: string) =>
@@ -44,5 +53,9 @@ export const mapService = {
   findPathToAsset: (from: number, assetId: string, avoidStairs = false) =>
     apiClient
       .get<MapNode[]>(`/map/wayfinding/asset?from=${from}&assetId=${assetId}&avoidStairs=${avoidStairs}`)
+      .then(r => r.data),
+  findPathWithSegments: (from: number, to: number, avoidStairs = false) =>
+    apiClient
+      .get<WayfindingResult>(`/map/wayfinding/v2?from=${from}&to=${to}&avoidStairs=${avoidStairs}`)
       .then(r => r.data),
 };

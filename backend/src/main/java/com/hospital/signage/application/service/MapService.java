@@ -58,7 +58,53 @@ public class MapService implements MapUseCase {
 
     @Override
     public List<MapFloor> getAllFloors() {
-        return mapDatabasePort.findAllFloors();
+        return mapDatabasePort.findAllIndoorFloors();
+    }
+
+    @Override
+    @Transactional
+    public MapFloor createCampusFloor(MapFloor floor) {
+        mapDatabasePort.findCampusFloor().ifPresent(existing -> {
+            throw new IllegalArgumentException("Sơ đồ tổng thể đã tồn tại (id=" + existing.getId() + ")");
+        });
+        floor.setCampus(true);
+        floor.setLocationId(null);
+        MapFloor saved = mapDatabasePort.saveFloor(floor);
+        mapGraphCache.invalidateAll();
+        log.info("Campus map created: id={}", saved.getId());
+        return saved;
+    }
+
+    @Override
+    @Transactional
+    public MapFloor updateCampusFloor(MapFloor floor) {
+        MapFloor existing = mapDatabasePort.findCampusFloor()
+                .orElseThrow(() -> new IllegalArgumentException("Chưa có sơ đồ tổng thể"));
+        existing.setImageUrl(floor.getImageUrl());
+        existing.setImgWidth(floor.getImgWidth());
+        existing.setImgHeight(floor.getImgHeight());
+        MapFloor saved = mapDatabasePort.saveFloor(existing);
+        mapGraphCache.invalidateAll();
+        return saved;
+    }
+
+    @Override
+    public Optional<MapFloorData> getCampusMap() {
+        return mapDatabasePort.findCampusFloor().map(campus -> {
+            List<MapNode> nodes = mapDatabasePort.findNodesByFloorId(campus.getId());
+            List<MapEdge> edges = mapDatabasePort.findEdgesByFloorId(campus.getId());
+            return new MapFloorData(campus, nodes, edges);
+        });
+    }
+
+    @Override
+    @Transactional
+    public void deleteCampusFloor() {
+        MapFloor campus = mapDatabasePort.findCampusFloor()
+                .orElseThrow(() -> new IllegalArgumentException("Chưa có sơ đồ tổng thể"));
+        mapDatabasePort.deleteFloorById(campus.getId());
+        mapGraphCache.invalidateAll();
+        log.info("Campus map deleted: id={}", campus.getId());
     }
 
     @Override
@@ -137,6 +183,7 @@ public class MapService implements MapUseCase {
         existing.setLabel(node.getLabel());
         existing.setLocationId(node.getLocationId());
         existing.setAssetId(node.getAssetId());
+        existing.setLinkedCampusNodeId(node.getLinkedCampusNodeId());
         MapNode saved = mapDatabasePort.saveNode(existing);
         mapGraphCache.invalidateAll();
         return saved;
@@ -217,76 +264,172 @@ public class MapService implements MapUseCase {
         List<MapNode> allNodes;
         List<MapEdge> allEdges;
         if (java.util.Objects.equals(fromNode.getFloorId(), toNode.getFloorId())) {
-            // Thử tìm đường nội tầng trước; nếu không có (chỉ đi được qua tầng khác) thì load toàn bộ
             MapGraphCache.GraphData floorData = mapGraphCache.loadFloorGraph(fromNode.getFloorId());
             allNodes = floorData.nodes();
             allEdges = floorData.edges();
-            boolean reachable = isReachable(fromNodeId, toNodeId, buildAdjacency(allNodes, allEdges));
-            if (!reachable) {
+            if (!isReachable(fromNodeId, toNodeId, buildAdjacency(allNodes, allEdges))) {
                 MapGraphCache.GraphData fullData = mapGraphCache.loadFullGraph();
                 allNodes = fullData.nodes();
                 allEdges = fullData.edges();
             }
         } else {
-            // Khác tầng: cần toàn bộ để tìm đường qua elevator/stairs
             MapGraphCache.GraphData fullData = mapGraphCache.loadFullGraph();
             allNodes = fullData.nodes();
             allEdges = fullData.edges();
         }
 
         if (avoidStairs) {
-            Set<Long> stairIds = allNodes.stream()
-                    .filter(n -> n.getType() == NodeType.STAIRS)
-                    .map(MapNode::getId)
-                    .collect(Collectors.toSet());
-            allEdges = allEdges.stream()
-                    .filter(e -> !stairIds.contains(e.getNodeFromId()) && !stairIds.contains(e.getNodeToId()))
-                    .collect(Collectors.toList());
+            allEdges = filterStairEdges(allNodes, allEdges);
         }
 
-        Map<Long, List<long[]>> adj = buildAdjacency(allNodes, allEdges);
+        return dijkstra(fromNodeId, toNodeId, allNodes, allEdges).path();
+    }
+
+    @Override
+    public WayfindingResult findPathWithSegments(Long fromNodeId, Long toNodeId, boolean avoidStairs) {
+        if (fromNodeId.equals(toNodeId)) {
+            return mapDatabasePort.findNodeById(fromNodeId)
+                    .map(n -> new WayfindingResult(List.of(new PathSegment(SegmentType.INDOOR, List.of(n)))))
+                    .orElse(new WayfindingResult(List.of()));
+        }
+
+        MapNode fromNode = mapDatabasePort.findNodeById(fromNodeId)
+                .orElseThrow(() -> new IllegalArgumentException("Node không tồn tại: " + fromNodeId));
+        MapNode toNode = mapDatabasePort.findNodeById(toNodeId)
+                .orElseThrow(() -> new IllegalArgumentException("Node không tồn tại: " + toNodeId));
+
+        Map<Long, Long> floorLocMap = mapGraphCache.loadFloorLocationMap();
+        Long fromLoc = floorLocMap.get(fromNode.getFloorId());
+        Long toLoc   = floorLocMap.get(toNode.getFloorId());
+
+        // Same building or no campus map → single indoor segment
+        boolean differentBuildings = fromLoc != null && toLoc != null && !fromLoc.equals(toLoc);
+        if (!differentBuildings || mapDatabasePort.findCampusFloor().isEmpty()) {
+            List<MapNode> path = findPath(fromNodeId, toNodeId, avoidStairs);
+            return path.isEmpty() ? new WayfindingResult(List.of())
+                    : new WayfindingResult(List.of(new PathSegment(SegmentType.INDOOR, path)));
+        }
+
+        // Find nodes linked to campus in each building (any type with linkedCampusNodeId set)
+        List<MapNode> srcExits = mapDatabasePort.findNodesByFloorId(fromNode.getFloorId()).stream()
+                .filter(n -> n.getLinkedCampusNodeId() != null)
+                .collect(Collectors.toList());
+        List<MapNode> dstExits = mapDatabasePort.findNodesByFloorId(toNode.getFloorId()).stream()
+                .filter(n -> n.getLinkedCampusNodeId() != null)
+                .collect(Collectors.toList());
+
+        if (srcExits.isEmpty() || dstExits.isEmpty()) {
+            // No campus-linked nodes configured yet — fallback to flat indoor path
+            List<MapNode> path = findPath(fromNodeId, toNodeId, avoidStairs);
+            return path.isEmpty() ? new WayfindingResult(List.of())
+                    : new WayfindingResult(List.of(new PathSegment(SegmentType.INDOOR, path)));
+        }
+
+        MapGraphCache.GraphData seg1Graph = applyAvoidStairs(mapGraphCache.loadFloorGraph(fromNode.getFloorId()), avoidStairs);
+        MapGraphCache.GraphData seg3Graph = applyAvoidStairs(mapGraphCache.loadFloorGraph(toNode.getFloorId()), avoidStairs);
+        MapGraphCache.GraphData campusGraph = mapGraphCache.loadCampusGraph();
+
+        double bestCost = Double.MAX_VALUE;
+        DijkstraResult bestSeg1 = null, bestSeg2 = null, bestSeg3 = null;
+
+        for (MapNode srcExit : srcExits) {
+            DijkstraResult r1 = dijkstra(fromNodeId, srcExit.getId(), seg1Graph.nodes(), seg1Graph.edges());
+            if (r1.path().isEmpty() && !fromNodeId.equals(srcExit.getId())) continue;
+
+            for (MapNode dstExit : dstExits) {
+                DijkstraResult r2 = dijkstra(
+                        srcExit.getLinkedCampusNodeId(), dstExit.getLinkedCampusNodeId(),
+                        campusGraph.nodes(), campusGraph.edges());
+                if (r2.path().isEmpty()) continue;
+
+                DijkstraResult r3 = dijkstra(dstExit.getId(), toNodeId, seg3Graph.nodes(), seg3Graph.edges());
+                if (r3.path().isEmpty() && !dstExit.getId().equals(toNodeId)) continue;
+
+                double total = r1.cost() + r2.cost() + r3.cost();
+                if (total < bestCost) {
+                    bestCost = total;
+                    bestSeg1 = r1;
+                    bestSeg2 = r2;
+                    bestSeg3 = r3;
+                }
+            }
+        }
+
+        if (bestSeg1 == null) return new WayfindingResult(List.of());
+
+        List<PathSegment> segments = new ArrayList<>();
+        if (!bestSeg1.path().isEmpty()) segments.add(new PathSegment(SegmentType.INDOOR,  bestSeg1.path()));
+        if (!bestSeg2.path().isEmpty()) segments.add(new PathSegment(SegmentType.OUTDOOR, bestSeg2.path()));
+        if (!bestSeg3.path().isEmpty()) segments.add(new PathSegment(SegmentType.INDOOR,  bestSeg3.path()));
+        return new WayfindingResult(segments);
+    }
+
+    // ── Private helpers ────────────────────────────────────────────────────
+
+    private record DijkstraResult(List<MapNode> path, double cost) {}
+
+    private DijkstraResult dijkstra(Long fromId, Long toId, List<MapNode> nodes, List<MapEdge> edges) {
+        if (fromId.equals(toId)) {
+            Map<Long, MapNode> nm = nodes.stream().collect(Collectors.toMap(MapNode::getId, n -> n));
+            MapNode n = nm.get(fromId);
+            return n == null ? new DijkstraResult(Collections.emptyList(), 0.0)
+                             : new DijkstraResult(List.of(n), 0.0);
+        }
+
+        Map<Long, List<long[]>> adj = buildAdjacency(nodes, edges);
         Map<Long, Double> dist = new HashMap<>();
         Map<Long, Long> prev = new HashMap<>();
 
-        for (MapNode node : allNodes) dist.put(node.getId(), Double.MAX_VALUE);
-        dist.put(fromNodeId, 0.0);
+        for (MapNode node : nodes) dist.put(node.getId(), Double.MAX_VALUE);
+        dist.put(fromId, 0.0);
 
         PriorityQueue<long[]> pq = new PriorityQueue<>(Comparator.comparingDouble(a -> Double.longBitsToDouble(a[1])));
-        pq.offer(new long[]{fromNodeId, Double.doubleToLongBits(0.0)});
+        pq.offer(new long[]{fromId, Double.doubleToLongBits(0.0)});
 
         while (!pq.isEmpty()) {
             long[] curr = pq.poll();
             long currId = curr[0];
             double currDist = Double.longBitsToDouble(curr[1]);
-
             if (currDist > dist.getOrDefault(currId, Double.MAX_VALUE)) continue;
-            if (currId == toNodeId) break;
-
-            for (long[] neighbor : adj.getOrDefault(currId, Collections.emptyList())) {
-                double weight = Double.longBitsToDouble(neighbor[1]);
-                double newDist = currDist + weight;
-                if (newDist < dist.getOrDefault(neighbor[0], Double.MAX_VALUE)) {
-                    dist.put(neighbor[0], newDist);
-                    prev.put(neighbor[0], currId);
-                    pq.offer(new long[]{neighbor[0], Double.doubleToLongBits(newDist)});
+            if (currId == toId) break;
+            for (long[] nb : adj.getOrDefault(currId, Collections.emptyList())) {
+                double nd = currDist + Double.longBitsToDouble(nb[1]);
+                if (nd < dist.getOrDefault(nb[0], Double.MAX_VALUE)) {
+                    dist.put(nb[0], nd);
+                    prev.put(nb[0], currId);
+                    pq.offer(new long[]{nb[0], Double.doubleToLongBits(nd)});
                 }
             }
         }
 
-        if (dist.getOrDefault(toNodeId, Double.MAX_VALUE) >= Double.MAX_VALUE) {
-            return Collections.emptyList();
-        }
+        double cost = dist.getOrDefault(toId, Double.MAX_VALUE);
+        if (cost >= Double.MAX_VALUE) return new DijkstraResult(Collections.emptyList(), Double.MAX_VALUE);
 
-        Map<Long, MapNode> nodeMap = allNodes.stream().collect(Collectors.toMap(MapNode::getId, n -> n));
+        Map<Long, MapNode> nodeMap = nodes.stream().collect(Collectors.toMap(MapNode::getId, n -> n));
         List<MapNode> path = new ArrayList<>();
-        Long cur = toNodeId;
+        Long cur = toId;
         while (cur != null) {
             MapNode node = nodeMap.get(cur);
             if (node == null) break;
             path.add(0, node);
             cur = prev.get(cur);
         }
-        return path;
+        return new DijkstraResult(path, cost);
+    }
+
+    private MapGraphCache.GraphData applyAvoidStairs(MapGraphCache.GraphData graph, boolean avoidStairs) {
+        if (!avoidStairs) return graph;
+        return new MapGraphCache.GraphData(graph.nodes(), filterStairEdges(graph.nodes(), graph.edges()));
+    }
+
+    private List<MapEdge> filterStairEdges(List<MapNode> nodes, List<MapEdge> edges) {
+        Set<Long> stairIds = nodes.stream()
+                .filter(n -> n.getType() == NodeType.STAIRS)
+                .map(MapNode::getId)
+                .collect(Collectors.toSet());
+        return edges.stream()
+                .filter(e -> !stairIds.contains(e.getNodeFromId()) && !stairIds.contains(e.getNodeToId()))
+                .collect(Collectors.toList());
     }
 
     private boolean isReachable(Long from, Long to, Map<Long, List<long[]>> adj) {
@@ -297,8 +440,8 @@ public class MapService implements MapUseCase {
         while (!queue.isEmpty()) {
             Long cur = queue.poll();
             if (cur.equals(to)) return true;
-            for (long[] neighbor : adj.getOrDefault(cur, Collections.emptyList())) {
-                if (visited.add(neighbor[0])) queue.add(neighbor[0]);
+            for (long[] nb : adj.getOrDefault(cur, Collections.emptyList())) {
+                if (visited.add(nb[0])) queue.add(nb[0]);
             }
         }
         return false;
@@ -308,12 +451,10 @@ public class MapService implements MapUseCase {
         Map<Long, List<long[]>> adj = new HashMap<>();
         for (MapNode node : nodes) adj.put(node.getId(), new ArrayList<>());
         for (MapEdge edge : edges) {
-            long weightBits = Double.doubleToLongBits(edge.getWeight());
-            adj.computeIfAbsent(edge.getNodeFromId(), k -> new ArrayList<>())
-               .add(new long[]{edge.getNodeToId(), weightBits});
+            long wb = Double.doubleToLongBits(edge.getWeight());
+            adj.computeIfAbsent(edge.getNodeFromId(), k -> new ArrayList<>()).add(new long[]{edge.getNodeToId(), wb});
             if (edge.isBidirectional()) {
-                adj.computeIfAbsent(edge.getNodeToId(), k -> new ArrayList<>())
-                   .add(new long[]{edge.getNodeFromId(), weightBits});
+                adj.computeIfAbsent(edge.getNodeToId(), k -> new ArrayList<>()).add(new long[]{edge.getNodeFromId(), wb});
             }
         }
         return adj;

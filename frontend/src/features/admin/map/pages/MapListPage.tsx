@@ -5,7 +5,7 @@ import { mapService } from '@/services/mapService';
 import { locationService } from '@/services/locationService';
 import { fileService } from '@/services/fileService';
 import { MapFloor } from '@/shared/types';
-import { Map, Plus, Pencil, Trash2, Upload, Loader2 } from 'lucide-react';
+import { Map, Plus, Pencil, Trash2, Upload, Loader2, Globe } from 'lucide-react';
 import { getApiError } from '@/shared/helpers/apiError';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
 
@@ -13,12 +13,14 @@ export default function MapListPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const campusFileInputRef = useRef<HTMLInputElement>(null);
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [buildingId, setBuildingId] = useState('');
   const [locationId, setLocationId] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<{ url: string; width: number; height: number } | null>(null);
+  const [campusUploading, setCampusUploading] = useState(false);
 
   const { data: floors = [], isLoading } = useQuery({
     queryKey: ['mapFloors'],
@@ -29,6 +31,46 @@ export default function MapListPage() {
     queryKey: ['locations'],
     queryFn: locationService.getAllLocations,
   });
+
+  const { data: campusMap } = useQuery({
+    queryKey: ['campusMap'],
+    queryFn: mapService.getCampusMap,
+    retry: false,
+  });
+
+  const createCampusMutation = useMutation({
+    mutationFn: mapService.createCampusFloor,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campusMap'] }),
+    onError: (e: unknown) => alert(getApiError(e, 'Không thể tạo sơ đồ tổng thể')),
+  });
+
+  const deleteCampusMutation = useMutation({
+    mutationFn: mapService.deleteCampusFloor,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campusMap'] }),
+    onError: (e: unknown) => alert(getApiError(e, 'Không thể xóa sơ đồ tổng thể')),
+  });
+
+  const handleCampusFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCampusUploading(true);
+    try {
+      const objectUrl = URL.createObjectURL(file);
+      const { width, height } = await new Promise<{ width: number; height: number }>((resolve) => {
+        const img = new Image();
+        img.onload = () => { resolve({ width: img.naturalWidth, height: img.naturalHeight }); URL.revokeObjectURL(objectUrl); };
+        img.onerror = () => { resolve({ width: 0, height: 0 }); URL.revokeObjectURL(objectUrl); };
+        img.src = objectUrl;
+      });
+      const url = await fileService.uploadFile(file, 'FLOOR_MAP');
+      createCampusMutation.mutate({ imageUrl: url, imgWidth: width, imgHeight: height });
+    } catch (err) {
+      alert(getApiError(err, 'Upload ảnh thất bại'));
+    } finally {
+      setCampusUploading(false);
+      if (campusFileInputRef.current) campusFileInputRef.current.value = '';
+    }
+  };
 
   const createMutation = useMutation({
     mutationFn: mapService.createFloor,
@@ -123,6 +165,66 @@ export default function MapListPage() {
         >
           <Plus size={18} /> Tạo sơ đồ mới
         </button>
+      </div>
+
+      {/* Campus map section */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Globe size={18} className="text-amber-600" />
+            <h2 className="font-semibold text-slate-700">Sơ đồ tổng thể bệnh viện</h2>
+            <span className="text-xs text-slate-400">(dùng cho chỉ đường liên tòa)</span>
+          </div>
+          {campusMap ? (
+            <div className="flex gap-2">
+              <button
+                onClick={() => navigate(`/admin/assets/tree/map/${campusMap.floor.id}/edit`)}
+                className="flex items-center gap-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 text-sm font-medium px-3 py-1.5 rounded-lg"
+              >
+                <Pencil size={14} /> Chỉnh sửa
+              </button>
+              <button
+                onClick={() => { if (window.confirm('Xóa sơ đồ tổng thể và toàn bộ nodes/edges?')) deleteCampusMutation.mutate(); }}
+                className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          ) : (
+            <div>
+              <input ref={campusFileInputRef} type="file" accept="image/*" className="hidden" onChange={handleCampusFileChange} />
+              <button
+                onClick={() => campusFileInputRef.current?.click()}
+                disabled={campusUploading || createCampusMutation.isPending}
+                className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-300 text-white text-sm font-medium px-4 py-2 rounded-xl"
+              >
+                {campusUploading || createCampusMutation.isPending
+                  ? <Loader2 size={15} className="animate-spin" />
+                  : <Upload size={15} />}
+                Upload sơ đồ tổng thể
+              </button>
+            </div>
+          )}
+        </div>
+
+        {campusMap ? (
+          <div className="flex gap-4 items-start">
+            <img
+              src={getBackendUrl(campusMap.floor.imageUrl)}
+              alt="Campus map"
+              className="max-h-40 rounded-xl border border-slate-200 object-contain"
+            />
+            <div className="text-sm text-slate-500 space-y-1">
+              <p>{campusMap.floor.imgWidth} × {campusMap.floor.imgHeight}px</p>
+              <p>{campusMap.nodes.length} node · {campusMap.edges.length} đường nối</p>
+              <p className="text-xs text-slate-400">
+                {campusMap.nodes.filter(n => n.type === 'ENTRANCE').length} cổng tòa nhà được đánh dấu
+              </p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-slate-400">Chưa có sơ đồ tổng thể. Upload ảnh mặt bằng toàn khuôn viên để bắt đầu.</p>
+        )}
       </div>
 
       {/* Create form */}

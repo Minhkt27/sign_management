@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapNode, NodeType, Location, Asset } from '@/shared/types';
-import { X, Trash2, Tag, Search, MapPin, ExternalLink } from 'lucide-react';
+import { X, Trash2, Tag, Search, MapPin, ExternalLink, Link } from 'lucide-react';
 import { NODE_TYPE_OPTIONS } from '../constants';
 
 interface Props {
   node: MapNode | null;
   locations: Location[];
   assets: Asset[];
+  isCampusFloor?: boolean;
+  campusNodes?: MapNode[];
   onUpdate: (id: number, data: Partial<MapNode>) => void;
   onDelete: (id: number) => void;
   onClose: () => void;
@@ -30,7 +32,7 @@ function buildPath(loc: Location, allLocations: Location[]): string {
   return parts.join(' / ');
 }
 
-export function NodePanel({ node, locations, assets, onUpdate, onDelete, onClose }: Props) {
+export function NodePanel({ node, locations, assets, isCampusFloor, campusNodes = [], onUpdate, onDelete, onClose }: Props) {
   const navigate = useNavigate();
   const [label, setLabel]               = useState('');
   const [type, setType]                 = useState<NodeType>('JUNCTION');
@@ -40,24 +42,27 @@ export function NodePanel({ node, locations, assets, onUpdate, onDelete, onClose
   const [assetId, setAssetId]           = useState<string>('');
   const [assetSearch, setAssetSearch]   = useState('');
   const [assetDropdownOpen, setAssetDropdownOpen] = useState(false);
+  const [linkedCampusNodeId, setLinkedCampusNodeId] = useState<string>('');
 
   useEffect(() => {
     if (node) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setLabel(node.label ?? '');
-       
+
       setType(node.type);
-       
+
       setLocationId(node.locationId?.toString() ?? '');
-       
+
       setAssetId(node.assetId ?? '');
-       
+
+      setLinkedCampusNodeId(node.linkedCampusNodeId?.toString() ?? '');
+
       setLocSearch('');
-       
+
       setAssetSearch('');
-       
+
       setLocDropdownOpen(false);
-       
+
       setAssetDropdownOpen(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -115,6 +120,7 @@ export function NodePanel({ node, locations, assets, onUpdate, onDelete, onClose
       type,
       locationId: locationId ? Number(locationId) : undefined,
       assetId: assetId || undefined,
+      linkedCampusNodeId: linkedCampusNodeId ? Number(linkedCampusNodeId) : undefined,
     });
   };
 
@@ -154,8 +160,8 @@ export function NodePanel({ node, locations, assets, onUpdate, onDelete, onClose
           </select>
         </div>
 
-        {/* Location search (chỉ cho ROOM / DEPARTMENT) */}
-        {locationType && (
+        {/* Location search (chỉ cho ROOM / DEPARTMENT, không phải campus) */}
+        {!isCampusFloor && locationType && (
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">
               Gắn với {locationType === 'DEPARTMENT' ? 'Khoa' : 'Phòng'}
@@ -206,8 +212,34 @@ export function NodePanel({ node, locations, assets, onUpdate, onDelete, onClose
           </div>
         )}
 
+        {/* Campus link — chỉ hiển thị khi node là ENTRANCE và không ở campus floor */}
+        {!isCampusFloor && type === 'ENTRANCE' && (
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              <Link size={11} className="inline mr-1" />
+              Nối với node campus
+              <span className="text-slate-400 ml-1">(cho chỉ đường liên tòa)</span>
+            </label>
+            <select
+              value={linkedCampusNodeId}
+              onChange={e => setLinkedCampusNodeId(e.target.value)}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">— Chưa nối —</option>
+              {campusNodes.map(cn => (
+                <option key={cn.id} value={cn.id}>
+                  {cn.label || `Campus node #${cn.id}`}
+                </option>
+              ))}
+            </select>
+            {campusNodes.length === 0 && (
+              <p className="text-xs text-slate-400 mt-1">Chưa có sơ đồ tổng thể. Tạo campus map trước.</p>
+            )}
+          </div>
+        )}
+
         {/* Asset linking */}
-        <div>
+        {!isCampusFloor && <div>
           <label className="block text-xs font-medium text-slate-600 mb-1">
             Gắn với Biển <span className="text-slate-400">(cho KTV tìm)</span>
           </label>
@@ -262,7 +294,7 @@ export function NodePanel({ node, locations, assets, onUpdate, onDelete, onClose
               )}
             </div>
           )}
-        </div>
+        </div>}
 
         <div className="text-xs text-slate-400 space-y-1">
           <div>ID: {node.id}</div>
