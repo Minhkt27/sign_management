@@ -98,8 +98,8 @@ export default function MapEditorPage() {
 
   const deleteNodeMutation = useMutation({
     mutationFn: mapService.deleteNode,
-    onSuccess: () => { setSelectedNodeId(null); invalidate(); },
-    onError: (e: unknown) => alert(getApiError(e, 'Không thể xóa node')),
+    onSuccess: () => { setSelectedNodeId(null); invalidate(); toast.success('Đã xóa node'); },
+    onError: (e: unknown) => toast.error(getApiError(e, 'Không thể xóa node')),
   });
 
   const createEdgeMutation = useMutation({
@@ -130,9 +130,7 @@ export default function MapEditorPage() {
         setEdgeStartId(null);
       }
     } else if (tool === 'delete') {
-      if (window.confirm('Xóa node này và tất cả đường nối liên quan?')) {
-        deleteNodeMutation.mutate(nodeId);
-      }
+      deleteNodeMutation.mutate(nodeId);
     }
   };
 
@@ -147,7 +145,7 @@ export default function MapEditorPage() {
   };
 
   const handleDeleteNode = (id: number) => {
-    if (window.confirm('Xóa node này?')) deleteNodeMutation.mutate(id);
+    deleteNodeMutation.mutate(id);
   };
 
   const selectedNode = floorData?.nodes.find(n => n.id === selectedNodeId) ?? null;

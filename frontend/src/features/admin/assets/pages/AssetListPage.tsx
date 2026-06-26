@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { assetService, PagedResponse } from '@/services/assetService';
 import { locationService } from '@/services/locationService';
@@ -22,7 +23,12 @@ export default function AssetListPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [materialFilter, setMaterialFilter] = useState('ALL');
-  const [page, setPage] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const page = Number(searchParams.get('page') ?? '0');
+  const setPage = (p: number) => setSearchParams(
+    prev => { const n = new URLSearchParams(prev); if (p === 0) n.delete('page'); else n.set('page', String(p)); return n; },
+    { replace: true },
+  );
 
   const { data: assetData, isLoading } = useQuery<PagedResponse<Asset>>({
     queryKey: ['assets', page, search],
@@ -92,7 +98,6 @@ export default function AssetListPage() {
 
         <AssetTable
           assets={filteredAssets}
-          signTypes={signTypes}
           isLoading={isLoading}
           page={page}
           pageSize={PAGE_SIZE}

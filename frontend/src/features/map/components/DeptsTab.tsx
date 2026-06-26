@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Location, MapNode, MapFloorData } from '@/shared/types';
-import { Search } from 'lucide-react';
+import { Search, ChevronDown, ChevronRight } from 'lucide-react';
+import { normalize } from '../utils/pathHelpers';
 
 interface Props {
   locations: Location[];
@@ -10,25 +11,48 @@ interface Props {
 
 export function DeptsTab({ locations, allFloorData, onSelectDest }: Props) {
   const [query, setQuery] = useState('');
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
-  const items = locations.filter(l =>
-    (l.type === 'DEPARTMENT' || l.type === 'ROOM') &&
-    (!query.trim() || l.name.toLowerCase().includes(query.toLowerCase()))
-  );
+  const buildings = useMemo(() =>
+    locations.filter(l => l.type === 'BUILDING'),
+  [locations]);
 
-  const findNode = (locationId: number) =>
-    allFloorData.flatMap(fd => fd.nodes).find(n => n.locationId === locationId);
+  const grouped = useMemo(() => {
+    const q = normalize(query.trim());
+    return buildings.map(building => {
+      const floorLocIds = new Set(
+        locations
+          .filter(l => l.type === 'FLOOR' && l.parentId === building.id)
+          .map(l => l.id),
+      );
+      const items = allFloorData
+        .filter(fd => fd.floor.locationId != null && floorLocIds.has(fd.floor.locationId!))
+        .flatMap(fd => {
+          const floorName = locations.find(l => l.id === fd.floor.locationId)?.name ?? `Tầng ${fd.floor.id}`;
+          return fd.nodes
+            .filter(n => n.type === 'DEPARTMENT' || n.type === 'ROOM')
+            .map(n => {
+              const locName = n.locationId ? locations.find(l => l.id === n.locationId)?.name : undefined;
+              return { node: n, floorName, locName };
+            });
+        })
+        .filter(({ node, locName }) =>
+          !q ||
+          normalize(locName ?? '').includes(q) ||
+          normalize(node.label ?? '').includes(q),
+        );
+      return { building, items };
+    });
+  }, [buildings, locations, allFloorData, query]);
 
-  const floorName = (locationId: number) => {
-    const node = findNode(locationId);
-    if (!node) return null;
-    const fd = allFloorData.find(fd => fd.nodes.some(n => n.id === node.id));
-    return fd ? `Tầng ${fd.floor.id}` : null;
-  };
+  const toggle = (id: number) =>
+    setExpanded(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+
+  const searching = !!query.trim();
+  const hasResults = grouped.some(g => g.items.length > 0);
 
   return (
     <div className="space-y-3">
-      {/* Search */}
       <div className="relative">
         <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: '#5A7A62' }} />
         <input
@@ -40,43 +64,64 @@ export function DeptsTab({ locations, allFloorData, onSelectDest }: Props) {
         />
       </div>
 
-      {/* List */}
-      <div className="flex flex-col gap-2">
-        {items.map(loc => {
-          const node = findNode(loc.id);
-          const floor = floorName(loc.id);
-          return (
-            <button key={loc.id}
-              onClick={() => node && onSelectDest(node)}
-              disabled={!node}
-              className="flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-all active:scale-[.98]"
-              style={{
-                background: '#fff',
-                boxShadow: '0 2px 16px rgba(26,92,42,.08)',
-                border: '1.5px solid transparent',
-                opacity: node ? 1 : 0.55,
-              }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
-                style={{ background: loc.type === 'DEPARTMENT' ? '#EAF4EC' : '#EEF2FF' }}>
-                {loc.type === 'DEPARTMENT' ? '🏢' : '🚪'}
+      {grouped.map(({ building, items }) => {
+        if (!searching && items.length === 0) return null;
+        if (searching && items.length === 0) return null;
+        const open = searching || expanded.has(building.id);
+        const initial = building.name.replace(/tòa\s*/i, '').charAt(0).toUpperCase();
+        return (
+          <div key={building.id} className="rounded-2xl overflow-hidden"
+            style={{ border: '1.5px solid #C8DEC8' }}>
+            <button
+              onClick={() => !searching && toggle(building.id)}
+              className="w-full flex items-center gap-3 px-4 py-3"
+              style={{ background: '#EAF4EC' }}
+            >
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                style={{ background: '#1A5C2A' }}>
+                <span className="text-white text-sm font-extrabold">{initial}</span>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold truncate" style={{ color: '#1A2E1E' }}>{loc.name}</p>
-                <p className="text-xs mt-0.5" style={{ color: '#5A7A62' }}>
-                  {floor ?? 'Chưa có trên sơ đồ'}
-                </p>
+              <div className="flex-1 text-left">
+                <p className="text-sm font-extrabold" style={{ color: '#1A2E1E' }}>{building.name}</p>
+                <p className="text-xs" style={{ color: '#5A7A62' }}>{items.length} khoa / phòng</p>
               </div>
-              {floor && (
-                <span className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0"
-                  style={{ background: '#EAF4EC', color: '#1A5C2A' }}>{floor}</span>
+              {!searching && (open
+                ? <ChevronDown size={16} style={{ color: '#5A7A62' }} />
+                : <ChevronRight size={16} style={{ color: '#5A7A62' }} />
               )}
             </button>
-          );
-        })}
-        {items.length === 0 && (
-          <p className="text-center text-sm py-8" style={{ color: '#5A7A62' }}>Không tìm thấy "{query}"</p>
-        )}
-      </div>
+
+            {open && (
+              <div className="bg-white flex flex-col divide-y" style={{ borderColor: '#F0FAF0' }}>
+                {items.map(({ node, floorName, locName }) => (
+                  <button key={node.id}
+                    onClick={() => onSelectDest(node)}
+                    className="flex items-center gap-3 px-4 py-2.5 text-left transition-all active:bg-green-50"
+                  >
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base flex-shrink-0"
+                      style={{ background: node.type === 'DEPARTMENT' ? '#EAF4EC' : '#EEF2FF' }}>
+                      {node.type === 'DEPARTMENT' ? '🏢' : '🚪'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold truncate" style={{ color: '#1A2E1E' }}>
+                        {locName ?? node.label ?? node.type}
+                      </p>
+                      <p className="text-xs" style={{ color: '#5A7A62' }}>{floorName}</p>
+                    </div>
+                    <span style={{ color: '#5A7A62', fontSize: 16 }}>›</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {searching && !hasResults && (
+        <p className="text-center text-sm py-8" style={{ color: '#5A7A62' }}>
+          Không tìm thấy "{query}"
+        </p>
+      )}
     </div>
   );
 }

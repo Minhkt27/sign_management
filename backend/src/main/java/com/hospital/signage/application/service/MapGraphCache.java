@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -42,6 +43,29 @@ public class MapGraphCache {
                 .orElse(new GraphData(List.of(), List.of()));
     }
 
+    // All indoor nodes/edges — campus floor strictly excluded to prevent rogue cross-floor edges
+    @Cacheable("mapIndoorFullGraph")
+    public GraphData loadFullIndoorGraph() {
+        Long campusFloorId = mapDatabasePort.findCampusFloor()
+                .map(MapFloor::getId)
+                .orElse(null);
+        List<MapNode> allNodes = mapDatabasePort.findAllNodes();
+        List<MapEdge> allEdges = mapDatabasePort.findAllEdges();
+        if (campusFloorId == null) return new GraphData(allNodes, allEdges);
+
+        final Long cid = campusFloorId;
+        List<MapNode> indoorNodes = allNodes.stream()
+                .filter(n -> !cid.equals(n.getFloorId()))
+                .collect(Collectors.toList());
+        Set<Long> indoorIds = indoorNodes.stream()
+                .map(MapNode::getId)
+                .collect(Collectors.toSet());
+        List<MapEdge> indoorEdges = allEdges.stream()
+                .filter(e -> indoorIds.contains(e.getNodeFromId()) && indoorIds.contains(e.getNodeToId()))
+                .collect(Collectors.toList());
+        return new GraphData(indoorNodes, indoorEdges);
+    }
+
     // floorId → locationId mapping (indoor floors only)
     @Cacheable("mapFloorLocationMap")
     public Map<Long, Long> loadFloorLocationMap() {
@@ -50,7 +74,7 @@ public class MapGraphCache {
                 .collect(Collectors.toMap(MapFloor::getId, MapFloor::getLocationId));
     }
 
-    @CacheEvict(value = {"mapGraph", "mapFloorGraph", "mapCampusGraph", "mapFloorLocationMap"}, allEntries = true)
+    @CacheEvict(value = {"mapGraph", "mapFloorGraph", "mapCampusGraph", "mapFloorLocationMap", "mapIndoorFullGraph"}, allEntries = true)
     public void invalidateAll() {
     }
 }

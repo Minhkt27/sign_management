@@ -4,7 +4,7 @@ import { MapNode, MapFloor, MapFloorData, Location, WayfindingResult } from '@/s
 import { mapService } from '@/services/mapService';
 import { Search, Navigation, Accessibility, X, MapPin, Camera } from 'lucide-react';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
-import { displayName, floorName, buildSteps } from '../utils/pathHelpers';
+import { displayName, floorName, buildSteps, normalize } from '../utils/pathHelpers';
 import { turnDir } from '../utils/pathHelpers';
 import { SafeImage } from '@/components/SafeImage';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
@@ -49,7 +49,6 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
   const { data: campusMapData } = useQuery({
     queryKey: ['campusMap'],
     queryFn: mapService.getCampusMap,
-    enabled: hasOutdoor,
     staleTime: 60_000,
   });
 
@@ -75,15 +74,15 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
 
   const destResults = useMemo(() => {
     if (!destSearch.trim() || toNodeId !== null) return [];
-    const q = destSearch.toLowerCase();
+    const q = normalize(destSearch);
     const DEST_TYPES = new Set(['ROOM', 'DEPARTMENT', 'ELEVATOR']);
     const seen = new Set<number>();
     return allFloorData.flatMap(fd =>
       (fd?.nodes || [])
         .filter(n => n && DEST_TYPES.has(n.type))
         .filter(n => {
-          const byLabel = n.label?.toLowerCase().includes(q);
-          const byLoc = n.locationId ? locations.find(l => l?.id === n.locationId)?.name.toLowerCase().includes(q) : false;
+          const byLabel = n.label ? normalize(n.label).includes(q) : false;
+          const byLoc = n.locationId ? normalize(locations.find(l => l?.id === n.locationId)?.name ?? '').includes(q) : false;
           return byLabel || byLoc;
         })
         .map(n => ({ node: n, floorData: fd }))
@@ -156,7 +155,28 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
   const currentFloorData = typeof activeFloorId === 'number'
     ? allFloorData.find(fd => fd?.floor?.id === activeFloorId)
     : null;
-  const floorIds = floors.map(f => f?.id);
+
+  // Group floors by building for the tab bar
+  const floorsByBuilding = useMemo(() => {
+    const buildings = locations.filter(l => l.type === 'BUILDING');
+    return buildings.map(building => {
+      const buildingFloors = floors.filter(f => {
+        if (!f.locationId) return false;
+        const floorLoc = locations.find(l => l.id === f.locationId);
+        return floorLoc?.parentId === building.id;
+      });
+      return { building, floors: buildingFloors };
+    }).filter(g => g.floors.length > 0);
+  }, [locations, floors]);
+
+  // Which building is currently active (derived from activeFloorId)
+  const activeBuilding = useMemo(() => {
+    if (!activeFloorId || activeFloorId === 'campus') return null;
+    for (const g of floorsByBuilding) {
+      if (g.floors.some(f => f.id === activeFloorId)) return g.building;
+    }
+    return null;
+  }, [activeFloorId, floorsByBuilding]);
 
   const renderMapCanvas = (
     floorData: MapFloorData,
@@ -333,10 +353,19 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
         const allSteps: React.ReactNode[] = [];
         let key = 0;
 
+        const totalSegs = activeResult.segments.length;
         activeResult.segments.forEach((seg, segIdx) => {
+          const isFirstSeg = segIdx === 0;
+          const isLastSeg = segIdx === totalSegs - 1;
+
           if (seg.type === 'INDOOR') {
-            const steps = buildSteps(seg.nodes, allFloorData, locations, floors);
-            steps.forEach((step, idx) => {
+            let steps = buildSteps(seg.nodes, allFloorData, locations, floors);
+            // Strip duplicate "📍 Bắt đầu" from non-first segments
+            if (!isFirstSeg) steps = steps.filter(s => s.icon !== '📍');
+            // Strip premature "🎯 Bạn đã đến nơi" from non-last segments
+            if (!isLastSeg) steps = steps.filter(s => s.icon !== '🎯');
+
+            steps.forEach(step => {
               allSteps.push(
                 <li key={key++} className="flex items-center gap-3 px-4 py-3">
                   <span className="text-xl flex-shrink-0 w-7 text-center">{step.icon}</span>
@@ -346,29 +375,71 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
                   </div>
                 </li>
               );
-              void idx;
             });
           } else {
-            // Outdoor segment divider
+            // Outdoor segment — header divider
             allSteps.push(
-              <li key={key++} className="flex items-center gap-3 px-4 py-3 bg-amber-50 border-y border-amber-200">
-                <span className="text-xl flex-shrink-0 w-7 text-center">🌿</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-amber-800">Ra ngoài — đi qua khuôn viên bệnh viện</p>
-                  <button
-                    onClick={() => setActiveFloorId('campus')}
-                    className="text-xs font-semibold text-amber-700 underline mt-0.5"
-                  >
-                    Xem sơ đồ khuôn viên
-                  </button>
-                </div>
+              <li key={key++} className="flex items-center justify-between px-4 py-2 bg-amber-600">
+                <span className="text-xs font-bold text-white uppercase tracking-wider">🌿 Khuôn viên bệnh viện</span>
+                <button onClick={() => setActiveFloorId('campus')} className="text-xs font-semibold text-amber-100 underline">
+                  Xem sơ đồ
+                </button>
               </li>
             );
-            void segIdx;
+
+            // Generate step-by-step directions for outdoor segment using campus map data
+            const campusStepData = campusMapData ? [campusMapData] : [];
+            let outdoorSteps = buildSteps(seg.nodes, campusStepData, locations, floors);
+            // Strip "📍 Bắt đầu" if a previous segment already introduced the journey
+            if (!isFirstSeg) outdoorSteps = outdoorSteps.filter(s => s.icon !== '📍');
+            // Always strip "🎯 Bạn đã đến nơi" from outdoor (indoor handles final arrival)
+            outdoorSteps = outdoorSteps.filter(s => s.icon !== '🎯');
+
+            outdoorSteps.forEach(step => {
+              // Map indoor icons to outdoor equivalents
+              const icon = step.icon === '📍' ? '🌿'
+                : step.icon === '🚪' ? '🏢'
+                  : step.icon;
+              allSteps.push(
+                <li key={key++} className="flex items-center gap-3 px-4 py-3 bg-amber-50/60">
+                  <span className="text-xl flex-shrink-0 w-7 text-center">{icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-amber-900 leading-snug">{step.text}</p>
+                    {step.sub && <p className="text-xs mt-0.5 font-semibold text-amber-700">{step.sub}</p>}
+                  </div>
+                </li>
+              );
+            });
+
+            // Indoor section header for next segment — show building name
+            if (!isLastSeg) {
+              const nextSeg = activeResult.segments[segIdx + 1];
+              let enteringBuilding = 'tòa nhà';
+              if (nextSeg?.type === 'INDOOR' && nextSeg.nodes[0]) {
+                const nextNode = nextSeg.nodes[0];
+                const nextFloor = floors.find(f => f.id === nextNode.floorId);
+                if (nextFloor?.locationId) {
+                  const floorLoc = locations.find(l => l.id === nextFloor.locationId);
+                  if (floorLoc?.parentId) {
+                    const buildingLoc = locations.find(l => l.id === floorLoc.parentId);
+                    if (buildingLoc) enteringBuilding = buildingLoc.name;
+                  }
+                }
+              }
+              allSteps.push(
+                <li key={key++} className="px-4 py-2 bg-green-700">
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">🏥 Vào trong {enteringBuilding}</span>
+                </li>
+              );
+            }
           }
         });
 
-        const totalSteps = activeResult.segments.filter(s => s.type === 'INDOOR').reduce((sum, s) => sum + buildSteps(s.nodes, allFloorData, locations, floors).length, 0);
+        const campusStepData = campusMapData ? [campusMapData] : [];
+        const totalSteps = activeResult.segments.reduce((sum, s) => {
+          const data = s.type === 'INDOOR' ? allFloorData : campusStepData;
+          return sum + buildSteps(s.nodes, data, locations, floors).length;
+        }, 0);
 
         return (
           <div className="rounded-2xl overflow-hidden bg-white border-2 border-green-100 shadow-lg shadow-green-900/5">
@@ -388,44 +459,74 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
 
       {/* Floor map */}
       <div className="rounded-2xl overflow-hidden bg-white border-2 border-green-100 shadow-lg shadow-green-900/5">
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-green-100">
-          <div className="flex items-center gap-1.5">
-            <MapPin size={13} className="text-green-800" />
-            <span className="text-sm font-extrabold text-slate-800">
-              {activeFloorId === 'campus' ? 'Khuôn viên bệnh viện' : activeFloorId ? getFloorName(activeFloorId) : 'Sơ đồ'}
-            </span>
-          </div>
-          <div className="flex gap-1 flex-wrap justify-end">
-            {floorIds.map(fid => (
-              <button key={fid} onClick={() => setActiveFloorId(fid)}
-                className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${activeFloorId === fid
+        {/* Row 1: Tổng quát + Buildings */}
+        <div className="flex gap-1 px-3 pt-2.5 border-b border-green-100 overflow-x-auto pb-0" style={{ scrollbarWidth: 'none' }}>
+          <button
+            onClick={() => setActiveFloorId('campus')}
+            className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-t-lg text-xs font-bold transition-colors border-b-2 ${activeFloorId === 'campus'
+              ? 'border-green-800 bg-green-50 text-green-800'
+              : 'border-transparent text-slate-500 hover:text-green-700'}`}>
+            <MapPin size={11} /> Tổng quát
+          </button>
+          {floorsByBuilding.map(({ building }) => {
+            const isActive = activeBuilding?.id === building.id;
+            const initial = building.name.replace(/tòa\s*/i, '').charAt(0).toUpperCase();
+            return (
+              <button key={building.id}
+                onClick={() => {
+                  const firstFloor = floorsByBuilding.find(g => g.building.id === building.id)?.floors[0];
+                  if (firstFloor) setActiveFloorId(firstFloor.id);
+                }}
+                className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg text-xs font-bold transition-colors border-b-2 ${isActive
+                  ? 'border-green-800 bg-green-50 text-green-800'
+                  : 'border-transparent text-slate-500 hover:text-green-700'}`}>
+                <span className="w-4 h-4 rounded flex items-center justify-center text-[10px] font-extrabold flex-shrink-0"
+                  style={{ background: isActive ? '#1A5C2A' : '#E2E8F0', color: isActive ? '#fff' : '#64748b' }}>
+                  {initial}
+                </span>
+                {building.name}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Row 2: Floor sub-tabs (only when a building is active) */}
+        {activeBuilding && (
+          <div className="flex gap-1 px-3 py-1.5 bg-green-50/60 border-b border-green-100 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+            {floorsByBuilding.find(g => g.building.id === activeBuilding.id)?.floors.map(f => (
+              <button key={f.id}
+                onClick={() => setActiveFloorId(f.id)}
+                className={`flex-shrink-0 px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${activeFloorId === f.id
                   ? 'bg-green-800 text-white shadow-sm'
-                  : 'bg-green-50 text-green-800 hover:bg-green-100'}`}>
-                {getFloorName(fid)}
+                  : 'bg-white text-green-800 border border-green-200 hover:bg-green-100'}`}>
+                {getFloorName(f.id)}
               </button>
             ))}
-            {hasOutdoor && (
-              <button onClick={() => setActiveFloorId('campus')}
-                className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${activeFloorId === 'campus'
-                  ? 'bg-amber-600 text-white shadow-sm'
-                  : 'bg-amber-50 text-amber-700 hover:bg-amber-100'}`}>
-                🌿 Khuôn viên
-              </button>
-            )}
           </div>
+        )}
+
+        <div className="flex items-center gap-1.5 px-4 py-2 border-b border-green-50">
+          <MapPin size={12} className="text-green-800 flex-shrink-0" />
+          <span className="text-xs font-extrabold text-slate-700">
+            {activeFloorId === 'campus' ? 'Sơ đồ tổng quát bệnh viện' : activeFloorId ? getFloorName(activeFloorId) : 'Sơ đồ'}
+          </span>
         </div>
 
         {activeFloorId === 'campus' ? (
           campusMapData ? (
             <div>
               {renderMapCanvas(campusMapData, outdoorNodes, campusVisibleNodeIds, '#f59e0b')}
-              {outdoorNodes.length > 0 && (
-                <div className="flex items-center gap-4 px-4 py-2.5 border-t border-amber-100 text-xs font-semibold text-amber-700 bg-amber-50/50">
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full inline-block bg-yellow-600" /> Lối ra tòa A</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full inline-block bg-green-800" /> Lối vào tòa B</span>
-                  <span className="flex items-center gap-1.5"><span className="w-5 h-1 inline-block rounded bg-amber-500" /> Đường đi ngoài trời</span>
-                </div>
-              )}
+              <div className="flex items-center gap-4 px-4 py-2.5 border-t border-amber-100 text-xs font-semibold text-amber-700 bg-amber-50/50">
+                {outdoorNodes.length > 0 ? (
+                  <>
+                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full inline-block bg-yellow-600" /> Xuất phát</span>
+                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full inline-block bg-green-800" /> Điểm đến</span>
+                    <span className="flex items-center gap-1.5"><span className="w-5 h-1 inline-block rounded bg-amber-500" /> Lộ trình</span>
+                  </>
+                ) : (
+                  <span>Sơ đồ tổng quát khuôn viên bệnh viện</span>
+                )}
+              </div>
             </div>
           ) : (
             <div className="py-12 text-center text-sm text-slate-500 font-medium">Đang tải sơ đồ khuôn viên...</div>

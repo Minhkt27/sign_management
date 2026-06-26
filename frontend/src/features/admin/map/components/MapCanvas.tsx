@@ -98,8 +98,8 @@ export function MapCanvas({
         draggable={false}
       />
 
-      {/* SVG overlay for edges */}
-      <svg className={`absolute inset-0 w-full h-full ${tool === 'delete' ? '' : 'pointer-events-none'}`}>
+      {/* SVG overlay for edges — always pointer-events-none on root; each <g> opts in when in delete mode */}
+      <svg className="absolute inset-0 w-full h-full pointer-events-none">
         {edges.map(edge => {
           const from = nodes.find(n => n.id === edge.nodeFromId);
           const to = nodes.find(n => n.id === edge.nodeToId);
@@ -111,10 +111,10 @@ export function MapCanvas({
           const isDeleteMode = tool === 'delete';
           return (
             <g key={edge.id}
+              style={isDeleteMode ? { pointerEvents: 'auto', cursor: 'pointer' } : undefined}
               onMouseEnter={() => isDeleteMode && setHoveredEdgeId(edge.id)}
               onMouseLeave={() => setHoveredEdgeId(null)}
               onClick={() => isDeleteMode && onEdgeClick?.(edge.id)}
-              className={isDeleteMode ? 'cursor-pointer' : ''}
             >
               {/* Visible line */}
               <line

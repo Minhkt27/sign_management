@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ticketService, TicketSummary } from '@/services/ticketService';
 import { PagedResponse } from '@/services/assetService';
@@ -17,7 +18,12 @@ export default function TicketListPage() {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [priorityFilter, setPriorityFilter] = useState('ALL');
   const [assigneeFilter, setAssigneeFilter] = useState('ALL');
-  const [page, setPage] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const page = Number(searchParams.get('page') ?? '0');
+  const setPage = (p: number) => setSearchParams(
+    prev => { const n = new URLSearchParams(prev); if (p === 0) n.delete('page'); else n.set('page', String(p)); return n; },
+    { replace: true },
+  );
   const [exporting, setExporting] = useState(false);
 
   const handleExport = async () => {

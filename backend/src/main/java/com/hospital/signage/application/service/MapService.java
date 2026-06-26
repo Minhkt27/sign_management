@@ -357,11 +357,107 @@ public class MapService implements MapUseCase {
 
         if (bestSeg1 == null) return new WayfindingResult(List.of());
 
-        List<PathSegment> segments = new ArrayList<>();
-        if (!bestSeg1.path().isEmpty()) segments.add(new PathSegment(SegmentType.INDOOR,  bestSeg1.path()));
-        if (!bestSeg2.path().isEmpty()) segments.add(new PathSegment(SegmentType.OUTDOOR, bestSeg2.path()));
-        if (!bestSeg3.path().isEmpty()) segments.add(new PathSegment(SegmentType.INDOOR,  bestSeg3.path()));
+        List<PathSegment> segments = expandTransitBuildings(
+                bestSeg1, bestSeg2, bestSeg3, srcExits, dstExits, avoidStairs);
         return new WayfindingResult(segments);
+    }
+
+    /**
+     * Expand the outdoor (campus) segment by detecting transit buildings:
+     * when two consecutive campus-path nodes are both linked to indoor ENTRANCE nodes
+     * (and neither belongs to the source/dest building), insert an INDOOR segment
+     * between them using the indoor graph of that transit building.
+     *
+     * Example: A_indoor → outdoor(A→B) → B_indoor(transit) → outdoor(B→C) → C_indoor
+     */
+    private List<PathSegment> expandTransitBuildings(
+            DijkstraResult seg1, DijkstraResult seg2, DijkstraResult seg3,
+            List<MapNode> srcExits, List<MapNode> dstExits, boolean avoidStairs) {
+
+        // Build reverse map: campusNodeId → indoor ENTRANCE node
+        MapGraphCache.GraphData fullIndoor = applyAvoidStairs(mapGraphCache.loadFullIndoorGraph(), avoidStairs);
+        Map<Long, MapNode> campusToIndoor = new HashMap<>();
+        for (MapNode n : fullIndoor.nodes()) {
+            if (n.getLinkedCampusNodeId() != null) {
+                campusToIndoor.put(n.getLinkedCampusNodeId(), n);
+            }
+        }
+
+        // Campus node IDs that belong to source or destination buildings — never treated as transit
+        Set<Long> srcCampusIds = srcExits.stream()
+                .map(MapNode::getLinkedCampusNodeId).collect(Collectors.toSet());
+        Set<Long> dstCampusIds = dstExits.stream()
+                .map(MapNode::getLinkedCampusNodeId).collect(Collectors.toSet());
+
+        List<PathSegment> result = new ArrayList<>();
+        if (!seg1.path().isEmpty()) result.add(new PathSegment(SegmentType.INDOOR, seg1.path()));
+
+        List<MapNode> campusPath = seg2.path();
+        List<MapNode> currentOutdoor = new ArrayList<>();
+
+        int i = 0;
+        while (i < campusPath.size()) {
+            MapNode campusNode = campusPath.get(i);
+            currentOutdoor.add(campusNode);
+
+            // Is this a transit-building entrance? (has indoor link, not src/dst)
+            MapNode enterIndoor = campusToIndoor.get(campusNode.getId());
+            boolean isTransitEntry = enterIndoor != null
+                    && !srcCampusIds.contains(campusNode.getId())
+                    && !dstCampusIds.contains(campusNode.getId());
+
+            if (isTransitEntry) {
+                // Search ahead (up to 5 nodes) for a transit exit of the same building
+                int foundAt = -1;
+                MapNode exitIndoor = null;
+                for (int j = i + 1; j < Math.min(i + 6, campusPath.size()); j++) {
+                    MapNode candidate = campusToIndoor.get(campusPath.get(j).getId());
+                    if (candidate == null) continue;
+                    if (srcCampusIds.contains(campusPath.get(j).getId())) continue;
+                    if (dstCampusIds.contains(campusPath.get(j).getId())) continue;
+                    // Try indoor Dijkstra — success means same connected building
+                    DijkstraResult transitPath = dijkstra(
+                            enterIndoor.getId(), candidate.getId(),
+                            fullIndoor.nodes(), fullIndoor.edges());
+                    if (transitPath.path().size() > 2 && hasSignificantTurn(transitPath.path())) {
+                        // Only create indoor segment when navigation is truly needed (has turns).
+                        // Straight pass-through (even 3+ nodes) is better shown as outdoor "Đi qua X".
+                        foundAt = j;
+                        exitIndoor = candidate;
+                        // Add intermediate campus waypoints to currentOutdoor before flushing
+                        for (int k = i + 1; k <= j; k++) currentOutdoor.add(campusPath.get(k));
+                        // Flush current outdoor segment
+                        result.add(new PathSegment(SegmentType.OUTDOOR, new ArrayList<>(currentOutdoor)));
+                        currentOutdoor.clear();
+                        // Insert indoor transit
+                        result.add(new PathSegment(SegmentType.INDOOR, transitPath.path()));
+                        // Restart outdoor from the exit campus node
+                        currentOutdoor.add(campusPath.get(j));
+                        i = j + 1;
+                        break;
+                    }
+                }
+                if (foundAt < 0) i++;
+            } else {
+                i++;
+            }
+        }
+
+        if (!currentOutdoor.isEmpty()) result.add(new PathSegment(SegmentType.OUTDOOR, currentOutdoor));
+        if (!seg3.path().isEmpty()) result.add(new PathSegment(SegmentType.INDOOR, seg3.path()));
+        return result;
+    }
+
+    private boolean hasSignificantTurn(List<MapNode> path) {
+        for (int k = 1; k < path.size() - 1; k++) {
+            MapNode p = path.get(k - 1), c = path.get(k), n = path.get(k + 1);
+            double dx1 = c.getX() - p.getX(), dy1 = c.getY() - p.getY();
+            double dx2 = n.getX() - c.getX(), dy2 = n.getY() - c.getY();
+            double cross = dx1 * dy2 - dy1 * dx2;
+            double dot   = dx1 * dx2 + dy1 * dy2;
+            if (Math.atan2(Math.abs(cross), dot) * 180 / Math.PI >= 45) return true;
+        }
+        return false;
     }
 
     // ── Private helpers ────────────────────────────────────────────────────
