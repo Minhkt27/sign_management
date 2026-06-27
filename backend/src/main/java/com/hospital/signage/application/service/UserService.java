@@ -1,6 +1,7 @@
 package com.hospital.signage.application.service;
 
 import com.hospital.signage.application.port.in.UserUseCase;
+import com.hospital.signage.application.port.out.RoleDatabasePort;
 import com.hospital.signage.application.port.out.UserDatabasePort;
 
 import com.hospital.signage.domain.model.User;
@@ -12,15 +13,24 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.util.List;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class UserService implements UserUseCase {
 
+    private static final String TEMP_PASSWORD_CHARS =
+            "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
+    private static final int TEMP_PASSWORD_LENGTH = 16;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
     private final UserDatabasePort userDatabasePort;
+    private final RoleDatabasePort roleDatabasePort;
     private final PasswordEncoder passwordEncoder;
+    private final UserCacheService userCacheService;
 
     @Override
     public List<User> getAllUsers() {
@@ -34,9 +44,9 @@ public class UserService implements UserUseCase {
 
     @Override
     public List<User> getTechnicians() {
-        // We will need RoleDatabasePort to fetch the role ID by code, but for now we just return an empty list or we can skip this if we change it to role ID.
-        // Actually, let's just return all users for now or fetch by role ID if we add a rolePort.
-        return List.of(); 
+        return roleDatabasePort.findByCode("TECHNICAL")
+                .map(role -> userDatabasePort.findByRoleId(role.getId()))
+                .orElse(List.of());
     }
 
     @Override
@@ -50,6 +60,7 @@ public class UserService implements UserUseCase {
                 .fullName(command.fullName())
                 .password(passwordEncoder.encode(command.password()))
                 .roleId(command.roleId())
+                .phone(command.phone())
                 .customPermissions(command.customPermissions() != null ? command.customPermissions() : List.of())
                 .isActive(true)
                 .build();
@@ -63,9 +74,14 @@ public class UserService implements UserUseCase {
     public User updateUserRoleAndPermissions(Long userId, Long roleId, List<String> customPermissions) {
         User user = userDatabasePort.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại"));
+        if (Long.valueOf(1).equals(userId)) {
+            throw new IllegalStateException("Không thể thay đổi quyền tài khoản quản trị viên");
+        }
         user.setRoleId(roleId);
         user.setCustomPermissions(customPermissions != null ? customPermissions : List.of());
-        return userDatabasePort.save(user);
+        User saved = userDatabasePort.save(user);
+        userCacheService.evict(user.getUsername());
+        return saved;
     }
 
     @Override
@@ -77,22 +93,60 @@ public class UserService implements UserUseCase {
         if (!active) {
             user.setRefreshToken(null);
         }
-        return userDatabasePort.save(user);
+        User saved = userDatabasePort.save(user);
+        userCacheService.evict(user.getUsername());
+        return saved;
     }
 
     @Override
     @Transactional
-    public void resetPassword(Long userId) {
+    public String resetPassword(Long userId) {
         User user = userDatabasePort.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại"));
-        // We can't check Role.ADMIN easily without Role Port. We will remove this check for now, or check roleId == 1.
-        if (Long.valueOf(1).equals(user.getRoleId())) {
+        if (Long.valueOf(1).equals(userId)) {
             throw new IllegalStateException("Không thể reset mật khẩu tài khoản quản trị.");
         }
-        user.setPassword(passwordEncoder.encode("12345678"));
+        String temporaryPassword = generateTemporaryPassword();
+        user.setPassword(passwordEncoder.encode(temporaryPassword));
         user.setRefreshToken(null);
         userDatabasePort.save(user);
-        log.warn("Password reset to default for user '{}'", user.getUsername());
+        userCacheService.evict(user.getUsername());
+        log.warn("Temporary password generated for user '{}'", user.getUsername());
+        return temporaryPassword;
+    }
+
+    private String generateTemporaryPassword() {
+        StringBuilder password = new StringBuilder(TEMP_PASSWORD_LENGTH);
+        for (int index = 0; index < TEMP_PASSWORD_LENGTH; index++) {
+            int charIndex = SECURE_RANDOM.nextInt(TEMP_PASSWORD_CHARS.length());
+            password.append(TEMP_PASSWORD_CHARS.charAt(charIndex));
+        }
+        return password.toString();
+    }
+
+    @Override
+    @Transactional
+    public User updateUser(UpdateUserCommand command) {
+        User user = userDatabasePort.findById(command.id())
+                .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại"));
+        user.setFullName(command.fullName());
+        user.setPhone(command.phone());
+        User saved = userDatabasePort.save(user);
+        userCacheService.evict(user.getUsername());
+        return saved;
+    }
+
+    @Override
+    @Transactional
+    public void deleteUser(Long id) {
+        User user = userDatabasePort.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại"));
+        if (Long.valueOf(1).equals(id)) {
+            throw new IllegalStateException("Không thể xóa tài khoản quản trị viên");
+        }
+        userDatabasePort.deleteById(id);
+        userCacheService.evict(user.getUsername());
+        log.warn("User account '{}' (id={}) deleted", user.getUsername(), id);
     }
 
     @Override
@@ -105,5 +159,6 @@ public class UserService implements UserUseCase {
         }
         user.setPassword(passwordEncoder.encode(command.newPassword()));
         userDatabasePort.save(user);
+        userCacheService.evict(user.getUsername());
     }
 }

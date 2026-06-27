@@ -17,11 +17,17 @@ server:
     include-message: never
     include-stacktrace: never
 
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
 jwt:
   secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION:28800000}
   refresh-expiration: ${JWT_REFRESH_EXPIRATION:2592000000}
 
 app:
-  admin-initial-password: ${ADMIN_INITIAL_PASSWORD:Admin@Docker#2024}
-  tech-initial-password: ${TECH_INITIAL_PASSWORD:Tech@Docker#2024}
+  admin-initial-password: ${ADMIN_INITIAL_PASSWORD}
+  tech-initial-password: ${TECH_INITIAL_PASSWORD}

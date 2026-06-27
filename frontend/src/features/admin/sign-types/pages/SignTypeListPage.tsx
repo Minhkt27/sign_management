@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { signTypeService } from '@/services/signTypeService';
 import { SignType } from '@/shared/types';
@@ -17,7 +18,12 @@ export default function SignTypeListPage() {
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const page = Number(searchParams.get('page') ?? '0');
+  const setPage = (p: number) => setSearchParams(
+    prev => { const n = new URLSearchParams(prev); if (p === 0) n.delete('page'); else n.set('page', String(p)); return n; },
+    { replace: true },
+  );
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<SignType | null>(null);
 

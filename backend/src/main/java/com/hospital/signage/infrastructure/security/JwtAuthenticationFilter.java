@@ -1,6 +1,6 @@
 package com.hospital.signage.infrastructure.security;
 
-import com.hospital.signage.application.port.out.UserDatabasePort;
+import com.hospital.signage.application.service.UserCacheService;
 import com.hospital.signage.domain.model.User;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -24,7 +24,7 @@ import java.io.IOException;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
-    private final UserDatabasePort userDatabasePort;
+    private final UserCacheService userCacheService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -42,7 +42,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String username = jwtTokenProvider.extractUsername(jwt);
 
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                User user = userDatabasePort.findByUsername(username).orElse(null);
+                User user = userCacheService.findByUsername(username).orElse(null);
 
                 if (user == null) {
                     log.warn("JWT references unknown user '{}'", username);

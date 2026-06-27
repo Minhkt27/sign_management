@@ -6,7 +6,7 @@ import { PagedResponse } from '@/services/assetService';
 import { authStore } from '@/app/store/authStore';
 import { MaintenanceTicket } from '@/shared/types';
 import { Badge } from '@/components/ui/badge';
-import { ClipboardList, AlertTriangle, ArrowRight, CheckCircle2, Clock } from 'lucide-react';
+import { ClipboardList, AlertTriangle, ArrowRight, CheckCircle2, Clock, ShieldCheck } from 'lucide-react';
 import { PRIORITY_LABELS } from '@/shared/helpers/ticketBadges';
 
 export default function TechDashboardPage() {
@@ -120,6 +120,11 @@ export default function TechDashboardPage() {
                     <span className="text-green-600 flex items-center space-x-1">
                       <CheckCircle2 size={13} />
                       <span>Sửa hoàn thành</span>
+                    </span>
+                  ) : task.ticketStatus === 'CLOSED' ? (
+                    <span className="text-slate-600 flex items-center space-x-1">
+                      <ShieldCheck size={13} />
+                      <span>Đã đóng phiếu</span>
                     </span>
                   ) : (
                     <span className="text-slate-500">Chờ tiếp nhận</span>

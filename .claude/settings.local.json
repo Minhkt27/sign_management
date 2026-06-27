@@ -47,7 +47,31 @@
       "Bash(echo \"PID: $!\")",
       "Bash(Get-Content \"C:\\\\Users\\\\minh4\\\\.claude\\\\projects\\\\d--sign-management\\\\c2a4ec4b-6a13-4bc5-9980-fac9639ea864\\\\tool-results\\\\bh2fbfaoy.txt\" -Head 2000)",
       "Bash(head -c 50000 /c/Users/minh4/.claude/projects/d--sign-management/c2a4ec4b-6a13-4bc5-9980-fac9639ea864/tool-results/bh2fbfaoy.txt)",
-      "Read(//c/Users/minh4/.claude/projects/d--sign-management/c2a4ec4b-6a13-4bc5-9980-fac9639ea864/tool-results/**)"
+      "Read(//c/Users/minh4/.claude/projects/d--sign-management/c2a4ec4b-6a13-4bc5-9980-fac9639ea864/tool-results/**)",
+      "Bash(docker exec *)",
+      "Bash(curl -s -X POST \"http://localhost:8080/api/auth/login\" -H \"Content-Type: application/json\" -d \"{\\\\\"username\\\\\":\\\\\"admin\\\\\",\\\\\"password\\\\\":\\\\\"Admin@123\\\\\"}\")",
+      "Bash(curl -s -X POST \"http://localhost:8080/api/auth/login\" -H \"Content-Type: application/json\" -d '{\"username\":\"admin\",\"password\":\"Admin@Docker#2024\"}')",
+      "Bash(python3 -m json.tool)",
+      "Bash(npx vitest *)",
+      "Bash(docker compose *)",
+      "Bash(Get-ChildItem -Path \"d:\\\\sign_management\" -Recurse -Force)",
+      "Bash(Select-Object -First 50)",
+      "Bash(mvn compile *)",
+      "PowerShell(java -version 2>&1)",
+      "PowerShell(mvn --version 2>&1)",
+      "PowerShell(cd d:\\\\sign_management\\\\backend; $env:JAVA_HOME = \"C:\\\\Program Files\\\\Java\\\\jdk-25\"; mvn clean compile 2>&1 | Select-Object -Last 15)",
+      "PowerShell(cd d:\\\\sign_management\\\\backend; $env:JAVA_HOME = \"C:\\\\Program Files\\\\Java\\\\jdk-25\"; mvn test 2>&1 | Select-String \"BUILD|Tests run|FAIL|ERROR\" | Select-Object -Last 12)",
+      "PowerShell(cd d:\\\\sign_management\\\\backend; $env:JAVA_HOME = \"C:\\\\Program Files\\\\Java\\\\jdk-21\"; mvn compile -q 2>&1 | Select-Object -Last 5)",
+      "Skill(run)",
+      "Skill(run:*)",
+      "PowerShell(docker compose -f d:\\\\sign_management\\\\docker-compose.yml ps)",
+      "PowerShell(docker exec signage_postgres psql -U postgres -d signage_db -c \"SELECT id, code, name, ui_mode FROM roles ORDER BY id;\")",
+      "PowerShell(docker exec signage_postgres psql -U postgres -d signage_db -c \"UPDATE roles SET ui_mode = 'ADMIN' WHERE ui_mode IS NULL AND code != 'TECHNICAL'; UPDATE roles SET ui_mode = 'TECHNICIAN' WHERE code = 'TECHNICAL'; SELECT id, code, name, ui_mode FROM roles ORDER BY id;\")",
+      "Skill(code-review)",
+      "Skill(code-review:*)",
+      "Bash(findstr /i \"role_id NOT NULL\")",
+      "PowerShell(docker compose -f D:\\\\sign_management\\\\docker-compose.yml build --no-cache frontend 2>&1)",
+      "PowerShell(docker compose -f D:\\\\sign_management\\\\docker-compose.yml up -d frontend 2>&1)"
     ]
   }
 }

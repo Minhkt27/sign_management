@@ -2,7 +2,7 @@ package com.hospital.signage.adapter.in.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hospital.signage.application.port.in.TicketUseCase;
-import com.hospital.signage.application.port.out.UserDatabasePort;
+import com.hospital.signage.application.service.UserCacheService;
 import com.hospital.signage.domain.enums.Priority;
 import com.hospital.signage.domain.enums.TicketStatus;
 import com.hospital.signage.domain.model.MaintenanceTicket;
@@ -32,7 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(TicketController.class)
 @Import({SecurityConfig.class, JwtAuthenticationFilter.class})
-@WithMockUser(username = "admin", authorities = {"TICKET_MANAGE"})
+@WithMockUser(username = "admin", authorities = {"TICKET_MANAGE", "ASSET_MANAGE"})
 public class TicketControllerTest {
 
     @Autowired
@@ -45,7 +45,7 @@ public class TicketControllerTest {
     private TicketUseCase ticketUseCase;
 
     @MockBean
-    private UserDatabasePort userDatabasePort;
+    private UserCacheService userCacheService;
 
     @MockBean
     private JwtTokenProvider jwtTokenProvider;

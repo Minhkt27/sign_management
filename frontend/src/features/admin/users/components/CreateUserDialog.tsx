@@ -12,14 +12,29 @@ import { PermissionMatrix } from './PermissionMatrix';
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: { username: string; fullName: string; password: string; roleId: number; customPermissions: string[] }) => void;
+  onSubmit: (data: { username: string; fullName: string; password: string; roleId: number; phone?: string; customPermissions: string[] }) => void;
   isPending: boolean;
   error: string;
+}
+
+function formatPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 10);
+  if (digits.length <= 4) return digits;
+  if (digits.length <= 7) return `${digits.slice(0, 4)} ${digits.slice(4)}`;
+  return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
+}
+
+function validatePhone(digits: string): string {
+  if (!digits) return '';
+  if (!/^0(3[2-9]|5[25689]|7[06-9]|8[1-9]|9[0-46-9])\d{7}$/.test(digits))
+    return 'Số điện thoại không hợp lệ (VD: 0901 234 567)';
+  return '';
 }
 
 export function CreateUserDialog({ open, onOpenChange, onSubmit, isPending, error }: Props) {
   const [username, setUsername] = useState('');
   const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [roleId, setRoleId] = useState<string>('');
@@ -36,12 +51,13 @@ export function CreateUserDialog({ open, onOpenChange, onSubmit, isPending, erro
   // Auto-select first role if available
   useEffect(() => {
     if (roles.length > 0 && !roleId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRoleId(roles[0].id.toString());
     }
   }, [roles, roleId]);
 
   const reset = () => {
-    setUsername(''); setFullName(''); setPassword(''); setConfirmPassword('');
+    setUsername(''); setFullName(''); setPhone(''); setPassword(''); setConfirmPassword('');
     setRoleId(roles.length > 0 ? roles[0].id.toString() : '');
     setCustomPermissions([]); setShowAdvanced(false); setLocalError('');
   };
@@ -57,7 +73,10 @@ export function CreateUserDialog({ open, onOpenChange, onSubmit, isPending, erro
     if (!roleId) { setLocalError('Vui lòng chọn một nhóm quyền'); return; }
     if (password !== confirmPassword) { setLocalError('Mật khẩu xác nhận không khớp'); return; }
     if (password.length < 6) { setLocalError('Mật khẩu phải có ít nhất 6 ký tự'); return; }
-    onSubmit({ username, fullName, password, roleId: Number(roleId), customPermissions });
+    const rawPhone = phone.replace(/\D/g, '');
+    const phoneErr = validatePhone(rawPhone);
+    if (phoneErr) { setLocalError(phoneErr); return; }
+    onSubmit({ username, fullName, password, roleId: Number(roleId), phone: rawPhone || undefined, customPermissions });
   };
 
   const displayError = localError || error;
@@ -81,6 +100,14 @@ export function CreateUserDialog({ open, onOpenChange, onSubmit, isPending, erro
               <label className="text-sm font-medium text-slate-700">Họ và tên</label>
               <Input value={fullName} onChange={e => setFullName(e.target.value)} required />
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-700">Số điện thoại</label>
+              <Input type="tel" value={phone} onChange={e => setPhone(formatPhone(e.target.value))} maxLength={13} />
+            </div>
+            <div className="space-y-1.5" />
           </div>
 
           <div className="grid grid-cols-2 gap-4">

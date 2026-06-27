@@ -1,7 +1,11 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { UserCheck, UserX, RotateCcw, ShieldAlert } from 'lucide-react';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { UserCheck, UserX, RotateCcw, ShieldAlert, Pencil, Trash2, MoreHorizontal } from 'lucide-react';
 import { User, Role } from '@/shared/types';
 
 interface Props {
@@ -12,11 +16,14 @@ interface Props {
   onToggleActive: (user: User) => void;
   onResetPassword: (user: User) => void;
   onEditRole: (user: User) => void;
+  onEditUser: (user: User) => void;
+  onDeleteUser: (user: User) => void;
   isTogglePending: boolean;
   isResetPending: boolean;
+  isDeletePending: boolean;
 }
 
-export function UserTable({ users, roles, isLoading, currentUserId, onToggleActive, onResetPassword, onEditRole, isTogglePending, isResetPending }: Props) {
+export function UserTable({ users, roles, isLoading, currentUserId, onToggleActive, onResetPassword, onEditRole, onEditUser, onDeleteUser, isTogglePending, isResetPending, isDeletePending }: Props) {
   if (isLoading) {
     return <div className="p-8 text-center text-slate-400">Đang tải...</div>;
   }
@@ -32,6 +39,7 @@ export function UserTable({ users, roles, isLoading, currentUserId, onToggleActi
           <TableRow>
             <TableHead>Họ và tên</TableHead>
             <TableHead>Tên đăng nhập</TableHead>
+            <TableHead>Số điện thoại</TableHead>
             <TableHead>Vai trò</TableHead>
             <TableHead>Trạng thái</TableHead>
             <TableHead className="text-right">Thao tác</TableHead>
@@ -42,6 +50,7 @@ export function UserTable({ users, roles, isLoading, currentUserId, onToggleActi
             <TableRow key={user.id}>
               <TableCell className="font-medium">{user.fullName}</TableCell>
               <TableCell className="text-slate-800">{user.username}</TableCell>
+              <TableCell className="text-slate-600">{user.phone || <span className="text-slate-300">—</span>}</TableCell>
               <TableCell>
                 <div className="flex flex-col gap-1 items-start">
                   <Badge variant={user.roleId === 1 ? 'default' : 'secondary'} className="text-sm px-2.5 h-6">
@@ -61,27 +70,19 @@ export function UserTable({ users, roles, isLoading, currentUserId, onToggleActi
                 </Badge>
               </TableCell>
               <TableCell className="text-right">
-                {currentUserId !== user.id && (
-                  <div className="flex items-center justify-end gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onEditRole(user)}
-                      className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                    >
-                      <ShieldAlert size={14} className="mr-1" />Phân quyền
-                    </Button>
-                    {user.roleId !== 1 && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={isResetPending}
-                        onClick={() => onResetPassword(user)}
-                        className="text-amber-600 border-amber-200 hover:bg-amber-50"
-                      >
-                        <RotateCcw size={14} className="mr-1" />Reset
-                      </Button>
-                    )}
+                <div className="flex items-center justify-end gap-1.5">
+                  {/* Sửa — hiện cho tất cả */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onEditUser(user)}
+                    className="text-slate-600 border-slate-200 hover:bg-slate-50"
+                  >
+                    <Pencil size={14} className="mr-1" />Sửa
+                  </Button>
+
+                  {/* Khóa/Mở — chỉ hiện với người khác */}
+                  {currentUserId !== user.id && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -95,14 +96,52 @@ export function UserTable({ users, roles, isLoading, currentUserId, onToggleActi
                         ? <><UserX size={14} className="mr-1" />Khóa</>
                         : <><UserCheck size={14} className="mr-1" />Mở</>}
                     </Button>
-                  </div>
-                )}
+                  )}
+
+                  {/* Dropdown các thao tác phụ — chỉ hiện với người khác */}
+                  {currentUserId !== user.id && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-colors">
+                        <MoreHorizontal size={15} />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-44 bg-white border border-slate-200 shadow-lg rounded-lg">
+                        <DropdownMenuItem onClick={() => onEditRole(user)} className="cursor-pointer">
+                          <ShieldAlert size={14} className="mr-2 text-blue-600" />
+                          <span>Phân quyền</span>
+                        </DropdownMenuItem>
+                        {user.roleId !== 1 && (
+                          <DropdownMenuItem
+                            onClick={() => onResetPassword(user)}
+                            disabled={isResetPending}
+                            className="cursor-pointer"
+                          >
+                            <RotateCcw size={14} className="mr-2 text-amber-600" />
+                            <span>Reset mật khẩu</span>
+                          </DropdownMenuItem>
+                        )}
+                        {user.roleId !== 1 && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => onDeleteUser(user)}
+                              disabled={isDeletePending}
+                              className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+                            >
+                              <Trash2 size={14} className="mr-2" />
+                              <span>Xóa tài khoản</span>
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
               </TableCell>
             </TableRow>
           ))}
           {users.length === 0 && (
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-slate-400 py-8">
+              <TableCell colSpan={6} className="text-center text-slate-400 py-8">
                 Không tìm thấy tài khoản nào
               </TableCell>
             </TableRow>
@@ -112,4 +151,3 @@ export function UserTable({ users, roles, isLoading, currentUserId, onToggleActi
     </div>
   );
 }
-

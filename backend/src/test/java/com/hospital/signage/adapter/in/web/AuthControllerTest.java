@@ -2,7 +2,7 @@ package com.hospital.signage.adapter.in.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hospital.signage.application.port.in.AuthUseCase;
-import com.hospital.signage.application.port.out.UserDatabasePort;
+import com.hospital.signage.application.service.UserCacheService;
 
 import com.hospital.signage.domain.model.User;
 import com.hospital.signage.infrastructure.security.JwtAuthenticationFilter;
@@ -37,7 +37,7 @@ public class AuthControllerTest {
     private AuthUseCase authUseCase;
 
     @MockBean
-    private UserDatabasePort userDatabasePort;
+    private UserCacheService userCacheService;
 
     @MockBean
     private JwtTokenProvider jwtTokenProvider;

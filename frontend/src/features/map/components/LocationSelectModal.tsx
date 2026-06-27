@@ -5,6 +5,7 @@ import { mapService } from '@/services/mapService';
 import { assetService } from '@/services/assetService';
 import { MapNode, MapFloorData, Location } from '@/shared/types';
 import { Search, CheckCircle2, XCircle } from 'lucide-react';
+import { normalize } from '../utils/pathHelpers';
 import {
   Dialog,
   DialogContent,
@@ -44,7 +45,7 @@ export function LocationSelectModal({ open, onClose, allFloorData, locations, on
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const processingRef = useRef(false);
 
-  const startPromiseRef = useRef<Promise<any> | null>(null);
+  const startPromiseRef = useRef<Promise<unknown> | null>(null);
 
   const stopScanner = async () => {
     if (scannerRef.current) {
@@ -54,7 +55,7 @@ export function LocationSelectModal({ open, onClose, allFloorData, locations, on
       setScanning(false);
       
       if (startPromise) {
-        try { await startPromise; } catch (e) {}
+        try { await startPromise; } catch { /* ignore */ }
       }
       try {
         await scanner.stop();
@@ -126,9 +127,10 @@ export function LocationSelectModal({ open, onClose, allFloorData, locations, on
     try {
       const asset = await assetService.getAssetByCode(assetCode);
       const node = await mapService.getNodeByAsset(asset.id);
+      const displayLabel = node.label || asset.name || 'Vị trí của bạn';
       setStatus('ok');
-      setMessage(`Đã xác định: ${node.label ?? assetCode}`);
-      onSetLocation(node, node.label ?? assetCode);
+      setMessage(`Đã xác định: ${displayLabel}`);
+      onSetLocation(node, displayLabel);
       setTimeout(() => {
         handleClose();
       }, 800);
@@ -144,20 +146,20 @@ export function LocationSelectModal({ open, onClose, allFloorData, locations, on
 
   const manualResults = manualSearch.trim()
     ? (() => {
-        const q = manualSearch.toLowerCase();
+        const q = normalize(manualSearch);
         const matchingAssetIds = new Set(
           assets
-            .filter(a => a.assetCode.toLowerCase().includes(q) || (a.name && a.name.toLowerCase().includes(q)))
+            .filter(a => a.name && normalize(a.name).includes(q))
             .map(a => a.id)
         );
 
         const byNodeLabel = allNodes.filter(({ node }) =>
-          node.label && node.label.toLowerCase().includes(q)
+          node.label && normalize(node.label).includes(q)
         );
         const byLocation = allNodes.filter(({ node }) => {
           if (!node.locationId) return false;
           const loc = locations.find(l => l.id === node.locationId);
-          return loc && loc.name.toLowerCase().includes(q);
+          return loc && normalize(loc.name).includes(q);
         });
         const byLinkedAsset = allNodes.filter(({ node }) =>
           node.assetId && matchingAssetIds.has(node.assetId)
@@ -234,7 +236,7 @@ export function LocationSelectModal({ open, onClose, allFloorData, locations, on
                 <input
                   value={manualSearch}
                   onChange={e => setManualSearch(e.target.value)}
-                  placeholder="Tìm phòng, khu vực, mã biển..."
+                  placeholder="Tìm theo tên phòng, khu vực..."
                   className="w-full pl-8 pr-4 py-2 rounded-lg text-xs outline-none border border-slate-200 bg-slate-50 focus:border-green-400 focus:bg-white transition-all text-slate-800 font-medium placeholder:text-slate-400"
                 />
               </div>
@@ -274,7 +276,8 @@ export function LocationSelectModal({ open, onClose, allFloorData, locations, on
                     const loc = node.locationId ? locations.find(l => l.id === node.locationId) : null;
                     const floorLoc = locations.find(l => l.id === fd.floor.locationId);
                     const linkedAsset = node.assetId ? assets.find(a => a.id === node.assetId) : null;
-                    const name = linkedAsset ? linkedAsset.assetCode : (loc?.name ?? node.label ?? node.type);
+                    // Priority: location name → node label → asset name (never expose assetCode to patients)
+                    const name = loc?.name ?? node.label ?? linkedAsset?.name ?? node.type;
                     return (
                       <button key={node.id}
                         onClick={() => {

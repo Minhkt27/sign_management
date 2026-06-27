@@ -16,7 +16,7 @@ public class MapFloorEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "location_id", nullable = false, unique = true)
+    @Column(name = "location_id")
     private Long locationId;
 
     @Column(name = "image_url", nullable = false, length = 500)
@@ -27,6 +27,9 @@ public class MapFloorEntity {
 
     @Column(name = "img_height", nullable = false)
     private int imgHeight;
+
+    @Column(name = "is_campus", nullable = false)
+    private boolean campus;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

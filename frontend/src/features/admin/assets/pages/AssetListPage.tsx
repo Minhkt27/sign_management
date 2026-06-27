@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { assetService, PagedResponse } from '@/services/assetService';
 import { locationService } from '@/services/locationService';
@@ -10,6 +11,9 @@ import { AssetTable } from '../components/AssetTable';
 import { CreateAssetDialog } from '../components/CreateAssetDialog';
 import { Pagination } from '@/shared/components/Pagination';
 import { getApiError } from '@/shared/helpers/apiError';
+import { exportService } from '@/services/exportService';
+import { Button } from '@/components/ui/button';
+import { FileDown } from 'lucide-react';
 
 const PAGE_SIZE = 10;
 
@@ -19,7 +23,12 @@ export default function AssetListPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [materialFilter, setMaterialFilter] = useState('ALL');
-  const [page, setPage] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const page = Number(searchParams.get('page') ?? '0');
+  const setPage = (p: number) => setSearchParams(
+    prev => { const n = new URLSearchParams(prev); if (p === 0) n.delete('page'); else n.set('page', String(p)); return n; },
+    { replace: true },
+  );
 
   const { data: assetData, isLoading } = useQuery<PagedResponse<Asset>>({
     queryKey: ['assets', page, search],
@@ -49,6 +58,13 @@ export default function AssetListPage() {
     }
   };
 
+  const [exporting, setExporting] = useState(false);
+  const handleExport = async () => {
+    setExporting(true);
+    try { await exportService.exportAssets(search); }
+    finally { setExporting(false); }
+  };
+
   const filteredAssets = assets.filter(asset =>
     (statusFilter === 'ALL' || asset.status === statusFilter) &&
     (materialFilter === 'ALL' || asset.material === materialFilter)
@@ -72,12 +88,16 @@ export default function AssetListPage() {
           materialFilter={materialFilter}
           onMaterialFilterChange={(v) => { setMaterialFilter(v); setPage(0); }}
         >
+          <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting}
+            className="flex items-center gap-1.5 text-green-700 border-green-300 hover:bg-green-50">
+            <FileDown size={15} />
+            {exporting ? 'Đang xuất...' : 'Xuất Excel'}
+          </Button>
           <CreateAssetDialog locations={locations} signTypes={signTypes} />
         </AssetFilters>
 
         <AssetTable
           assets={filteredAssets}
-          signTypes={signTypes}
           isLoading={isLoading}
           page={page}
           pageSize={PAGE_SIZE}

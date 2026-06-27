@@ -10,7 +10,7 @@ import { NodePanel } from '../components/NodePanel';
 import { MousePointer, Plus, GitBranch, Trash2, ArrowLeft } from 'lucide-react';
 import { getApiError } from '@/shared/helpers/apiError';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
-import { NODE_TYPE_OPTIONS } from '../constants';
+import { NODE_TYPE_OPTIONS, CAMPUS_NODE_TYPE_OPTIONS } from '../constants';
 import { toast } from 'sonner';
 
 const TOOL_BUTTONS: { tool: EditorTool; icon: React.ReactNode; label: string }[] = [
@@ -54,7 +54,17 @@ export default function MapEditorPage() {
     queryFn: mapService.getAllFloors,
   });
 
+  const isCampusFloor = floorData?.floor.campus ?? false;
   const otherFloors = allFloors.filter(f => f.id !== Number(floorId));
+
+  // Load campus nodes for EXIT node linking (only on non-campus floors)
+  const { data: campusMapData } = useQuery({
+    queryKey: ['campusMap'],
+    queryFn: mapService.getCampusMap,
+    enabled: !isCampusFloor,
+    staleTime: 60_000,
+  });
+  const campusNodes = campusMapData?.nodes ?? [];
 
   const selectedNodeType = floorData?.nodes.find(n => n.id === selectedNodeId)?.type;
   const isTransitNode = selectedNodeType === 'STAIRS' || selectedNodeType === 'ELEVATOR';
@@ -67,6 +77,7 @@ export default function MapEditorPage() {
 
   useEffect(() => {
     if (floorData && selectedNodeId && !floorData.nodes.find(n => n.id === selectedNodeId)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedNodeId(null);
     }
   }, [floorData, selectedNodeId]);
@@ -87,14 +98,20 @@ export default function MapEditorPage() {
 
   const deleteNodeMutation = useMutation({
     mutationFn: mapService.deleteNode,
-    onSuccess: () => { setSelectedNodeId(null); invalidate(); },
-    onError: (e: unknown) => alert(getApiError(e, 'Không thể xóa node')),
+    onSuccess: () => { setSelectedNodeId(null); invalidate(); toast.success('Đã xóa node'); },
+    onError: (e: unknown) => toast.error(getApiError(e, 'Không thể xóa node')),
   });
 
   const createEdgeMutation = useMutation({
     mutationFn: ({ from, to }: { from: number; to: number }) => mapService.createEdge(from, to),
     onSuccess: invalidate,
     onError: (e: unknown) => toast.error(getApiError(e, 'Không thể tạo đường nối')),
+  });
+
+  const deleteEdgeMutation = useMutation({
+    mutationFn: mapService.deleteEdge,
+    onSuccess: invalidate,
+    onError: (e: unknown) => toast.error(getApiError(e, 'Không thể xóa đường nối')),
   });
 
 
@@ -113,16 +130,14 @@ export default function MapEditorPage() {
         setEdgeStartId(null);
       }
     } else if (tool === 'delete') {
-      if (window.confirm('Xóa node này và tất cả đường nối liên quan?')) {
-        deleteNodeMutation.mutate(nodeId);
-      }
+      deleteNodeMutation.mutate(nodeId);
     }
   };
 
   const handleNodeDragEnd = (nodeId: number, x: number, y: number) => {
     const node = floorData?.nodes.find(n => n.id === nodeId);
     if (!node) return;
-    updateNodeMutation.mutate({ id: nodeId, x, y, type: node.type, label: node.label, locationId: node.locationId, assetId: node.assetId });
+    updateNodeMutation.mutate({ id: nodeId, x, y, type: node.type, label: node.label, locationId: node.locationId, assetId: node.assetId, linkedCampusNodeId: node.linkedCampusNodeId });
   };
 
   const handleUpdateNode = (id: number, data: Partial<MapNode>) => {
@@ -130,7 +145,7 @@ export default function MapEditorPage() {
   };
 
   const handleDeleteNode = (id: number) => {
-    if (window.confirm('Xóa node này?')) deleteNodeMutation.mutate(id);
+    deleteNodeMutation.mutate(id);
   };
 
   const selectedNode = floorData?.nodes.find(n => n.id === selectedNodeId) ?? null;
@@ -181,25 +196,33 @@ export default function MapEditorPage() {
               onChange={e => setPendingType(e.target.value as NodeType)}
               className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
             >
-              {NODE_TYPE_OPTIONS.map(opt => (
+              {(isCampusFloor ? CAMPUS_NODE_TYPE_OPTIONS : NODE_TYPE_OPTIONS).map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
           </>
         )}
 
+        {isCampusFloor && (
+          <span className="ml-2 text-xs font-semibold bg-amber-100 text-amber-700 px-2 py-1 rounded-full">
+            Sơ đồ tổng thể
+          </span>
+        )}
+
         <div className="ml-auto flex items-center gap-2 text-xs text-slate-500">
           <span>{floorData.nodes.length} node</span>
           <span>·</span>
           <span>{floorData.edges.length} đường nối</span>
-          <div className="flex items-center gap-3 ml-3">
-            {([['ROOM','Phòng','bg-blue-500'],['DEPARTMENT','Khoa','bg-teal-500'],['JUNCTION','Hành lang','bg-slate-400'],['STAIRS','Cầu thang','bg-orange-500'],['ELEVATOR','Thang máy','bg-purple-500'],['ENTRANCE','Lối vào','bg-emerald-500']] as const).map(([,label,color]) => (
-              <span key={label} className="flex items-center gap-1">
-                <span className={`w-2.5 h-2.5 rounded-full ${color}`} />
-                {label}
-              </span>
-            ))}
-          </div>
+          {!isCampusFloor && (
+            <div className="flex items-center gap-3 ml-3">
+              {([['ROOM','Phòng','bg-blue-500'],['DEPARTMENT','Khoa','bg-teal-500'],['JUNCTION','Hành lang','bg-slate-400'],['STAIRS','Cầu thang','bg-orange-500'],['ELEVATOR','Thang máy','bg-purple-500'],['ENTRANCE','Lối vào/Ra','bg-emerald-500']] as const).map(([,label,color]) => (
+                <span key={label} className="flex items-center gap-1">
+                  <span className={`w-2.5 h-2.5 rounded-full ${color}`} />
+                  {label}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -208,76 +231,82 @@ export default function MapEditorPage() {
         <div className="flex-1 p-4 min-h-0 overflow-auto flex items-start justify-center">
           <MapCanvas
             imageUrl={getBackendUrl(floorData.floor.imageUrl)}
-
             nodes={floorData.nodes}
             edges={floorData.edges}
             tool={tool}
-
             selectedNodeId={selectedNodeId}
             edgeStartId={edgeStartId}
             onCanvasClick={handleCanvasClick}
             onNodeClick={handleNodeClick}
             onNodeDragEnd={handleNodeDragEnd}
+            onEdgeClick={edgeId => deleteEdgeMutation.mutate(edgeId)}
           />
         </div>
 
-        {selectedNode && tool === 'select' && (
-          <div className="flex flex-col w-64 flex-shrink-0 border-l border-slate-200 overflow-y-auto">
-            <NodePanel
-              node={selectedNode}
-              locations={locations}
-              assets={assets}
-              onUpdate={handleUpdateNode}
-              onDelete={handleDeleteNode}
-              onClose={() => setSelectedNodeId(null)}
-            />
+        {/* Panel — animate width, canvas thu hẹp mượt không giật */}
+        <div
+          style={{ width: selectedNode && tool === 'select' ? 256 : 0 }}
+          className="flex-shrink-0 overflow-hidden transition-[width] duration-200 ease-in-out border-l border-slate-200 flex flex-col"
+        >
+          {selectedNode && (
+            <>
+              <NodePanel
+                node={selectedNode}
+                locations={locations}
+                assets={assets}
+                isCampusFloor={isCampusFloor}
+                campusNodes={campusNodes}
+                onUpdate={handleUpdateNode}
+                onDelete={handleDeleteNode}
+                onClose={() => setSelectedNodeId(null)}
+              />
 
-            {/* Cross-floor connections for STAIRS / ELEVATOR */}
-            {isTransitNode && (
-              <div className="p-3 border-t border-slate-200 space-y-2">
-                <p className="text-xs font-bold text-slate-600 uppercase tracking-wide">
-                  Nối với tầng khác
-                </p>
-                {allFloorData.length === 0 && (
-                  <p className="text-xs text-slate-400">Đang tải...</p>
-                )}
-                {allFloorData.map(fd => {
-                  const transitNodes = fd.nodes.filter(n => n.type === selectedNodeType);
-                  const floorLoc = locations.find(l => l.id === fd.floor.locationId);
-                  const floorLabel = floorLoc?.name ?? `Tầng #${fd.floor.id}`;
-                  return transitNodes.map(n => {
-                    const alreadyConnected =
-                      floorData.edges.some(e =>
-                        (e.nodeFromId === selectedNodeId && e.nodeToId === n.id) ||
-                        (e.nodeToId === selectedNodeId && e.nodeFromId === n.id)
-                      );
-                    return (
-                      <div key={n.id} className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-slate-700 truncate">
-                            {n.label || selectedNodeType}
-                          </p>
-                          <p className="text-xs text-slate-400">{floorLabel}</p>
+              {isTransitNode && (
+                <div className="p-3 border-t border-slate-200 space-y-2">
+                  <p className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+                    Nối với tầng khác
+                  </p>
+                  {allFloorData.length === 0 && (
+                    <p className="text-xs text-slate-400">Đang tải...</p>
+                  )}
+                  {allFloorData.map(fd => {
+                    const transitNodes = fd.nodes.filter(n => n.type === selectedNodeType);
+                    const floorLoc = locations.find(l => l.id === fd.floor.locationId);
+                    const floorLabel = floorLoc?.name ?? `Tầng #${fd.floor.id}`;
+                    return transitNodes.map(n => {
+                      const alreadyConnected =
+                        floorData.edges.some(e =>
+                          (e.nodeFromId === selectedNodeId && e.nodeToId === n.id) ||
+                          (e.nodeToId === selectedNodeId && e.nodeFromId === n.id)
+                        );
+                      return (
+                        <div key={n.id} className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-slate-700 truncate">
+                              {n.label || selectedNodeType}
+                            </p>
+                            <p className="text-xs text-slate-400">{floorLabel}</p>
+                          </div>
+                          {alreadyConnected ? (
+                            <span className="text-xs text-emerald-600 font-medium flex-shrink-0">✓ Đã nối</span>
+                          ) : (
+                            <button
+                              onClick={() => createEdgeMutation.mutate({ from: selectedNodeId!, to: n.id })}
+                              disabled={createEdgeMutation.isPending}
+                              className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded flex-shrink-0"
+                            >
+                              Nối
+                            </button>
+                          )}
                         </div>
-                        {alreadyConnected ? (
-                          <span className="text-xs text-emerald-600 font-medium flex-shrink-0">✓ Đã nối</span>
-                        ) : (
-                          <button
-                            onClick={() => createEdgeMutation.mutate({ from: selectedNodeId!, to: n.id })}
-                            disabled={createEdgeMutation.isPending}
-                            className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded flex-shrink-0"
-                          >
-                            Nối
-                          </button>
-                        )}
-                      </div>
-                    );
-                  });
-                })}
-              </div>
-            )}
-          </div>
-        )}
+                      );
+                    });
+                  })}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -17,6 +17,7 @@ import java.util.Optional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class SignTypeService implements SignTypeUseCase {
 
     private final SignTypeDatabasePort signTypeDatabasePort;

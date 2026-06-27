@@ -32,9 +32,13 @@ export function EditUserRoleDialog({ user, open, onOpenChange, onSubmit, isPendi
 
   useEffect(() => {
     if (user && open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRoleId(user.roleId.toString());
+
       setCustomPermissions(user.customPermissions || []);
+
       setShowAdvanced((user.customPermissions || []).length > 0);
+
       setLocalError('');
     }
   }, [user, open]);
@@ -62,7 +66,7 @@ export function EditUserRoleDialog({ user, open, onOpenChange, onSubmit, isPendi
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-          
+
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-slate-700">Nhóm quyền (Role gốc)</label>
             <Select value={roleId} onValueChange={(v) => setRoleId(v || '')} disabled={isLoadingRoles}>
@@ -94,7 +98,7 @@ export function EditUserRoleDialog({ user, open, onOpenChange, onSubmit, isPendi
           </Collapsible>
 
           {displayError && <p className="text-sm text-red-500">{displayError}</p>}
-          
+
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
             <Button type="submit" disabled={isPending || isLoadingRoles}>

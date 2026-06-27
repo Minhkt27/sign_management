@@ -5,7 +5,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -19,10 +21,18 @@ public class FileUploadController {
 
     @Operation(summary = "Tải ảnh lên (trả về URL). type=FLOOR_MAP cho phép tối đa 20MB, mặc định 5MB.")
     @PostMapping("/upload")
-    @PreAuthorize("hasAnyAuthority('ASSET_MANAGE', 'TICKET_MANAGE')")
+    @PreAuthorize("hasAnyAuthority('ASSET_MANAGE', 'TICKET_MANAGE', 'FILE_UPLOAD')")
     public ResponseEntity<UploadResponse> uploadFile(
             @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "type", defaultValue = "ASSET") String type) {
+            @RequestParam(value = "type", defaultValue = "ASSET") String type,
+            Authentication authentication) {
+        if ("FLOOR_MAP".equalsIgnoreCase(type)) {
+            boolean hasAssetManage = authentication.getAuthorities().stream()
+                    .anyMatch(a -> "ASSET_MANAGE".equals(a.getAuthority()));
+            if (!hasAssetManage) {
+                throw new AccessDeniedException("Tải lên floor map yêu cầu quyền ASSET_MANAGE.");
+            }
+        }
         try {
             String url = fileUploadUseCase.upload(file, type);
             return ResponseEntity.ok(new UploadResponse(url));

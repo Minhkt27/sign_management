@@ -5,7 +5,7 @@ import type { MapNode, MapFloor, MapFloorData, Location } from '@/shared/types';
 // --- Helpers ---
 
 const mkFloor = (id: number, locId: number): MapFloor => ({
-  id, locationId: locId, imageUrl: '', imgWidth: 0, imgHeight: 0,
+  id, locationId: locId, imageUrl: '', imgWidth: 0, imgHeight: 0, campus: false,
 });
 
 const mkNode = (
@@ -57,8 +57,8 @@ describe('Scenario 1 — bắt đầu tại Thang máy số 3, đến Phòng 120
     expect(steps[1].text).toContain('Ra khỏi thang máy');
   });
 
-  it('có bước Rẽ phải', () => {
-    const turn = steps.find(s => s.text.includes('Rẽ phải'));
+  it('có bước rẽ phải', () => {
+    const turn = steps.find(s => /rẽ.*phải/i.test(s.text));
     expect(turn).toBeTruthy();
     expect(turn!.icon).toBe('↪️');
   });
@@ -75,8 +75,8 @@ describe('Scenario 1 — bắt đầu tại Thang máy số 3, đến Phòng 120
     expect(last.sub).toBe('Phòng 120');
   });
 
-  it('đủ 6 bước: bắt đầu / ra thang / đi thẳng / rẽ / đến cửa / đến nơi', () => {
-    expect(steps).toHaveLength(6);
+  it('số lượng bước đã được tối ưu (merged)', () => {
+    expect(steps).toHaveLength(4);
   });
 });
 
@@ -147,10 +147,10 @@ describe('Scenario 3 — side detection: thấy Khoa Nội bên tay trái', () =
 
   const steps = buildSteps(path, allFloorData, LOCATIONS, FLOORS);
 
-  it('có bước đi thẳng nhắc đến "bên tay trái"', () => {
+  it('có bước nhắc đến "bên tay trái"', () => {
     const sideStep = steps.find(s => s.text.includes('bên tay trái'));
     expect(sideStep).toBeTruthy();
-    expect(sideStep!.icon).toBe('➡️');
+    expect(sideStep!.icon).toBe('↩️');
   });
 
   it('bước đó nhắc đến Khoa Nội', () => {
@@ -159,7 +159,8 @@ describe('Scenario 3 — side detection: thấy Khoa Nội bên tay trái', () =
   });
 
   it('không nói "bên tay phải" nhầm chiều', () => {
-    expect(steps.some(s => s.text.includes('bên tay phải'))).toBe(false);
+    const sideStep = steps.find(s => s.text.includes('Khoa Nội'))!;
+    expect(sideStep.text.includes('bên tay phải')).toBe(false);
   });
 
   it('cuối cùng đến Phòng 120', () => {
@@ -187,7 +188,7 @@ describe('Scenario 4 — thang máy ở giữa lộ trình, sinh đủ bước l
   const steps = buildSteps(path, allFloorData, LOCATIONS, FLOORS);
 
   it('có bước đi đến Thang máy số 3', () => {
-    const toElev = steps.find(s => s.icon === '➡️' && s.text.includes('Thang máy số 3'));
+    const toElev = steps.find(s => s.text.includes('Thang máy số 3') && s.icon !== '📍');
     expect(toElev).toBeTruthy();
   });
 

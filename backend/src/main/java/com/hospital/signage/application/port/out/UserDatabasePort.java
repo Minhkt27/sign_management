@@ -15,4 +15,5 @@ public interface UserDatabasePort {
     List<User> findByRoleId(Long roleId);
     List<User> findAll();
     Page<User> findPage(String search, Pageable pageable);
+    void deleteById(Long id);
 }

@@ -47,6 +47,16 @@ public class MapPersistenceAdapter implements MapDatabasePort {
     }
 
     @Override
+    public Optional<MapFloor> findCampusFloor() {
+        return floorRepository.findByCampusTrue().map(floorMapper::toDomain);
+    }
+
+    @Override
+    public List<MapFloor> findAllIndoorFloors() {
+        return floorRepository.findByCampusFalse().stream().map(floorMapper::toDomain).collect(Collectors.toList());
+    }
+
+    @Override
     public List<MapFloor> findAllFloors() {
         return floorRepository.findAll().stream().map(floorMapper::toDomain).collect(Collectors.toList());
     }
@@ -85,7 +95,7 @@ public class MapPersistenceAdapter implements MapDatabasePort {
 
     @Override
     public Optional<MapNode> findNodeByAssetId(UUID assetId) {
-        return nodeRepository.findByAssetId(assetId).map(nodeMapper::toDomain);
+        return nodeRepository.findFirstByAssetId(assetId).map(nodeMapper::toDomain);
     }
 
     @Override

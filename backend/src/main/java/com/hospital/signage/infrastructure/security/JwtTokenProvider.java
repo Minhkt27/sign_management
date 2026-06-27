@@ -34,9 +34,10 @@ public class JwtTokenProvider {
         this.key = Keys.hmacShaKeyFor(jwtSecret.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
-    public String generateToken(String username, java.util.List<String> permissions) {
+    public String generateToken(String username, java.util.List<String> permissions, String uiMode) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("permissions", permissions);
+        claims.put("uiMode", uiMode);
         return createToken(claims, username, jwtExpirationInMs);
     }
 
@@ -61,6 +62,10 @@ public class JwtTokenProvider {
     @SuppressWarnings("unchecked")
     public java.util.List<String> extractPermissions(String token) {
         return extractAllClaims(token).get("permissions", java.util.List.class);
+    }
+
+    public String extractUiMode(String token) {
+        return extractAllClaims(token).get("uiMode", String.class);
     }
 
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {

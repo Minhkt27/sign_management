@@ -47,7 +47,7 @@ public class UserController {
     @PreAuthorize("hasAuthority('USER_MANAGE')")
     public ResponseEntity<UserResponse> createUser(@Valid @RequestBody CreateUserRequest req) {
         User user = userUseCase.createUser(
-                new UserUseCase.CreateUserCommand(req.username(), req.fullName(), req.password(), req.roleId(), req.customPermissions())
+                new UserUseCase.CreateUserCommand(req.username(), req.fullName(), req.password(), req.roleId(), req.phone(), req.customPermissions())
         );
         return ResponseEntity.ok(UserResponse.from(user));
     }
@@ -68,13 +68,33 @@ public class UserController {
         return ResponseEntity.ok(UserResponse.from(user));
     }
 
-    @Operation(summary = "Đặt lại mật khẩu về mặc định")
+    @Operation(summary = "Đặt lại mật khẩu tạm thời")
     @PutMapping("/{id}/reset-password")
     @PreAuthorize("hasAuthority('USER_MANAGE')")
-    public ResponseEntity<Void> resetPassword(@PathVariable Long id) {
+    public ResponseEntity<ResetPasswordResponse> resetPassword(@PathVariable Long id) {
         try {
-            userUseCase.resetPassword(id);
-            return ResponseEntity.ok().build();
+            String temporaryPassword = userUseCase.resetPassword(id);
+            return ResponseEntity.ok(new ResetPasswordResponse(temporaryPassword));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @Operation(summary = "Cập nhật thông tin tài khoản")
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('USER_MANAGE')")
+    public ResponseEntity<UserResponse> updateUser(@PathVariable Long id, @Valid @RequestBody UpdateUserRequest req) {
+        User user = userUseCase.updateUser(new UserUseCase.UpdateUserCommand(id, req.fullName(), req.phone()));
+        return ResponseEntity.ok(UserResponse.from(user));
+    }
+
+    @Operation(summary = "Xóa tài khoản")
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('USER_MANAGE')")
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+        try {
+            userUseCase.deleteUser(id);
+            return ResponseEntity.noContent().build();
         } catch (IllegalStateException e) {
             return ResponseEntity.badRequest().build();
         }
@@ -98,7 +118,12 @@ public class UserController {
             @NotBlank @Size(max = 200) String fullName,
             @NotBlank @Size(min = 6, max = 200) String password,
             Long roleId,
+            @jakarta.validation.constraints.Pattern(regexp = "^(0(3[2-9]|5[25689]|7[06-9]|8[1-9]|9[0-46-9])\\d{7})?$", message = "Số điện thoại không hợp lệ") String phone,
             java.util.List<String> customPermissions
+    ) {}
+    public record UpdateUserRequest(
+            @NotBlank @Size(max = 200) String fullName,
+            @jakarta.validation.constraints.Pattern(regexp = "^(0(3[2-9]|5[25689]|7[06-9]|8[1-9]|9[0-46-9])\\d{7})?$", message = "Số điện thoại không hợp lệ") String phone
     ) {}
     public record UpdateRolePermissionsRequest(Long roleId, java.util.List<String> customPermissions) {}
     public record SetActiveRequest(boolean active) {}
@@ -106,11 +131,14 @@ public class UserController {
             @NotBlank String currentPassword,
             @NotBlank @Size(min = 6, max = 200) String newPassword
     ) {}
+    public record ResetPasswordResponse(String temporaryPassword) {}
 
-    public record UserResponse(Long id, String username, String fullName, Long roleId, boolean isActive) {
+    public record UserResponse(Long id, String username, String fullName, Long roleId, boolean isActive, String phone, java.util.List<String> customPermissions) {
         static UserResponse from(User u) {
             return new UserResponse(u.getId(), u.getUsername(), u.getFullName(), u.getRoleId(),
-                    Boolean.TRUE.equals(u.getIsActive()));
+                    Boolean.TRUE.equals(u.getIsActive()),
+                    u.getPhone(),
+                    u.getCustomPermissions() != null ? u.getCustomPermissions() : java.util.List.of());
         }
     }
 }

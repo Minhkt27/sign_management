@@ -116,6 +116,7 @@ export default function AssetDetailPage() {
   useEffect(() => {
     if (asset && locations.length > 0 && !editForm.assetCode) {
       const levels = resolveLocationLevels(asset.location?.id, locations);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setEditForm({
         assetCode: asset.assetCode,
         assetName: asset.name || '',
@@ -133,7 +134,7 @@ export default function AssetDetailPage() {
         status: asset.status,
       });
     }
-  }, [asset, locations]);
+  }, [asset, locations, editForm.assetCode]);
 
   const signTypeMap = new Map(signTypes.map(st => [st.id, st.name]));
 
@@ -185,7 +186,7 @@ export default function AssetDetailPage() {
         status: editForm.status,
         imageUrl: uploadedUrl || undefined,
       });
-    } catch (err) {
+    } catch {
       alert('Lỗi tải ảnh lên. Vui lòng thử lại.');
     } finally {
       setIsUploading(false);

@@ -19,6 +19,7 @@ public class User {
     private String password;
     private String fullName;
     private Long roleId;
+    private String phone;
     @Builder.Default
     private List<String> customPermissions = new ArrayList<>();
     private Boolean isActive;

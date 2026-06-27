@@ -46,7 +46,7 @@ public class TicketPersistenceAdapter implements TicketDatabasePort {
 
     @Override
     public Page<MaintenanceTicket> findAll(Pageable pageable) {
-        return repository.findAll(pageable).map(mapper::toDomain);
+        return repository.findByFilters(null, null, null, null, pageable).map(mapper::toDomain);
     }
 
     @Override

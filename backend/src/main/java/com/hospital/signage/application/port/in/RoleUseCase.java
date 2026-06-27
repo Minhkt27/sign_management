@@ -1,5 +1,6 @@
 package com.hospital.signage.application.port.in;
 
+import com.hospital.signage.domain.enums.UiMode;
 import com.hospital.signage.domain.model.Role;
 
 import java.util.List;
@@ -11,6 +12,6 @@ public interface RoleUseCase {
     Role updateRole(UpdateRoleCommand command);
     void deleteRole(Long id);
 
-    record CreateRoleCommand(String code, String name, String description, List<String> permissions) {}
-    record UpdateRoleCommand(Long id, String code, String name, String description, List<String> permissions) {}
+    record CreateRoleCommand(String code, String name, String description, UiMode uiMode, List<String> permissions) {}
+    record UpdateRoleCommand(Long id, String code, String name, String description, UiMode uiMode, List<String> permissions) {}
 }

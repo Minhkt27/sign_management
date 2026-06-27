@@ -8,7 +8,7 @@ import com.hospital.signage.application.port.out.TicketDatabasePort;
 import com.hospital.signage.domain.model.Asset;
 import com.hospital.signage.domain.model.Location;
 
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -24,6 +24,7 @@ import java.util.UUID;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class AssetService implements AssetUseCase {
 
     private final AssetDatabasePort assetDatabasePort;

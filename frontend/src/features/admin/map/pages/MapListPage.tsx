@@ -1,44 +1,26 @@
-import { useState, useRef, useCallback, useMemo } from 'react';
-import { QRCode } from 'react-qr-code';
+import { useState, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { mapService } from '@/services/mapService';
 import { locationService } from '@/services/locationService';
 import { fileService } from '@/services/fileService';
 import { MapFloor } from '@/shared/types';
-import { Map, Plus, Pencil, Trash2, Upload, Loader2, Download } from 'lucide-react';
+import { Map, Plus, Pencil, Trash2, Upload, Loader2, Globe } from 'lucide-react';
 import { getApiError } from '@/shared/helpers/apiError';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
 
 export default function MapListPage() {
   const navigate = useNavigate();
-  const [baseUrl, setBaseUrl] = useState(() => {
-    return localStorage.getItem('qrBaseUrl') || window.location.origin;
-  });
-
-  const handleBaseUrlChange = (val: string) => {
-    setBaseUrl(val);
-    localStorage.setItem('qrBaseUrl', val);
-  };
-
-  const handleDownloadEntranceQR = useCallback(() => {
-    const svg = document.getElementById('entrance-qr')?.querySelector('svg');
-    if (!svg) return;
-    const blob = new Blob([svg.outerHTML], { type: 'image/svg+xml' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'QR-benhnhan.svg';
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }, []);
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const campusFileInputRef = useRef<HTMLInputElement>(null);
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [buildingId, setBuildingId] = useState('');
   const [locationId, setLocationId] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<{ url: string; width: number; height: number } | null>(null);
+  const [campusUploading, setCampusUploading] = useState(false);
 
   const { data: floors = [], isLoading } = useQuery({
     queryKey: ['mapFloors'],
@@ -49,6 +31,45 @@ export default function MapListPage() {
     queryKey: ['locations'],
     queryFn: locationService.getAllLocations,
   });
+
+  const { data: campusMap } = useQuery({
+    queryKey: ['campusMap'],
+    queryFn: mapService.getCampusMap,
+  });
+
+  const createCampusMutation = useMutation({
+    mutationFn: mapService.createCampusFloor,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campusMap'] }),
+    onError: (e: unknown) => alert(getApiError(e, 'Không thể tạo sơ đồ tổng thể')),
+  });
+
+  const deleteCampusMutation = useMutation({
+    mutationFn: mapService.deleteCampusFloor,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campusMap'] }),
+    onError: (e: unknown) => alert(getApiError(e, 'Không thể xóa sơ đồ tổng thể')),
+  });
+
+  const handleCampusFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCampusUploading(true);
+    try {
+      const objectUrl = URL.createObjectURL(file);
+      const { width, height } = await new Promise<{ width: number; height: number }>((resolve) => {
+        const img = new Image();
+        img.onload = () => { resolve({ width: img.naturalWidth, height: img.naturalHeight }); URL.revokeObjectURL(objectUrl); };
+        img.onerror = () => { resolve({ width: 0, height: 0 }); URL.revokeObjectURL(objectUrl); };
+        img.src = objectUrl;
+      });
+      const url = await fileService.uploadFile(file, 'FLOOR_MAP');
+      createCampusMutation.mutate({ imageUrl: url, imgWidth: width, imgHeight: height });
+    } catch (err) {
+      alert(getApiError(err, 'Upload ảnh thất bại'));
+    } finally {
+      setCampusUploading(false);
+      if (campusFileInputRef.current) campusFileInputRef.current.value = '';
+    }
+  };
 
   const createMutation = useMutation({
     mutationFn: mapService.createFloor,
@@ -145,36 +166,64 @@ export default function MapListPage() {
         </button>
       </div>
 
-      {/* Patient entrance QR */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-start gap-6">
-        <div id="entrance-qr" className="flex-shrink-0 p-2 bg-white border border-slate-200 rounded-xl">
-          <QRCode value={`${baseUrl}/map`} size={100} />
-        </div>
-        <div className="flex-1 min-w-0 space-y-2">
-          <p className="font-semibold text-slate-800">QR dẫn đường cho bệnh nhân</p>
-          <p className="text-sm text-slate-500">In và dán tại sảnh, thang máy, hành lang để bệnh nhân quét vào trang tìm đường.</p>
-          <div className="flex gap-2 items-center">
-            <input
-              value={baseUrl}
-              onChange={e => handleBaseUrlChange(e.target.value)}
-              placeholder="https://xxxx.ngrok-free.app"
-              className="flex-1 border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              onClick={() => handleBaseUrlChange(window.location.origin)}
-              className="text-xs text-slate-400 hover:text-slate-600 whitespace-nowrap"
-            >
-              Đặt lại
-            </button>
+      {/* Campus map section */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Globe size={18} className="text-amber-600" />
+            <h2 className="font-semibold text-slate-700">Sơ đồ tổng thể bệnh viện</h2>
+            <span className="text-xs text-slate-400">(dùng cho chỉ đường liên tòa)</span>
           </div>
-          <p className="text-xs text-slate-400 font-mono truncate">{baseUrl}/map</p>
+          {campusMap ? (
+            <div className="flex gap-2">
+              <button
+                onClick={() => navigate(`/admin/assets/tree/map/${campusMap.floor.id}/edit`)}
+                className="flex items-center gap-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 text-sm font-medium px-3 py-1.5 rounded-lg"
+              >
+                <Pencil size={14} /> Chỉnh sửa
+              </button>
+              <button
+                onClick={() => { if (window.confirm('Xóa sơ đồ tổng thể và toàn bộ nodes/edges?')) deleteCampusMutation.mutate(); }}
+                className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          ) : (
+            <div>
+              <input ref={campusFileInputRef} type="file" accept="image/*" className="hidden" onChange={handleCampusFileChange} />
+              <button
+                onClick={() => campusFileInputRef.current?.click()}
+                disabled={campusUploading || createCampusMutation.isPending}
+                className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-300 text-white text-sm font-medium px-4 py-2 rounded-xl"
+              >
+                {campusUploading || createCampusMutation.isPending
+                  ? <Loader2 size={15} className="animate-spin" />
+                  : <Upload size={15} />}
+                Upload sơ đồ tổng thể
+              </button>
+            </div>
+          )}
         </div>
-        <button
-          onClick={handleDownloadEntranceQR}
-          className="flex items-center gap-1.5 border border-slate-300 hover:bg-slate-50 text-slate-600 text-sm font-medium px-3 py-2 rounded-lg flex-shrink-0"
-        >
-          <Download size={15} /> Tải SVG
-        </button>
+
+        {campusMap ? (
+          <div className="flex gap-4 items-start">
+            <img
+              src={getBackendUrl(campusMap.floor.imageUrl)}
+              alt="Campus map"
+              className="max-h-40 rounded-xl border border-slate-200 object-contain"
+            />
+            <div className="text-sm text-slate-500 space-y-1">
+              <p>{campusMap.floor.imgWidth} × {campusMap.floor.imgHeight}px</p>
+              <p>{campusMap.nodes.length} node · {campusMap.edges.length} đường nối</p>
+              <p className="text-xs text-slate-400">
+                {campusMap.nodes.filter(n => n.type === 'ENTRANCE').length} cổng tòa nhà được đánh dấu
+              </p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-slate-400">Chưa có sơ đồ tổng thể. Upload ảnh mặt bằng toàn khuôn viên để bắt đầu.</p>
+        )}
       </div>
 
       {/* Create form */}
@@ -279,7 +328,7 @@ export default function MapListPage() {
                         <img src={getBackendUrl(floor.imageUrl)} alt="Mặt bằng" className="w-full h-full object-cover" />
                       </div>
                       <div className="p-4">
-                        <p className="font-semibold text-slate-800">{getLocationName(floor.locationId)}</p>
+                        <p className="font-semibold text-slate-800">{getLocationName(floor.locationId!)}</p>
                         <p className="text-xs text-slate-400 mt-0.5">{floor.imgWidth} × {floor.imgHeight}px</p>
                         <div className="flex gap-2 mt-3">
                           <button
@@ -317,7 +366,7 @@ export default function MapListPage() {
                       <img src={getBackendUrl(floor.imageUrl)} alt="Mặt bằng" className="w-full h-full object-cover" />
                     </div>
                     <div className="p-4">
-                      <p className="font-semibold text-slate-800">{getLocationName(floor.locationId)}</p>
+                      <p className="font-semibold text-slate-800">{getLocationName(floor.locationId!)}</p>
                       <p className="text-xs text-slate-400 mt-0.5">{floor.imgWidth} × {floor.imgHeight}px</p>
                       <div className="flex gap-2 mt-3">
                         <button

@@ -1,8 +1,8 @@
 package com.hospital.signage.application.service;
 
 import com.hospital.signage.application.port.in.UserUseCase;
+import com.hospital.signage.application.port.out.RoleDatabasePort;
 import com.hospital.signage.application.port.out.UserDatabasePort;
-
 import com.hospital.signage.domain.model.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,7 +26,13 @@ class UserServiceTest {
     private UserDatabasePort userDatabasePort;
 
     @Mock
+    private RoleDatabasePort roleDatabasePort;
+
+    @Mock
     private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private UserCacheService userCacheService;
 
     @InjectMocks
     private UserService userService;
@@ -50,7 +56,7 @@ class UserServiceTest {
         when(userDatabasePort.save(any())).thenReturn(existingUser);
 
         User result = userService.createUser(
-                new UserUseCase.CreateUserCommand("tech1", "Nguyễn Văn A", "pass", 2L, java.util.List.of()));
+                new UserUseCase.CreateUserCommand("tech1", "Nguyễn Văn A", "pass", 2L, null, java.util.List.of()));
 
         assertThat(result.getRoleId()).isEqualTo(2L);
         verify(userDatabasePort).save(any());
@@ -61,7 +67,7 @@ class UserServiceTest {
         when(userDatabasePort.findByUsername("tech1")).thenReturn(Optional.of(existingUser));
 
         assertThatThrownBy(() -> userService.createUser(
-                new UserUseCase.CreateUserCommand("tech1", "Tên", "pass", 2L, java.util.List.of())))
+                new UserUseCase.CreateUserCommand("tech1", "Tên", "pass", 2L, null, java.util.List.of())))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Tên đăng nhập đã tồn tại");
     }

@@ -21,9 +21,15 @@ public interface UserUseCase {
 
     void changePassword(ChangePasswordCommand command);
 
-    void resetPassword(Long userId);
+    String resetPassword(Long userId);
 
-    record CreateUserCommand(String username, String fullName, String password, Long roleId, List<String> customPermissions) {}
+    User updateUser(UpdateUserCommand command);
+
+    void deleteUser(Long id);
+
+    record CreateUserCommand(String username, String fullName, String password, Long roleId, String phone, List<String> customPermissions) {}
+
+    record UpdateUserCommand(Long id, String fullName, String phone) {}
 
     record ChangePasswordCommand(Long userId, String currentPassword, String newPassword) {}
 }

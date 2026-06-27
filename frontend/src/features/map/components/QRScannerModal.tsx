@@ -16,7 +16,7 @@ export function QRScannerModal({ open, onClose, onScanSuccess }: QRScannerModalP
   const [loading, setLoading] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const isProcessingRef = useRef(false);
-  const startPromiseRef = useRef<Promise<any> | null>(null);
+  const startPromiseRef = useRef<Promise<unknown> | null>(null);
 
   useEffect(() => {
     if (!open) {
@@ -27,7 +27,7 @@ export function QRScannerModal({ open, onClose, onScanSuccess }: QRScannerModalP
         
         (async () => {
           if (startPromise) {
-            try { await startPromise; } catch (e) {}
+            try { await startPromise; } catch { /* ignore */ }
           }
           try {
             await scanner.stop();
@@ -40,7 +40,9 @@ export function QRScannerModal({ open, onClose, onScanSuccess }: QRScannerModalP
       return;
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setError('');
+     
     setLoading(false);
     isProcessingRef.current = false;
 
@@ -71,9 +73,11 @@ export function QRScannerModal({ open, onClose, onScanSuccess }: QRScannerModalP
           
           onScanSuccess(node, label);
           onClose();
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error('QR Scan Error:', err);
-          setError(err?.response?.data?.message || err?.message || 'Mã QR không hợp lệ. Vui lòng thử mã khác.');
+          const apiMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+          const errMsg = err instanceof Error ? err.message : undefined;
+          setError(apiMsg || errMsg || 'Mã QR không hợp lệ. Vui lòng thử mã khác.');
           setTimeout(() => {
             isProcessingRef.current = false;
             setLoading(false);
@@ -95,7 +99,7 @@ export function QRScannerModal({ open, onClose, onScanSuccess }: QRScannerModalP
         
         (async () => {
           if (startPromise) {
-            try { await startPromise; } catch (e) {}
+            try { await startPromise; } catch { /* ignore */ }
           }
           try {
             await scanner.stop();

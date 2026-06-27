@@ -8,7 +8,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div style="display:flex;height:100vh;align-items:center;justify-content:center;background:#F2F7F3;flex-direction:column;gap:12px;">
+        <div style="width:36px;height:36px;border:3px solid #1A5C2A;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div>
+        <p style="color:#1A5C2A;font-size:14px;font-weight:600;margin:0;">Đang khởi động...</p>
+      </div>
+      <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Location, MapNode, MapFloorData } from '@/shared/types';
-import { displayName } from '../utils/pathHelpers';
+import { displayName, normalize } from '../utils/pathHelpers';
 
 const QUICK = [
   { emoji: '🚨', label: 'Cấp cứu',    keyword: 'cấp cứu',    bg: '#FEE2E2', urgent: true },
@@ -23,20 +23,20 @@ interface Props {
 
 export function HomeTab({ fromLabel, locations, allFloorData, onChangeLocation, onSelectDest }: Props) {
   const [destSearch, setDestSearch] = useState('');
-  const departments = locations.filter(l => l.type === 'DEPARTMENT');
+
 
   const destResults = useMemo(() => {
     if (!destSearch.trim()) return [];
-    const q = destSearch.toLowerCase();
+    const q = normalize(destSearch);
     const DEST_TYPES = new Set(['ROOM', 'DEPARTMENT', 'ELEVATOR']);
     const seen = new Set<number>();
     return allFloorData.flatMap(fd =>
       fd.nodes
         .filter(n => DEST_TYPES.has(n.type))
         .filter(n => {
-          const byLabel = n.label?.toLowerCase().includes(q);
+          const byLabel = n.label ? normalize(n.label).includes(q) : false;
           const byLoc = n.locationId
-            ? locations.find(l => l.id === n.locationId)?.name.toLowerCase().includes(q)
+            ? normalize(locations.find(l => l.id === n.locationId)?.name ?? '').includes(q)
             : false;
           return byLabel || byLoc;
         })
@@ -51,13 +51,13 @@ export function HomeTab({ fromLabel, locations, allFloorData, onChangeLocation, 
   };
 
   const handleQuick = (keyword: string) => {
-    const q = keyword.toLowerCase();
+    const q = normalize(keyword);
     const matches: MapNode[] = [];
-    
+
     for (const fd of allFloorData) {
       for (const n of fd.nodes) {
         if (n.type !== 'ROOM' && n.type !== 'DEPARTMENT' && n.type !== 'ELEVATOR') continue;
-        const name = displayName(n, locations)?.toLowerCase() || '';
+        const name = normalize(displayName(n, locations) ?? '');
         if (name.includes(q)) {
           matches.push(n);
         }
@@ -165,41 +165,6 @@ export function HomeTab({ fromLabel, locations, allFloorData, onChangeLocation, 
         </div>
       </div>
 
-      {/* Departments list */}
-      {departments.length > 0 && (
-        <div>
-          <p className="text-xs font-extrabold uppercase tracking-widest mb-2" style={{ color: '#5A7A62' }}>Các khoa</p>
-          <div className="flex flex-col gap-2">
-            {departments.map(dept => {
-              const node = allFloorData.flatMap(fd => fd.nodes).find(
-                n => n.locationId === dept.id && n.type === 'DEPARTMENT'
-              );
-              return (
-                <button key={dept.id}
-                  onClick={() => node && onSelectDest(node)}
-                  disabled={!node}
-                  className="flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-all active:scale-[.98]"
-                  style={{
-                    background: '#fff',
-                    border: '1.5px solid transparent',
-                    boxShadow: '0 2px 16px rgba(26,92,42,.08)',
-                    opacity: node ? 1 : 0.5,
-                  }}>
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
-                    style={{ background: '#EAF4EC' }}>🏢</div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold truncate" style={{ color: '#1A2E1E' }}>{dept.name}</p>
-                    <p className="text-xs mt-0.5" style={{ color: '#5A7A62' }}>
-                      {node ? 'Có trên sơ đồ' : 'Chưa có trên sơ đồ'}
-                    </p>
-                  </div>
-                  <span style={{ color: '#5A7A62', fontSize: 18 }}>›</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

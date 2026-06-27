@@ -15,6 +15,7 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('@/app/store/authStore', () => ({
   getPermissionsFromToken: vi.fn(),
+  getUiModeFromToken: vi.fn(),
   authStore: {
     getToken: vi.fn(),
     getUser: vi.fn(),
@@ -40,8 +41,9 @@ describe('LoginPage', () => {
   });
 
   it('navigates to /admin/assets after ADMIN login', async () => {
-    const { getPermissionsFromToken } = await import('@/app/store/authStore');
+    const { getPermissionsFromToken, getUiModeFromToken } = await import('@/app/store/authStore');
     vi.mocked(getPermissionsFromToken).mockReturnValue(['ASSET_VIEW']);
+    vi.mocked(getUiModeFromToken).mockReturnValue('ADMIN');
     vi.mocked(authServiceModule.authService.login).mockResolvedValueOnce({
       token: 'tok',
       refreshToken: 'ref',
@@ -57,8 +59,9 @@ describe('LoginPage', () => {
   });
 
   it('navigates to /tech/dashboard after TECHNICAL login', async () => {
-    const { getPermissionsFromToken } = await import('@/app/store/authStore');
+    const { getPermissionsFromToken, getUiModeFromToken } = await import('@/app/store/authStore');
     vi.mocked(getPermissionsFromToken).mockReturnValue(['TICKET_VIEW']);
+    vi.mocked(getUiModeFromToken).mockReturnValue('TECHNICIAN');
     vi.mocked(authServiceModule.authService.login).mockResolvedValueOnce({
       token: 'tok',
       refreshToken: 'ref',

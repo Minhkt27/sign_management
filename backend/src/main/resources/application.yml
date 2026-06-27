@@ -11,6 +11,12 @@ spring:
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:password}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:20}
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
 
   flyway:
     baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:false}

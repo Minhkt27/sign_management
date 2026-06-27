@@ -73,7 +73,9 @@ export default function AssetBrowsePage() {
     try {
       scanner = new Html5Qrcode(containerId);
     } catch {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setError('Không thể khởi tạo camera.');
+       
       setScanning(false);
       return;
     }
@@ -112,6 +114,7 @@ export default function AssetBrowsePage() {
         scannerRef.current = null;
       });
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scanning]);
 
   return (

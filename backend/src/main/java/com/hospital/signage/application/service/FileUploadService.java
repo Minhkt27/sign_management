@@ -3,7 +3,7 @@ package com.hospital.signage.application.service;
 import com.hospital.signage.application.port.in.FileUploadUseCase;
 import com.hospital.signage.application.port.out.FileStoragePort;
 
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -14,6 +14,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class FileUploadService implements FileUploadUseCase {
 
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png", "gif", "webp");
@@ -41,13 +42,13 @@ public class FileUploadService implements FileUploadUseCase {
             throw new IllegalArgumentException("Định dạng file không được phép");
         }
         try {
-            byte[] header = file.getInputStream().readNBytes(12);
-            String detectedMime = detectImageMime(header);
+            byte[] bytes = file.getBytes();
+            String detectedMime = detectImageMime(bytes);
             if (detectedMime == null) {
                 throw new IllegalArgumentException("Nội dung file không hợp lệ");
             }
             String filename = UUID.randomUUID() + "." + ext;
-            return fileStoragePort.store(filename, file.getInputStream(), file.getSize(), detectedMime);
+            return fileStoragePort.store(filename, new java.io.ByteArrayInputStream(bytes), bytes.length, detectedMime);
         } catch (IOException e) {
             throw new RuntimeException("Lỗi đọc file: " + e.getMessage(), e);
         }
@@ -58,7 +59,6 @@ public class FileUploadService implements FileUploadUseCase {
         return filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
     }
 
-    // Validates actual content via magic bytes — ignores client-supplied Content-Type
     private static String detectImageMime(byte[] h) {
         if (h.length >= 3
                 && (h[0] & 0xFF) == 0xFF && (h[1] & 0xFF) == 0xD8 && (h[2] & 0xFF) == 0xFF)
