@@ -56,7 +56,7 @@ public class JwtTokenProvider {
     }
 
     public String extractUsername(String token) {
-        return extractClaim(token, Claims::getSubject);
+        return extractClaim(token, c -> c.getSubject());
     }
 
     @SuppressWarnings("unchecked")
@@ -91,6 +91,6 @@ public class JwtTokenProvider {
     }
 
     public Date extractExpiration(String token) {
-        return extractClaim(token, Claims::getExpiration);
+        return extractClaim(token, c -> c.getExpiration());
     }
 }
