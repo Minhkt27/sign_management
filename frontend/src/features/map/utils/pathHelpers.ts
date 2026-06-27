@@ -177,6 +177,14 @@ export const buildSteps = (
   const mergeWithPrevStraight = (newText: string, newIcon: string, refNode: MapNode): boolean => {
     const lastStep = steps[steps.length - 1];
     if (!lastStep || lastStep.icon !== '⬆️') return false;
+
+    if (lastStep.text.startsWith('Ra khỏi') || lastStep.text.includes('bên tay')) {
+      const baseText = lastStep.text.replace(', đi thẳng', '');
+      const turnSuffix = newText.startsWith('Đến') ? newText.split(',')[1].trim() : newText.toLowerCase();
+      steps[steps.length - 1] = { node: refNode, icon: newIcon, text: `${baseText}, ${turnSuffix}` };
+      return true;
+    }
+
     steps[steps.length - 1] = { node: refNode, icon: newIcon, text: newText };
     return true;
   };

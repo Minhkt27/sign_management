@@ -25,6 +25,7 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class ExportService {
 
     private final TicketRepository ticketRepository;

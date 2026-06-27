@@ -30,6 +30,7 @@ import java.util.UUID;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class TicketService implements TicketUseCase {
 
     private static final int MAX_REJECTION_LIMIT = 3;

@@ -19,6 +19,7 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class UserService implements UserUseCase {
 
     private static final String TEMP_PASSWORD_CHARS =

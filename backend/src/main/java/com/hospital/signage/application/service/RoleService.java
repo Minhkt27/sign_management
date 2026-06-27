@@ -12,6 +12,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class RoleService implements RoleUseCase {
 
     private final RoleDatabasePort roleDatabasePort;

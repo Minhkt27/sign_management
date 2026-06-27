@@ -3,7 +3,7 @@ package com.hospital.signage.application.service;
 import com.hospital.signage.application.port.in.FileUploadUseCase;
 import com.hospital.signage.application.port.out.FileStoragePort;
 
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -14,6 +14,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class FileUploadService implements FileUploadUseCase {
 
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png", "gif", "webp");
