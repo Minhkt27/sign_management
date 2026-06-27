@@ -134,11 +134,11 @@ public class MapService implements MapUseCase {
         List<MapEdge> allEdges = mapDatabasePort.findEdgesByFloorIds(floorIds);
 
         Map<Long, List<MapNode>> nodesByFloor = allNodes.stream()
-                .collect(Collectors.groupingBy(MapNode::getFloorId));
+                .collect(Collectors.groupingBy(n -> n.getFloorId()));
 
         // nodeId → floorId lookup for efficient edge grouping
         Map<Long, Long> nodeFloorMap = allNodes.stream()
-                .collect(Collectors.toMap(MapNode::getId, MapNode::getFloorId));
+                .collect(Collectors.toMap(n -> n.getId(), n -> n.getFloorId()));
 
         // Edge belongs to a floor if either endpoint is on that floor (same logic as findByFloorId)
         Map<Long, List<MapEdge>> edgesByFloor = new HashMap<>();
@@ -386,9 +386,9 @@ public class MapService implements MapUseCase {
 
         // Campus node IDs that belong to source or destination buildings — never treated as transit
         Set<Long> srcCampusIds = srcExits.stream()
-                .map(MapNode::getLinkedCampusNodeId).collect(Collectors.toSet());
+                .map(n -> n.getLinkedCampusNodeId()).collect(Collectors.toSet());
         Set<Long> dstCampusIds = dstExits.stream()
-                .map(MapNode::getLinkedCampusNodeId).collect(Collectors.toSet());
+                .map(n -> n.getLinkedCampusNodeId()).collect(Collectors.toSet());
 
         List<PathSegment> result = new ArrayList<>();
         if (!seg1.path().isEmpty()) result.add(new PathSegment(SegmentType.INDOOR, seg1.path()));
@@ -407,10 +407,10 @@ public class MapService implements MapUseCase {
                     && !srcCampusIds.contains(campusNode.getId())
                     && !dstCampusIds.contains(campusNode.getId());
 
-            if (isTransitEntry) {
+            if (isTransitEntry && enterIndoor != null) {
                 // Search ahead (up to 5 nodes) for a transit exit of the same building
                 int foundAt = -1;
-                MapNode exitIndoor = null;
+
                 for (int j = i + 1; j < Math.min(i + 6, campusPath.size()); j++) {
                     MapNode candidate = campusToIndoor.get(campusPath.get(j).getId());
                     if (candidate == null) continue;
@@ -424,7 +424,7 @@ public class MapService implements MapUseCase {
                         // Only create indoor segment when navigation is truly needed (has turns).
                         // Straight pass-through (even 3+ nodes) is better shown as outdoor "Đi qua X".
                         foundAt = j;
-                        exitIndoor = candidate;
+
                         // Add intermediate campus waypoints to currentOutdoor before flushing
                         for (int k = i + 1; k <= j; k++) currentOutdoor.add(campusPath.get(k));
                         // Flush current outdoor segment
@@ -467,7 +467,7 @@ public class MapService implements MapUseCase {
 
     private DijkstraResult dijkstra(Long fromId, Long toId, List<MapNode> nodes, List<MapEdge> edges) {
         if (fromId.equals(toId)) {
-            Map<Long, MapNode> nm = nodes.stream().collect(Collectors.toMap(MapNode::getId, n -> n));
+            Map<Long, MapNode> nm = nodes.stream().collect(Collectors.toMap(n -> n.getId(), n -> n));
             MapNode n = nm.get(fromId);
             return n == null ? new DijkstraResult(Collections.emptyList(), 0.0)
                              : new DijkstraResult(List.of(n), 0.0);
@@ -502,7 +502,7 @@ public class MapService implements MapUseCase {
         double cost = dist.getOrDefault(toId, Double.MAX_VALUE);
         if (cost >= Double.MAX_VALUE) return new DijkstraResult(Collections.emptyList(), Double.MAX_VALUE);
 
-        Map<Long, MapNode> nodeMap = nodes.stream().collect(Collectors.toMap(MapNode::getId, n -> n));
+        Map<Long, MapNode> nodeMap = nodes.stream().collect(Collectors.toMap(n -> n.getId(), n -> n));
         List<MapNode> path = new ArrayList<>();
         Long cur = toId;
         while (cur != null) {
@@ -522,7 +522,7 @@ public class MapService implements MapUseCase {
     private List<MapEdge> filterStairEdges(List<MapNode> nodes, List<MapEdge> edges) {
         Set<Long> stairIds = nodes.stream()
                 .filter(n -> n.getType() == NodeType.STAIRS)
-                .map(MapNode::getId)
+                .map(n -> n.getId())
                 .collect(Collectors.toSet());
         return edges.stream()
                 .filter(e -> !stairIds.contains(e.getNodeFromId()) && !stairIds.contains(e.getNodeToId()))

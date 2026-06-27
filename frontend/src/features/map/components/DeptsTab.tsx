@@ -46,7 +46,12 @@ export function DeptsTab({ locations, allFloorData, onSelectDest }: Props) {
   }, [buildings, locations, allFloorData, query]);
 
   const toggle = (id: number) =>
-    setExpanded(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+    setExpanded(prev => {
+      const s = new Set(prev);
+      if (s.has(id)) s.delete(id);
+      else s.add(id);
+      return s;
+    });
 
   const searching = !!query.trim();
   const hasResults = grouped.some(g => g.items.length > 0);

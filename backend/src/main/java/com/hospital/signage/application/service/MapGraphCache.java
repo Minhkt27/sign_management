@@ -2,7 +2,6 @@ package com.hospital.signage.application.service;
 
 import com.hospital.signage.application.port.out.MapDatabasePort;
 import com.hospital.signage.domain.model.MapEdge;
-import com.hospital.signage.domain.model.MapFloor;
 import com.hospital.signage.domain.model.MapNode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
@@ -47,7 +46,7 @@ public class MapGraphCache {
     @Cacheable("mapIndoorFullGraph")
     public GraphData loadFullIndoorGraph() {
         Long campusFloorId = mapDatabasePort.findCampusFloor()
-                .map(MapFloor::getId)
+                .map(f -> f.getId())
                 .orElse(null);
         List<MapNode> allNodes = mapDatabasePort.findAllNodes();
         List<MapEdge> allEdges = mapDatabasePort.findAllEdges();
@@ -58,7 +57,7 @@ public class MapGraphCache {
                 .filter(n -> !cid.equals(n.getFloorId()))
                 .collect(Collectors.toList());
         Set<Long> indoorIds = indoorNodes.stream()
-                .map(MapNode::getId)
+                .map(n -> n.getId())
                 .collect(Collectors.toSet());
         List<MapEdge> indoorEdges = allEdges.stream()
                 .filter(e -> indoorIds.contains(e.getNodeFromId()) && indoorIds.contains(e.getNodeToId()))
@@ -71,7 +70,7 @@ public class MapGraphCache {
     public Map<Long, Long> loadFloorLocationMap() {
         return mapDatabasePort.findAllIndoorFloors().stream()
                 .filter(f -> f.getLocationId() != null)
-                .collect(Collectors.toMap(MapFloor::getId, MapFloor::getLocationId));
+                .collect(Collectors.toMap(f -> f.getId(), f -> f.getLocationId()));
     }
 
     @CacheEvict(value = {"mapGraph", "mapFloorGraph", "mapCampusGraph", "mapFloorLocationMap", "mapIndoorFullGraph"}, allEntries = true)

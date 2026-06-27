@@ -122,7 +122,7 @@ public class LocationService implements LocationUseCase {
 
         Map<Long, List<Location>> parentGroup = allLocations.stream()
                 .filter(l -> l.getParentId() != null)
-                .collect(Collectors.groupingBy(Location::getParentId));
+                .collect(Collectors.groupingBy(l -> l.getParentId()));
 
         List<Location> roots = allLocations.stream()
                 .filter(l -> l.getParentId() == null)
@@ -142,7 +142,7 @@ public class LocationService implements LocationUseCase {
         for (Location child : children) {
             childNodes.add(buildTreeNode(child, parentGroup));
         }
-        childNodes.sort(Comparator.comparing(LocationTreeNode::getLocationCode));
+        childNodes.sort(Comparator.comparing(n -> n.getLocationCode()));
         return new LocationTreeNode(node, childNodes);
     }
 

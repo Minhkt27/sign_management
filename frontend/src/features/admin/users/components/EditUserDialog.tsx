@@ -36,6 +36,7 @@ export function EditUserDialog({ user, open, onOpenChange, onSubmit, onClearErro
 
   useEffect(() => {
     if (user && open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFullName(user.fullName);
       setPhone(formatPhone(user.phone ?? ''));
       setPhoneError('');

@@ -42,8 +42,12 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
   const isFirstMount = useRef(true);
 
   // Derived from result
-  const allIndoorNodes = activeResult?.segments.filter(s => s.type === 'INDOOR').flatMap(s => s.nodes) ?? [];
-  const outdoorNodes = activeResult?.segments.find(s => s.type === 'OUTDOOR')?.nodes ?? [];
+  const allIndoorNodes = useMemo(() =>
+    activeResult?.segments.filter(s => s.type === 'INDOOR').flatMap(s => s.nodes) ?? [],
+  [activeResult]);
+  const outdoorNodes = useMemo(() =>
+    activeResult?.segments.find(s => s.type === 'OUTDOOR')?.nodes ?? [],
+  [activeResult]);
   const hasOutdoor = outdoorNodes.length > 0;
 
   const { data: campusMapData } = useQuery({
