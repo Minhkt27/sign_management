@@ -19,6 +19,7 @@ spring:
       max-lifetime: 1800000
 
   flyway:
+    default-schema: public
     baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:false}
     baseline-version: ${FLYWAY_BASELINE_VERSION:1}
 
