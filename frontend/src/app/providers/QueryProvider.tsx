@@ -17,6 +17,8 @@ const queryClient = new QueryClient({
 queryClient.setQueryDefaults(['locations'], { staleTime: FIVE_MINUTES });
 queryClient.setQueryDefaults(['signTypes'], { staleTime: FIVE_MINUTES });
 queryClient.setQueryDefaults(['tickets-summary'], { staleTime: FIVE_MINUTES });
+queryClient.setQueryDefaults(['floors'], { staleTime: FIVE_MINUTES });
+queryClient.setQueryDefaults(['campusMap'], { staleTime: FIVE_MINUTES });
 
 export const QueryProvider = ({ children }: { children: React.ReactNode }) => {
   return (
