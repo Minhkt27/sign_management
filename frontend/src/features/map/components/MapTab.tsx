@@ -2,13 +2,14 @@ import { useState, useMemo, useEffect, useRef, lazy, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { MapNode, MapFloor, MapFloorData, Location, WayfindingResult } from '@/shared/types';
 import { mapService } from '@/services/mapService';
-import { Search, Navigation, Accessibility, X, MapPin, Camera } from 'lucide-react';
+import { Search, Navigation, Accessibility, X, MapPin, Camera, Compass } from 'lucide-react';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
 import { displayName, floorName, buildSteps, normalize } from '../utils/pathHelpers';
 import { turnDir } from '../utils/pathHelpers';
 import { SafeImage } from '@/components/SafeImage';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { ZoomIn, ZoomOut, Maximize } from 'lucide-react';
+import { useCompassHeading } from '@/hooks/useCompassHeading';
 
 const QRScannerModal = lazy(() =>
   import('./QRScannerModal').then(mod => ({ default: mod.QRScannerModal }))
@@ -40,6 +41,7 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
   const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   const isFirstMount = useRef(true);
+  const compass = useCompassHeading();
 
   // Derived from result
   const allIndoorNodes = useMemo(() =>
@@ -197,7 +199,38 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
                 <button onClick={() => zoomIn()} className="w-9 h-9 bg-white text-slate-700 hover:text-green-700 rounded-xl flex items-center justify-center shadow-sm"><ZoomIn size={18} /></button>
                 <button onClick={() => zoomOut()} className="w-9 h-9 bg-white text-slate-700 hover:text-green-700 rounded-xl flex items-center justify-center shadow-sm"><ZoomOut size={18} /></button>
                 <button onClick={() => resetTransform()} className="w-9 h-9 bg-white text-slate-700 hover:text-green-700 rounded-xl flex items-center justify-center shadow-sm"><Maximize size={18} /></button>
+                <button
+                  onClick={compass.requestAndStart}
+                  title={compass.active ? 'Tắt la bàn' : 'Bật la bàn'}
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-sm transition-colors ${
+                    compass.active
+                      ? 'bg-green-700 text-white'
+                      : compass.permissionState === 'denied'
+                      ? 'bg-red-50 text-red-400'
+                      : 'bg-white text-slate-700 hover:text-green-700'
+                  }`}
+                >
+                  <Compass size={18} />
+                </button>
               </div>
+
+              {/* Mũi tên xoay theo hướng điện thoại đang nhìn */}
+              {compass.active && compass.heading !== null && (
+                <div className="absolute top-3 left-3 z-20 pointer-events-none drop-shadow-md"
+                  style={{ transform: `rotate(${compass.heading}deg)`, transition: 'transform 0.25s ease-out' }}
+                >
+                  <svg viewBox="0 0 24 24" width="40" height="40">
+                    <polygon points="12,2 19,21 12,17 5,21" fill="#166534" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
+                  </svg>
+                </div>
+              )}
+
+              {/* Thông báo khi bị từ chối quyền */}
+              {compass.permissionState === 'denied' && (
+                <div className="absolute top-3 left-3 z-20 bg-red-50 border border-red-200 rounded-xl px-2 py-1.5 text-xs text-red-600 font-medium max-w-[160px] pointer-events-none">
+                  La bàn bị từ chối. Vào Cài đặt để cấp quyền.
+                </div>
+              )}
               <TransformComponent wrapperStyle={{ width: '100%', willChange: 'auto' }} contentStyle={{ width: '100%', willChange: 'auto' }}>
                 <div className="relative w-full transition-transform duration-75" style={{ willChange: 'auto' }}>
                   <SafeImage src={getBackendUrl(floorData.floor.imageUrl)} alt="Sơ đồ" className="w-full h-auto mix-blend-multiply pointer-events-none" style={{ willChange: 'auto' }} />
