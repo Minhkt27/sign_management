@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface SafeImageProps {
   src?: string;
@@ -6,13 +6,31 @@ interface SafeImageProps {
   className?: string;
   style?: React.CSSProperties;
   onClick?: () => void;
+  onLoad?: () => void;
 }
 
-export function SafeImage({ src, alt, className, style, onClick }: SafeImageProps) {
+export function SafeImage({ src, alt, className, style, onClick, onLoad: onLoadProp }: SafeImageProps) {
   const [loaded, setLoaded] = useState(false);
+
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  const onLoadRef = useRef(onLoadProp);
+  useEffect(() => {
+    onLoadRef.current = onLoadProp;
+  }, [onLoadProp]);
 
   // Reset when src changes so spinner re-shows for new image
   useEffect(() => { setLoaded(false); }, [src]);
+
+  useEffect(() => {
+    if (!src) {
+      setLoaded(true);
+      onLoadRef.current?.();
+    } else if (imgRef.current?.complete) {
+      setLoaded(true);
+      onLoadRef.current?.();
+    }
+  }, [src]);
 
   return (
     <>
@@ -28,13 +46,20 @@ export function SafeImage({ src, alt, className, style, onClick }: SafeImageProp
       )}
       {src && (
         <img
+          ref={imgRef}
           src={src}
           alt={alt}
-          className={loaded ? className : 'hidden'}
-          style={loaded ? style : undefined}
+          className={className}
+          style={loaded ? style : { ...style, opacity: 0, position: 'absolute', pointerEvents: 'none' }}
           onClick={onClick}
-          onLoad={() => setLoaded(true)}
-          onError={() => setLoaded(true)}
+          onLoad={() => {
+            setLoaded(true);
+            onLoadProp?.();
+          }}
+          onError={() => {
+            setLoaded(true);
+            onLoadProp?.();
+          }}
         />
       )}
     </>

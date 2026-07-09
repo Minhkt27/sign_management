@@ -33,6 +33,7 @@ export default function AssetTreePage() {
   const [newLocName, setNewLocName] = useState('');
   const [newLocDesc, setNewLocDesc] = useState('');
   const [parentId, setParentId] = useState<number | null>(null);
+  const [newLocType, setNewLocType] = useState<Location['type'] | undefined>(undefined);
 
   // Edit Location State
   const [isEditLocDialogOpen, setIsEditLocDialogOpen] = useState(false);
@@ -210,12 +211,22 @@ export default function AssetTreePage() {
     createLocMutation.mutate({
       name: newLocName,
       parentId,
-      description: newLocDesc
-    });
+      description: newLocDesc,
+      type: newLocType
+    } as any);
   };
 
   const openCreateLocDialog = (parentLocId: number | null) => {
     setParentId(parentLocId);
+    
+    // Auto-select type based on parent
+    const pLoc = locations.find(l => l.id === parentLocId);
+    if (!pLoc) setNewLocType('BUILDING');
+    else if (pLoc.type === 'BUILDING') setNewLocType('FLOOR');
+    else if (pLoc.type === 'FLOOR') setNewLocType('DEPARTMENT');
+    else if (pLoc.type === 'DEPARTMENT') setNewLocType('ROOM');
+    else setNewLocType('ROOM');
+    
     setIsLocDialogOpen(true);
   };
 
@@ -310,10 +321,7 @@ export default function AssetTreePage() {
                 >
                   <Plus size={12} />
                   <span>
-                    {loc.type === 'BUILDING' ? 'Thêm Tầng' :
-                     loc.type === 'FLOOR' ? 'Thêm Khoa' :
-                     loc.type === 'DEPARTMENT' ? 'Thêm Phòng' :
-                     'Vị trí con'}
+                    {loc.type === 'BUILDING' ? 'Thêm Tầng' : 'Thêm vị trí con'}
                   </span>
                 </Button>
               )}
@@ -563,7 +571,20 @@ export default function AssetTreePage() {
             </div>
             <div className="px-6 py-5 space-y-4 text-left">
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Tên {resolvedTypeLabel.toLowerCase()} *</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Loại vị trí *</label>
+                <select
+                  value={newLocType}
+                  onChange={(e) => setNewLocType(e.target.value as Location['type'])}
+                  className="w-full border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg p-2 border bg-white outline-none"
+                >
+                  <option value="BUILDING">Tòa nhà</option>
+                  <option value="FLOOR">Tầng</option>
+                  <option value="DEPARTMENT">Khoa/Phòng ban</option>
+                  <option value="ROOM">Phòng</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Tên vị trí *</label>
                 <Input
                   required
                   placeholder={placeholderText}

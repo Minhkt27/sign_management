@@ -45,8 +45,11 @@ type NearbyNode = { name: string; node: MapNode } | null;
 const sideOf = (from: MapNode, to: MapNode, target: MapNode): 'trái' | 'phải' | null => {
   const dx = to.x - from.x, dy = to.y - from.y;
   const rx = target.x - from.x, ry = target.y - from.y;
-  const cross = dx * ry - dy * rx; // screen coords y↓: cross > 0 → phải
-  if (Math.abs(cross) < 0.005) return null;
+  const len1 = Math.hypot(dx, dy);
+  const len2 = Math.hypot(rx, ry);
+  if (len1 < 1e-5 || len2 < 1e-5) return null;
+  const cross = (dx / len1) * (ry / len2) - (dy / len1) * (rx / len2);
+  if (Math.abs(cross) < 0.15) return null; // sin(theta) < 0.15 => theta < ~8.6 degrees
   return cross > 0 ? 'phải' : 'trái';
 };
 
@@ -298,8 +301,9 @@ export const buildSteps = (
     let sideText = '';
     if (endIsRoom && path.length >= 3) {
       const thirdFromLast = path[path.length - 3];
-      const side = sideOf(thirdFromLast, secondLast!, last);
-      if (side) sideText = ` — bên tay ${side}`;
+      const turn = turnDir(thirdFromLast, secondLast!, last);
+      if (turn === 'left') sideText = ' — bên tay trái';
+      else if (turn === 'right') sideText = ' — bên tay phải';
     }
     steps.push({ node: last, icon: '🎯', text: `Bạn đã đến nơi${sideText}`, sub: destName ?? undefined, highlight: true });
   }
