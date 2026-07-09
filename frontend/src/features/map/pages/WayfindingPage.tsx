@@ -101,16 +101,17 @@ export default function WayfindingPage() {
 
       {/* ── SCROLL CONTENT ── */}
       <div className="flex-1 overflow-y-auto px-3.5 py-4 space-y-2">
-        {activeTab === 'home' && (
+        <div style={{ display: activeTab === 'home' ? 'block' : 'none' }}>
           <HomeTab
+            fromNodeId={fromNodeId}
             fromLabel={fromLabel}
             locations={locations}
             allFloorData={allFloorData}
             onChangeLocation={() => setIsLocationModalOpen(true)}
             onSelectDest={handleSelectDest}
           />
-        )}
-        {activeTab === 'map' && (
+        </div>
+        <div style={{ display: activeTab === 'map' ? 'block' : 'none' }}>
           <MapTab
             fromNodeId={fromNodeId}
             fromLabel={fromLabel}
@@ -121,14 +122,14 @@ export default function WayfindingPage() {
             onGoToQR={() => setIsLocationModalOpen(true)}
             onSetLocation={handleSetLocation}
           />
-        )}
-        {activeTab === 'depts' && (
+        </div>
+        <div style={{ display: activeTab === 'depts' ? 'block' : 'none' }}>
           <DeptsTab
             locations={locations}
             allFloorData={allFloorData}
             onSelectDest={node => { handleSelectDest(node); }}
           />
-        )}
+        </div>
       </div>
 
       {/* ── BOTTOM NAV ── */}

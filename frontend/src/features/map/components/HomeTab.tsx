@@ -14,6 +14,7 @@ const QUICK = [
 ];
 
 interface Props {
+  fromNodeId: number | null;
   fromLabel: string;
   locations: Location[];
   allFloorData: MapFloorData[];
@@ -21,7 +22,7 @@ interface Props {
   onSelectDest: (node: MapNode) => void;
 }
 
-export function HomeTab({ fromLabel, locations, allFloorData, onChangeLocation, onSelectDest }: Props) {
+export function HomeTab({ fromNodeId, fromLabel, locations, allFloorData, onChangeLocation, onSelectDest }: Props) {
   const [destSearch, setDestSearch] = useState('');
 
 
@@ -52,21 +53,56 @@ export function HomeTab({ fromLabel, locations, allFloorData, onChangeLocation, 
 
   const handleQuick = (keyword: string) => {
     const q = normalize(keyword);
-    const matches: MapNode[] = [];
+    const matches: { node: MapNode, floorData: MapFloorData }[] = [];
 
     for (const fd of allFloorData) {
       for (const n of fd.nodes) {
         if (n.type !== 'ROOM' && n.type !== 'DEPARTMENT' && n.type !== 'ELEVATOR') continue;
         const name = normalize(displayName(n, locations) ?? '');
         if (name.includes(q)) {
-          matches.push(n);
+          matches.push({ node: n, floorData: fd });
         }
       }
     }
 
     if (matches.length > 0) {
-      const deptNode = matches.find(n => n.type === 'DEPARTMENT');
-      onSelectDest(deptNode || matches[0]);
+      let fromFloorId: number | null = null;
+      let fromBuildingId: number | null = null;
+      
+      if (fromNodeId != null) {
+        const fromFd = allFloorData.find(fd => fd.nodes.some(n => n.id === fromNodeId));
+        if (fromFd) {
+          fromFloorId = fromFd.floor.id;
+          const floorLoc = locations.find(l => l.id === fromFd.floor.locationId);
+          if (floorLoc) fromBuildingId = floorLoc.parentId;
+        }
+      }
+
+      const scoredMatches = matches.map(m => {
+        let score = 0;
+        if (fromFloorId != null) {
+          const matchFloorId = m.floorData.floor.id;
+          const matchFloorLoc = locations.find(l => l.id === m.floorData.floor.locationId);
+          const matchBuildingId = matchFloorLoc?.parentId ?? null;
+          
+          if (matchFloorId === fromFloorId) {
+            score += 0;
+          } else if (matchBuildingId != null && matchBuildingId === fromBuildingId) {
+            score += 1;
+          } else {
+            score += 2;
+          }
+        }
+        
+        if (m.node.type === 'DEPARTMENT') {
+          score -= 0.5;
+        }
+        
+        return { ...m, score };
+      });
+      
+      scoredMatches.sort((a, b) => a.score - b.score);
+      onSelectDest(scoredMatches[0].node);
     }
   };
 

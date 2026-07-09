@@ -30,7 +30,7 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
   const [destSearch, setDestSearch] = useState(() => {
     if (!destNodeId) return '';
     const node = allFloorData.flatMap(fd => fd?.nodes || []).find(n => n?.id === destNodeId);
-    return node?.label ?? '';
+    return node ? (displayName(node, locations) ?? node.label ?? node.type) : '';
   });
   const [toNodeId, setToNodeId] = useState<number | null>(destNodeId ?? null);
   const [avoidStairs, setAvoidStairs] = useState(false);
@@ -71,7 +71,7 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
     const fd = allFloorData.find(f => f?.nodes?.some(n => n?.id === destNodeId));
     if (fd) {
       const node = fd.nodes.find(n => n?.id === destNodeId)!;
-      setDestSearch(displayName(node, locations) ?? node?.label ?? '');
+      setDestSearch(displayName(node, locations) ?? node?.label ?? node?.type ?? '');
       setActiveFloorId(fd.floor?.id);
     }
   }, [destNodeId, allFloorData, locations]);
@@ -98,7 +98,7 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
   const handleSelectDest = (node: MapNode, fd: MapFloorData) => {
     if (!node || !fd) return;
     setToNodeId(node.id);
-    setDestSearch(displayName(node, locations) ?? '');
+    setDestSearch(displayName(node, locations) ?? node?.label ?? node?.type ?? '');
     setActiveResult(null);
     setNoPath(false);
     setActiveFloorId(fd.floor?.id);
@@ -192,7 +192,7 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
   ) => (
     <div>
       <div className="relative bg-slate-50 border-y border-slate-200 overflow-hidden">
-        <TransformWrapper initialScale={1} minScale={0.5} maxScale={5} centerOnInit wheel={{ step: 0.1 }} pinch={{ step: 5 }}>
+        <TransformWrapper key={floorData.floor.id} initialScale={1} minScale={0.5} maxScale={5} centerOnInit wheel={{ step: 0.1 }} pinch={{ step: 5 }}>
           {({ zoomIn, zoomOut, resetTransform }) => (
             <>
               <div className="absolute top-3 right-3 z-20 flex flex-col gap-2 drop-shadow-md">
@@ -233,7 +233,13 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
               )}
               <TransformComponent wrapperStyle={{ width: '100%', willChange: 'auto' }} contentStyle={{ width: '100%', willChange: 'auto' }}>
                 <div className="relative w-full transition-transform duration-75" style={{ willChange: 'auto' }}>
-                  <SafeImage src={getBackendUrl(floorData.floor.imageUrl)} alt="Sơ đồ" className="w-full h-auto mix-blend-multiply pointer-events-none" style={{ willChange: 'auto' }} />
+                  <SafeImage 
+                    src={getBackendUrl(floorData.floor.imageUrl)} 
+                    alt="Sơ đồ" 
+                    className="w-full h-auto mix-blend-multiply pointer-events-none" 
+                    style={{ willChange: 'auto' }} 
+                    onLoad={() => { setTimeout(() => resetTransform(), 50); }}
+                  />
                   <svg className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="xMidYMid meet">
                     {pathNodes.length > 1 && pathNodes.slice(0, -1).map((node, idx) => {
                       const next = pathNodes[idx + 1];
@@ -346,7 +352,7 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
                       {node.type === 'DEPARTMENT' ? '🏢' : node.type === 'ELEVATOR' ? '🛗' : '🚪'}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold truncate text-slate-800">{displayName(node, locations)}</p>
+                      <p className="text-sm font-bold truncate text-slate-800">{displayName(node, locations) ?? node?.label ?? node?.type}</p>
                       <p className="text-xs text-green-700">{getFloorName(fd.floor.id)}</p>
                     </div>
                   </button>

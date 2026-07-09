@@ -116,7 +116,7 @@ describe('Real data integration — thang máy số 3 → phòng bệnh 120', ()
   it('đến đích là phòng bệnh 120', () => {
     const last = steps[steps.length - 1];
     expect(last.icon).toBe('🎯');
-    expect(last.text).toBe('Bạn đã đến nơi');
+    expect(last.text).toBe('Bạn đã đến nơi — bên tay phải');
     expect(last.sub).toBe('phòng bệnh 120');
   });
 
