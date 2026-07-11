@@ -34,6 +34,37 @@ Trước khi liệt kê test case đại trà, đây là danh sách các điểm
 
 ---
 
+## 0.5 Rà Soát Lỗ Hổng Dependency (Dependency Vulnerability Scan)
+
+> Chạy `npm audit` (frontend) và `mvn dependency:tree` đối chiếu CVE thực tế qua tra cứu web (không đoán từ trí nhớ) ngày 2026-07-11. Version dưới đây là version **resolved thực tế** (không phải version khai báo trong `pom.xml`/`package.json`, vì nhiều dependency không pin version cụ thể mà lấy theo BOM của `spring-boot-starter-parent`).
+
+### 0.5.1 Backend (Maven)
+
+| ID | Thư viện (version resolved) | CVE | Mức độ | Áp dụng thực tế? | Khuyến nghị |
+|----|------------------------------|-----|--------|-------------------|-------------|
+| D01 | **`spring-boot-starter-parent` 3.2.3** (toàn bộ Spring Framework/Security/Data ăn theo BOM này) | — (rủi ro cấu trúc) | 🔴 **Cao** | Spring Boot 3.2.x **đã hết hỗ trợ OSS từ 23/11/2024**. Từ hơn 1.5 năm nay dự án không nhận bản vá chính thức cho bất kỳ CVE mới nào phát sinh trong Spring Framework/Security/Data/Tomcat, trừ khi tự nâng cấp | Đây là finding quan trọng nhất của cả mục dependency: nên lên kế hoạch nâng cấp lên nhánh Spring Boot còn được hỗ trợ (3.4.x/3.5.x trở lên) — không phải lỗi cụ thể mà là nợ kỹ thuật/rủi ro tích lũy |
+| D02 | `tomcat-embed-core` 10.1.19 | **CVE-2025-24813** (RCE, CVSS 9.8) qua partial PUT request với header `Content-Range` | 🟡 Trung bình (do điều kiện khai thác không khớp cấu hình hiện tại) | Khai thác cần đủ 3 điều kiện: (1) bật ghi cho default servlet — mặc định tắt, app không cấu hình bật; (2) dùng Tomcat file-based session persistence — app dùng JWT stateless (`SessionCreationPolicy.STATELESS` trong `SecurityConfig`) nên **không có session** để khai thác qua đường này; (3) có gadget deserialization. → Rủi ro thực tế **thấp** với cấu hình hiện tại | Vẫn nên nâng cấp lên Tomcat ≥10.1.35 (đi kèm nâng Spring Boot) làm defense-in-depth — nếu sau này có ai vô tình bật ghi file hoặc đổi session policy, lỗ hổng sẽ lộ ngay lập tức mà không ai để ý |
+| D03 | `spring-webmvc` 6.1.4 | CVE-2024-38816, CVE-2024-38819 (path traversal qua `WebMvc.fn`/`WebFlux.fn`, fix ở 6.1.14) | ✅ Không áp dụng | **Đã verify:** grep toàn bộ `backend/src/main` cho `RouterFunction`/`FileSystemResource` → không có kết quả nào. App dùng thuần `@RestController`/`@GetMapping`, không dùng functional web → điều kiện tiên quyết của CVE không tồn tại | Không cần hành động cho CVE này (vẫn nên nâng cấp Spring Boot nói chung theo D01) |
+| D04 | `jjwt-impl` 0.11.5 | CVE-2024-31033 (mức trung bình, liên quan cách sinh signing key không an toàn nếu dùng `Jwts.SIG.xxx.keyBuilder()`) | ✅ Không áp dụng | **Đã verify:** `JwtTokenProvider.java:34` dùng `Keys.hmacShaKeyFor(jwtSecret.getBytes(...))` — lấy key trực tiếp từ `JWT_SECRET` cấu hình qua biến môi trường, **không** dùng cơ chế tự sinh key (`keyBuilder()`) của jjwt mà CVE này ảnh hưởng | Không cần hành động cho CVE này; `jjwt` 0.11.x vẫn là nhánh cũ (hiện tại 0.12.x) nên vẫn đáng nâng cấp dài hạn để không bị bỏ lại nếu có CVE mới trong tương lai |
+| D05 | `postgresql` (JDBC driver) 42.6.1 | CVE-2024-1597 (SQL injection nghiêm trọng qua `preferQueryMode=simple`) | ✅ An toàn | **42.6.1 chính là bản đã được vá** cho CVE này (theo thông báo chính thức PostgreSQL JDBC) | Không cần hành động |
+| D06 | `swagger-ui` 5.10.3 (qua `springdoc-openapi` 2.3.0) | Không tìm thấy CVE cụ thể cho 5.x (các XSS đã biết chỉ ở nhánh 3.14.1-3.38.0, đã fix từ lâu trước khi lên major version 5) | 🟢 Không phải lỗ hổng, nhưng là điểm cần cân nhắc | `SecurityConfig` cho `permitAll` toàn bộ `/swagger-ui/**` và `/v3/api-docs/**` — nghĩa là **toàn bộ cấu trúc API** (endpoint, DTO, tên trường) công khai không cần đăng nhập | Cân nhắc tắt Swagger UI ở production hoặc giới hạn theo IP nội bộ — không phải CVE nhưng giúp giảm bề mặt trinh sát cho kẻ tấn công (information disclosure) |
+
+### 0.5.2 Frontend (npm)
+
+`npm audit` báo 6 lỗ hổng (1 low, 1 moderate, 4 high). Đã truy vết cây phụ thuộc (`npm ls <pkg>`) để phân loại **dev-only** (không vào bundle production) vs **runtime thật**:
+
+| ID | Thư viện | Qua đường nào | CVE | Runtime hay dev-only? | Khuyến nghị |
+|----|----------|---------------|-----|------------------------|-------------|
+| D07 | `form-data` 4.0.0-4.0.5 | **`axios`** (dependency runtime trực tiếp, dùng khắp app để gọi API) | GHSA-hmw2-7cc7-3qxx — CRLF injection qua tên field/filename trong multipart | ⚠️ **Cần verify** — axios chỉ dùng package `form-data` khi chạy trong Node.js (SSR/test), còn khi build cho browser thường dùng `FormData` native của trình duyệt qua bundler resolve; nhưng vì đây là dependency runtime thật (không như các dòng dưới), rủi ro không thể loại trừ 100% chỉ bằng suy luận | Chạy `npm audit fix` (miễn phí, không breaking change lớn vì chỉ bump patch/minor) — không có lý do để lại một CVE High đã có fix sẵn |
+| D08 | `hono`, `@hono/node-server` | `shadcn` (CLI scaffold UI) → `@modelcontextprotocol/sdk` | Nhiều CVE (CORS, cookie injection, path traversal...) | ✅ Dev-only — chỉ chạy khi gọi `npx shadcn ...` để sinh component, không bao giờ chạy trong app đã build | Không cấp bách, có thể bỏ qua hoặc chờ `shadcn` tự cập nhật |
+| D09 | `undici` | `jsdom` (chỉ dùng bởi `vitest` khi chạy test) | Nhiều CVE (TLS bypass, header injection...) | ✅ Dev-only — chỉ chạy trong môi trường test, không production | Không cấp bách |
+| D10 | `js-yaml`, `@babel/core` | `shadcn` CLI, `eslint-plugin-react-hooks` | DoS/moderate | ✅ Dev-only (build/lint time) | Không cấp bách |
+| D11 | `vite` 8.0.12 | Direct devDependency | `server.fs.deny` bypass trên Windows (dev server) | ⚠️ Dev-only nhưng **ảnh hưởng máy dev đang chạy Windows** (đúng môi trường hiện tại) — không ảnh hưởng bundle production tĩnh đã build | Chạy `npm audit fix` để bump lên bản vá; ưu tiên trung bình vì chỉ ảnh hưởng lúc `npm run dev` trên Windows, không ảnh hưởng người dùng cuối |
+
+**Tổng kết ưu tiên xử lý:** D01 (nâng cấp Spring Boot — nợ kỹ thuật lớn nhất) > D07 (chạy `npm audit fix`, rẻ và nhanh) > D02/D11 (nâng cấp khi có dịp, rủi ro thực tế thấp với cấu hình hiện tại) > D03/D04/D06 (chỉ cần verify, khả năng cao không áp dụng) > D05/D08/D09/D10 (không cần hành động).
+
+---
+
 ## 1. Chiến Lược Kiểm Thử
 
 | Loại | Mục tiêu | Công cụ gợi ý |
