@@ -125,7 +125,9 @@ export function CreateUserDialog({ open, onOpenChange, onSubmit, isPending, erro
             <label className="text-sm font-medium text-slate-700">Nhóm quyền (Role)</label>
             <Select value={roleId} onValueChange={(v) => setRoleId(v || '')} disabled={isLoadingRoles}>
               <SelectTrigger>
-                <SelectValue placeholder="Chọn nhóm quyền..." />
+                <SelectValue placeholder="Chọn nhóm quyền...">
+                  {roleId ? roles.find(r => r.id.toString() === roleId)?.name : "Chọn nhóm quyền..."}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {roles.map(r => (
