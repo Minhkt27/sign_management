@@ -34,8 +34,10 @@ public interface MapDatabasePort {
     Optional<MapEdge> findEdgeById(Long id);
     List<MapEdge> findEdgesByFloorId(Long floorId);
     List<MapEdge> findEdgesByFloorIds(List<Long> floorIds);
+    List<MapEdge> findEdgesByNodeId(Long nodeId);
     List<MapEdge> findAllEdges();
     void deleteEdgeById(Long id);
+    boolean existsEdgeBetween(Long nodeAId, Long nodeBId);
 
     // Wayfinding
     List<MapNode> findAllNodes();

@@ -131,6 +131,11 @@ public class MapPersistenceAdapter implements MapDatabasePort {
     }
 
     @Override
+    public List<MapEdge> findEdgesByNodeId(Long nodeId) {
+        return edgeRepository.findByNodeIds(List.of(nodeId)).stream().map(edgeMapper::toDomain).collect(Collectors.toList());
+    }
+
+    @Override
     public List<MapEdge> findAllEdges() {
         return edgeRepository.findAll().stream().map(edgeMapper::toDomain).collect(Collectors.toList());
     }
@@ -138,6 +143,11 @@ public class MapPersistenceAdapter implements MapDatabasePort {
     @Override
     public void deleteEdgeById(Long id) {
         edgeRepository.deleteById(id);
+    }
+
+    @Override
+    public boolean existsEdgeBetween(Long nodeAId, Long nodeBId) {
+        return edgeRepository.existsBetween(nodeAId, nodeBId);
     }
 
     @Override

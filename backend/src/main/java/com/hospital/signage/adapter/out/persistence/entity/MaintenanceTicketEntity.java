@@ -53,7 +53,7 @@ public class MaintenanceTicketEntity {
     private AssetEntity asset;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "reporter_id", nullable = false)
+    @JoinColumn(name = "reporter_id")
     private UserEntity reporter;
 
     @ManyToOne(fetch = FetchType.LAZY)

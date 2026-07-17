@@ -2,6 +2,8 @@ package com.hospital.signage.application.service;
 
 import com.hospital.signage.application.port.in.AuthUseCase;
 import com.hospital.signage.application.port.out.UserDatabasePort;
+import com.hospital.signage.domain.exception.AccountInactiveException;
+import com.hospital.signage.domain.exception.InvalidCredentialsException;
 import com.hospital.signage.domain.enums.UiMode;
 import com.hospital.signage.domain.model.Role;
 import com.hospital.signage.domain.model.User;
@@ -34,16 +36,16 @@ public class AuthService implements AuthUseCase {
         User user = userDatabasePort.findByUsername(command.username())
                 .orElseThrow(() -> {
                     loginAttemptService.recordFailure(command.username());
-                    return new IllegalArgumentException("Invalid username or password");
+                    return new InvalidCredentialsException("Invalid username or password");
                 });
 
         if (!user.getIsActive()) {
-            throw new IllegalStateException("User account is inactive");
+            throw new AccountInactiveException("User account is inactive");
         }
 
         if (!passwordEncoder.matches(command.password(), user.getPassword())) {
             loginAttemptService.recordFailure(command.username());
-            throw new IllegalArgumentException("Invalid username or password");
+            throw new InvalidCredentialsException("Invalid username or password");
         }
 
         loginAttemptService.recordSuccess(command.username());
@@ -75,14 +77,14 @@ public class AuthService implements AuthUseCase {
     public RefreshResult refreshToken(String refreshToken) {
         String username = jwtTokenProvider.extractUsername(refreshToken);
         User user = userDatabasePort.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid or expired refresh token"));
+                .orElseThrow(() -> new InvalidCredentialsException("Invalid or expired refresh token"));
 
         if (!user.getIsActive()) {
-            throw new IllegalStateException("Invalid or expired refresh token");
+            throw new AccountInactiveException("Invalid or expired refresh token");
         }
 
         if (user.getRefreshToken() == null || !user.getRefreshToken().equals(refreshToken)) {
-            throw new IllegalArgumentException("Invalid or expired refresh token");
+            throw new InvalidCredentialsException("Invalid or expired refresh token");
         }
 
         java.util.List<String> permissions = new java.util.ArrayList<>();

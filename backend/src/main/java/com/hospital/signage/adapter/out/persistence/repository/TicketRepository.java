@@ -53,4 +53,9 @@ public interface TicketRepository extends JpaRepository<MaintenanceTicketEntity,
 
     @Query("SELECT t.ticketStatus, COUNT(t) FROM MaintenanceTicketEntity t GROUP BY t.ticketStatus")
     List<Object[]> countByStatus();
+
+    @Query("SELECT COUNT(t) > 0 FROM MaintenanceTicketEntity t " +
+           "WHERE (t.reporter.id = :userId OR t.assignee.id = :userId) " +
+           "AND t.ticketStatus <> com.hospital.signage.domain.enums.TicketStatus.CLOSED")
+    boolean existsOpenTicketForUser(@Param("userId") Long userId);
 }

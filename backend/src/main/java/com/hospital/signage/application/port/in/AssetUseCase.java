@@ -1,5 +1,6 @@
 package com.hospital.signage.application.port.in;
 
+import com.hospital.signage.domain.enums.AssetStatus;
 import com.hospital.signage.domain.model.Asset;
 import org.springframework.data.domain.Page;
 
@@ -14,6 +15,7 @@ public interface AssetUseCase {
     Optional<Asset> getAssetByCode(String assetCode);
     List<Asset> getAllAssets();
     Page<Asset> getAssetsPage(int page, int size, String search);
+    Page<Asset> getAssetsPage(int page, int size, String search, AssetStatus status, Long locationId, Long signTypeId);
     Page<Asset> getAssetsByLocation(Long locationId, int page, int size);
     void deleteAsset(UUID id);
 }

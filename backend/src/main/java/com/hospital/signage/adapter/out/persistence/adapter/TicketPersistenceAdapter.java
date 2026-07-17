@@ -68,6 +68,11 @@ public class TicketPersistenceAdapter implements TicketDatabasePort {
     }
 
     @Override
+    public boolean existsOpenTicketForUser(Long userId) {
+        return repository.existsOpenTicketForUser(userId);
+    }
+
+    @Override
     public Map<String, Long> countByStatus() {
         return repository.countByStatus().stream()
                 .collect(Collectors.toMap(

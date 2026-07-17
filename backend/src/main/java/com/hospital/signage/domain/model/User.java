@@ -1,5 +1,6 @@
 package com.hospital.signage.domain.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -16,6 +17,7 @@ import java.util.List;
 public class User {
     private Long id;
     private String username;
+    @JsonIgnore
     private String password;
     private String fullName;
     private Long roleId;
@@ -23,6 +25,7 @@ public class User {
     @Builder.Default
     private List<String> customPermissions = new ArrayList<>();
     private Boolean isActive;
+    @JsonIgnore
     private String refreshToken;
     private Instant createdAt;
     private Instant updatedAt;

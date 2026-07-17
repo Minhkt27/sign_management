@@ -1,5 +1,6 @@
 package com.hospital.signage.application.port.out;
 
+import com.hospital.signage.domain.enums.AssetStatus;
 import com.hospital.signage.domain.model.Asset;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -15,6 +16,7 @@ public interface AssetDatabasePort {
     List<Asset> findAll();
     Page<Asset> findAll(Pageable pageable);
     Page<Asset> search(String search, Pageable pageable);
+    Page<Asset> searchAndFilter(String search, AssetStatus status, Long locationId, Long signTypeId, Pageable pageable);
     Page<Asset> findByLocationId(Long locationId, Pageable pageable);
     Page<Asset> findBySignTypeId(Long signTypeId, Pageable pageable);
     boolean existsByLocationId(Long locationId);

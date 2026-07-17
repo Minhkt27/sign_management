@@ -3,6 +3,8 @@ package com.hospital.signage.application.service;
 import com.hospital.signage.application.port.in.AuthUseCase;
 import com.hospital.signage.application.port.out.UserDatabasePort;
 
+import com.hospital.signage.domain.exception.AccountInactiveException;
+import com.hospital.signage.domain.exception.InvalidCredentialsException;
 import com.hospital.signage.domain.model.User;
 import com.hospital.signage.infrastructure.security.JwtTokenProvider;
 import com.hospital.signage.infrastructure.security.LoginAttemptService;
@@ -70,31 +72,31 @@ class AuthServiceTest {
     }
 
     @Test
-    void login_withUnknownUsername_throwsIllegalArgument() {
+    void login_withUnknownUsername_throwsInvalidCredentials() {
         when(userDatabasePort.findByUsername("unknown")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> authService.login(new AuthUseCase.LoginCommand("unknown", "pass")))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(InvalidCredentialsException.class)
                 .hasMessage("Invalid username or password");
     }
 
     @Test
-    void login_withWrongPassword_throwsIllegalArgument() {
+    void login_withWrongPassword_throwsInvalidCredentials() {
         when(userDatabasePort.findByUsername("admin")).thenReturn(Optional.of(activeUser));
         when(passwordEncoder.matches("wrong", "hashed_password")).thenReturn(false);
 
         assertThatThrownBy(() -> authService.login(new AuthUseCase.LoginCommand("admin", "wrong")))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(InvalidCredentialsException.class)
                 .hasMessage("Invalid username or password");
     }
 
     @Test
-    void login_withInactiveUser_throwsIllegalState() {
+    void login_withInactiveUser_throwsAccountInactive() {
         activeUser.setIsActive(false);
         when(userDatabasePort.findByUsername("admin")).thenReturn(Optional.of(activeUser));
 
         assertThatThrownBy(() -> authService.login(new AuthUseCase.LoginCommand("admin", "plain")))
-                .isInstanceOf(IllegalStateException.class)
+                .isInstanceOf(AccountInactiveException.class)
                 .hasMessage("User account is inactive");
     }
 
@@ -113,12 +115,12 @@ class AuthServiceTest {
     }
 
     @Test
-    void refreshToken_withUnknownUser_throwsIllegalArgument() {
+    void refreshToken_withUnknownUser_throwsInvalidCredentials() {
         when(jwtTokenProvider.extractUsername("bad-refresh")).thenReturn("ghost");
         when(userDatabasePort.findByUsername("ghost")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> authService.refreshToken("bad-refresh"))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(InvalidCredentialsException.class)
                 .hasMessage("Invalid or expired refresh token");
     }
 
@@ -140,7 +142,7 @@ class AuthServiceTest {
         when(passwordEncoder.matches("wrong", "hashed_password")).thenReturn(false);
 
         assertThatThrownBy(() -> authService.login(new AuthUseCase.LoginCommand("admin", "wrong")))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(InvalidCredentialsException.class);
 
         verify(loginAttemptService).recordFailure("admin");
     }

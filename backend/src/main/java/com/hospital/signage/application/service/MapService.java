@@ -178,6 +178,8 @@ public class MapService implements MapUseCase {
     public MapNode updateNode(Long id, MapNode node) {
         MapNode existing = mapDatabasePort.findNodeById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Node không tồn tại: " + id));
+        boolean positionChanged = (node.getX() != null && !node.getX().equals(existing.getX()))
+                || (node.getY() != null && !node.getY().equals(existing.getY()));
         if (node.getX() != null) existing.setX(node.getX());
         if (node.getY() != null) existing.setY(node.getY());
         existing.setType(node.getType());
@@ -186,8 +188,24 @@ public class MapService implements MapUseCase {
         existing.setAssetId(node.getAssetId());
         existing.setLinkedCampusNodeId(node.getLinkedCampusNodeId());
         MapNode saved = mapDatabasePort.saveNode(existing);
+        if (positionChanged) {
+            recalculateConnectedEdgeWeights(saved);
+        }
         mapGraphCache.invalidateAll();
         return saved;
+    }
+
+    private void recalculateConnectedEdgeWeights(MapNode movedNode) {
+        List<MapEdge> edges = mapDatabasePort.findEdgesByNodeId(movedNode.getId());
+        for (MapEdge edge : edges) {
+            Long otherId = edge.getNodeFromId().equals(movedNode.getId()) ? edge.getNodeToId() : edge.getNodeFromId();
+            mapDatabasePort.findNodeById(otherId).ifPresent(other -> {
+                double dx = other.getX() - movedNode.getX();
+                double dy = other.getY() - movedNode.getY();
+                edge.setWeight(Math.sqrt(dx * dx + dy * dy));
+                mapDatabasePort.saveEdge(edge);
+            });
+        }
     }
 
     @Override
@@ -219,6 +237,10 @@ public class MapService implements MapUseCase {
                 .orElseThrow(() -> new IllegalArgumentException("Node không tồn tại: " + nodeFromId));
         MapNode to = mapDatabasePort.findNodeById(nodeToId)
                 .orElseThrow(() -> new IllegalArgumentException("Node không tồn tại: " + nodeToId));
+
+        if (mapDatabasePort.existsEdgeBetween(nodeFromId, nodeToId)) {
+            throw new IllegalStateException("Kết nối giữa 2 điểm này đã tồn tại (kể cả chiều ngược lại).");
+        }
 
         double dx = to.getX() - from.getX();
         double dy = to.getY() - from.getY();
@@ -254,13 +276,13 @@ public class MapService implements MapUseCase {
         if (fromNodeId.equals(toNodeId)) {
             return mapDatabasePort.findNodeById(fromNodeId)
                     .map(Collections::singletonList)
-                    .orElse(Collections.emptyList());
+                    .orElseThrow(() -> new NoSuchElementException("Node không tồn tại: " + fromNodeId));
         }
 
         MapNode fromNode = mapDatabasePort.findNodeById(fromNodeId)
-                .orElseThrow(() -> new IllegalArgumentException("Node không tồn tại: " + fromNodeId));
+                .orElseThrow(() -> new NoSuchElementException("Node không tồn tại: " + fromNodeId));
         MapNode toNode = mapDatabasePort.findNodeById(toNodeId)
-                .orElseThrow(() -> new IllegalArgumentException("Node không tồn tại: " + toNodeId));
+                .orElseThrow(() -> new NoSuchElementException("Node không tồn tại: " + toNodeId));
 
         List<MapNode> allNodes;
         List<MapEdge> allEdges;
@@ -283,7 +305,11 @@ public class MapService implements MapUseCase {
             allEdges = filterStairEdges(allNodes, allEdges);
         }
 
-        return dijkstra(fromNodeId, toNodeId, allNodes, allEdges).path();
+        List<MapNode> path = dijkstra(fromNodeId, toNodeId, allNodes, allEdges).path();
+        if (path.isEmpty()) {
+            throw new NoSuchElementException("Không tìm được đường đi giữa 2 điểm này.");
+        }
+        return path;
     }
 
     @Override
@@ -291,13 +317,13 @@ public class MapService implements MapUseCase {
         if (fromNodeId.equals(toNodeId)) {
             return mapDatabasePort.findNodeById(fromNodeId)
                     .map(n -> new WayfindingResult(List.of(new PathSegment(SegmentType.INDOOR, List.of(n)))))
-                    .orElse(new WayfindingResult(List.of()));
+                    .orElseThrow(() -> new NoSuchElementException("Node không tồn tại: " + fromNodeId));
         }
 
         MapNode fromNode = mapDatabasePort.findNodeById(fromNodeId)
-                .orElseThrow(() -> new IllegalArgumentException("Node không tồn tại: " + fromNodeId));
+                .orElseThrow(() -> new NoSuchElementException("Node không tồn tại: " + fromNodeId));
         MapNode toNode = mapDatabasePort.findNodeById(toNodeId)
-                .orElseThrow(() -> new IllegalArgumentException("Node không tồn tại: " + toNodeId));
+                .orElseThrow(() -> new NoSuchElementException("Node không tồn tại: " + toNodeId));
 
         Map<Long, Long> floorLocMap = mapGraphCache.loadFloorLocationMap();
         Long fromLoc = floorLocMap.get(fromNode.getFloorId());
@@ -356,7 +382,9 @@ public class MapService implements MapUseCase {
             }
         }
 
-        if (bestSeg1 == null) return new WayfindingResult(List.of());
+        if (bestSeg1 == null) {
+            throw new NoSuchElementException("Không tìm được đường đi giữa 2 điểm này.");
+        }
 
         List<PathSegment> segments = expandTransitBuildings(
                 bestSeg1, bestSeg2, bestSeg3, srcExits, dstExits, avoidStairs);
