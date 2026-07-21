@@ -2,6 +2,7 @@ package com.hospital.signage.application.service;
 
 import com.hospital.signage.application.port.in.TicketUseCase;
 import com.hospital.signage.application.port.out.AssetDatabasePort;
+import com.hospital.signage.application.port.out.RoleDatabasePort;
 import com.hospital.signage.application.port.out.TicketDatabasePort;
 import com.hospital.signage.application.port.out.UserDatabasePort;
 import com.hospital.signage.domain.enums.Priority;
@@ -45,6 +46,9 @@ public class TicketService implements TicketUseCase {
     private final TicketDatabasePort ticketDatabasePort;
     private final AssetDatabasePort assetDatabasePort;
     private final UserDatabasePort userDatabasePort;
+    private final RoleDatabasePort roleDatabasePort;
+
+    private static final String TECHNICAL_ROLE_CODE = "TECHNICAL";
 
     @Override
     @Transactional
@@ -81,8 +85,17 @@ public class TicketService implements TicketUseCase {
 
         User assignee = userDatabasePort.findById(assigneeId)
                 .orElseThrow(() -> new IllegalArgumentException("Assignee user not found"));
+        validateAssigneeIsTechnician(assignee);
 
         ticket.setAssignee(assignee);
+        if (ticket.getTicketStatus() == TicketStatus.OPEN) {
+            ticket.setTicketStatus(TicketStatus.IN_PROGRESS);
+            Asset asset = ticket.getAsset();
+            if (asset != null && asset.getStatus() != com.hospital.signage.domain.enums.AssetStatus.SCRAPPED) {
+                asset.setStatus(com.hospital.signage.domain.enums.AssetStatus.REPAIRING);
+                assetDatabasePort.save(asset);
+            }
+        }
         MaintenanceTicket saved = ticketDatabasePort.save(ticket);
         log.info("Ticket {} assigned to user {}", ticketId, assigneeId);
         return saved;
@@ -102,23 +115,54 @@ public class TicketService implements TicketUseCase {
                 "Không thể chuyển trạng thái từ " + current + " sang " + status);
         }
 
-        boolean isRejection = status == TicketStatus.IN_PROGRESS && current == TicketStatus.IN_PROGRESS
-                && rejectionNote != null && !rejectionNote.isBlank();
+        boolean isRejection = status == TicketStatus.IN_PROGRESS && current == TicketStatus.RESOLVED;
+        if (isRejection && (rejectionNote == null || rejectionNote.isBlank())) {
+            throw new IllegalArgumentException("Phải nhập lý do khi yêu cầu sửa lại (rejectionNote).");
+        }
 
         validateRejectionLimit(ticket, isRejection);
         validateTechnicianPermission(ticket, status, isRejection, technicianId);
+        validateResolutionEvidence(ticket, status, imageAfter);
 
-        ticket.setTicketStatus(status);
         updateTicketImages(ticket, imageBefore, imageAfter);
         handleCompletionAndRejection(ticket, status, isRejection, rejectionNote);
-        updateRelatedAssetState(ticket, status);
+
+        TicketStatus finalStatus = (isRejection && ticket.getRejectionCount() >= MAX_REJECTION_LIMIT)
+                ? TicketStatus.CLOSED
+                : status;
+        if (finalStatus == TicketStatus.CLOSED) {
+            ticket.setCompletedAt(Instant.now());
+            log.warn("Ticket {} auto-closed after reaching max rejection limit ({})", ticket.getId(), MAX_REJECTION_LIMIT);
+        }
+        ticket.setTicketStatus(finalStatus);
+        updateRelatedAssetState(ticket, finalStatus);
 
         return ticketDatabasePort.save(ticket);
+    }
+
+    private void validateResolutionEvidence(MaintenanceTicket ticket, TicketStatus status, String imageAfter) {
+        boolean hasNewImage = imageAfter != null && !imageAfter.isBlank();
+        boolean hasExistingImage = ticket.getImageAfter() != null && !ticket.getImageAfter().isBlank();
+        if (status == TicketStatus.RESOLVED && !hasNewImage && !hasExistingImage) {
+            throw new IllegalArgumentException("Phải đính kèm ảnh sau khi sửa (imageAfter) trước khi đánh dấu hoàn thành.");
+        }
     }
 
     private void validateRejectionLimit(MaintenanceTicket ticket, boolean isRejection) {
         if (isRejection && ticket.getRejectionCount() >= MAX_REJECTION_LIMIT) {
             throw new TicketRejectionLimitExceededException("Phiếu này đã bị từ chối tối đa " + MAX_REJECTION_LIMIT + " lần.");
+        }
+    }
+
+    private void validateAssigneeIsTechnician(User assignee) {
+        if (assignee.getRoleId() == null) {
+            throw new IllegalArgumentException("Người được giao việc phải là kỹ thuật viên.");
+        }
+        boolean isTechnician = roleDatabasePort.findById(assignee.getRoleId())
+                .map(role -> TECHNICAL_ROLE_CODE.equals(role.getCode()))
+                .orElse(false);
+        if (!isTechnician) {
+            throw new IllegalArgumentException("Người được giao việc phải là kỹ thuật viên.");
         }
     }
 

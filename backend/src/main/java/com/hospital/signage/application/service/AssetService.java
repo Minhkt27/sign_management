@@ -4,6 +4,7 @@ import com.hospital.signage.application.port.in.AssetUseCase;
 import com.hospital.signage.application.port.out.AssetDatabasePort;
 import com.hospital.signage.application.port.out.FileStoragePort;
 import com.hospital.signage.application.port.out.LocationDatabasePort;
+import com.hospital.signage.application.port.out.SignTypeDatabasePort;
 import com.hospital.signage.application.port.out.TicketDatabasePort;
 import com.hospital.signage.domain.model.Asset;
 import com.hospital.signage.domain.model.Location;
@@ -29,6 +30,7 @@ public class AssetService implements AssetUseCase {
 
     private final AssetDatabasePort assetDatabasePort;
     private final LocationDatabasePort locationDatabasePort;
+    private final SignTypeDatabasePort signTypeDatabasePort;
     private final TicketDatabasePort ticketDatabasePort;
     private final FileStoragePort fileStoragePort;
 
@@ -49,7 +51,15 @@ public class AssetService implements AssetUseCase {
             asset.setLocation(location);
         }
 
+        validateSignTypeExists(asset.getSignTypeId());
+
         return assetDatabasePort.save(asset);
+    }
+
+    private void validateSignTypeExists(Long signTypeId) {
+        if (signTypeId != null && signTypeDatabasePort.findById(signTypeId).isEmpty()) {
+            throw new IllegalArgumentException("Sign type not found");
+        }
     }
 
     @Override
@@ -62,6 +72,7 @@ public class AssetService implements AssetUseCase {
         existing.setName(updatedAsset.getName());
         existing.setDescription(updatedAsset.getDescription());
         existing.setLocationDescription(updatedAsset.getLocationDescription());
+        validateSignTypeExists(updatedAsset.getSignTypeId());
         existing.setSignTypeId(updatedAsset.getSignTypeId());
         existing.setMaterial(updatedAsset.getMaterial());
         existing.setSize(updatedAsset.getSize());
@@ -105,6 +116,12 @@ public class AssetService implements AssetUseCase {
     @Override
     public Page<Asset> getAssetsPage(int page, int size, String search) {
         return assetDatabasePort.search(search, PageRequest.of(page, size));
+    }
+
+    @Override
+    public Page<Asset> getAssetsPage(int page, int size, String search, com.hospital.signage.domain.enums.AssetStatus status,
+            Long locationId, Long signTypeId) {
+        return assetDatabasePort.searchAndFilter(search, status, locationId, signTypeId, PageRequest.of(page, size));
     }
 
     @Override

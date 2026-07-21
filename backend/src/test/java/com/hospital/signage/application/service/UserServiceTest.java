@@ -2,6 +2,7 @@ package com.hospital.signage.application.service;
 
 import com.hospital.signage.application.port.in.UserUseCase;
 import com.hospital.signage.application.port.out.RoleDatabasePort;
+import com.hospital.signage.application.port.out.TicketDatabasePort;
 import com.hospital.signage.application.port.out.UserDatabasePort;
 import com.hospital.signage.domain.model.User;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,6 +28,9 @@ class UserServiceTest {
 
     @Mock
     private RoleDatabasePort roleDatabasePort;
+
+    @Mock
+    private TicketDatabasePort ticketDatabasePort;
 
     @Mock
     private PasswordEncoder passwordEncoder;
@@ -103,6 +107,27 @@ class UserServiceTest {
         userService.changePassword(new UserUseCase.ChangePasswordCommand(2L, "oldPass", "newPass"));
 
         assertThat(existingUser.getPassword()).isEqualTo("new_hashed");
+    }
+
+    @Test
+    void deleteUser_withOpenTicket_throwsIllegalState() {
+        when(userDatabasePort.findById(2L)).thenReturn(Optional.of(existingUser));
+        when(ticketDatabasePort.existsOpenTicketForUser(2L)).thenReturn(true);
+
+        assertThatThrownBy(() -> userService.deleteUser(2L))
+                .isInstanceOf(IllegalStateException.class);
+
+        verify(userDatabasePort, never()).deleteById(any());
+    }
+
+    @Test
+    void deleteUser_withOnlyClosedTickets_deletesUser() {
+        when(userDatabasePort.findById(2L)).thenReturn(Optional.of(existingUser));
+        when(ticketDatabasePort.existsOpenTicketForUser(2L)).thenReturn(false);
+
+        userService.deleteUser(2L);
+
+        verify(userDatabasePort).deleteById(2L);
     }
 
     @Test

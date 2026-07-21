@@ -2,6 +2,7 @@ package com.hospital.signage.application.service;
 
 import com.hospital.signage.application.port.in.RoleUseCase;
 import com.hospital.signage.application.port.out.RoleDatabasePort;
+import com.hospital.signage.domain.enums.Permission;
 import com.hospital.signage.domain.enums.UiMode;
 import com.hospital.signage.domain.model.Role;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,7 @@ public class RoleService implements RoleUseCase {
         if (roleDatabasePort.findByCode(command.code()).isPresent()) {
             throw new IllegalArgumentException("Mã nhóm quyền đã tồn tại");
         }
+        validatePermissions(command.permissions());
         Role role = Role.builder()
                 .code(command.code())
                 .name(command.name())
@@ -56,8 +58,18 @@ public class RoleService implements RoleUseCase {
         role.setName(command.name());
         role.setDescription(command.description());
         role.setUiMode(command.uiMode() != null ? command.uiMode() : UiMode.ADMIN);
+        validatePermissions(command.permissions());
         role.setPermissions(command.permissions() != null ? command.permissions() : List.of());
         return roleDatabasePort.save(role);
+    }
+
+    private void validatePermissions(List<String> permissions) {
+        if (permissions == null) return;
+        for (String permission : permissions) {
+            if (!Permission.VALID.contains(permission)) {
+                throw new IllegalArgumentException("Quyền không hợp lệ: " + permission);
+            }
+        }
     }
 
     @Override

@@ -50,6 +50,7 @@ public class SecurityConfig {
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/map/campus").permitAll()
                 .requestMatchers("/api/assets/code/**").permitAll()
                 .requestMatchers("/api/locations", "/api/locations/**").permitAll()
+                .requestMatchers("/api/sign-types", "/api/sign-types/**").permitAll()
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().denyAll()
             )

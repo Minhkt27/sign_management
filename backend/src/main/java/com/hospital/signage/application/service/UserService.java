@@ -2,13 +2,18 @@ package com.hospital.signage.application.service;
 
 import com.hospital.signage.application.port.in.UserUseCase;
 import com.hospital.signage.application.port.out.RoleDatabasePort;
+import com.hospital.signage.application.port.out.TicketDatabasePort;
 import com.hospital.signage.application.port.out.UserDatabasePort;
 
+import com.hospital.signage.domain.enums.Permission;
+import com.hospital.signage.domain.model.Role;
 import com.hospital.signage.domain.model.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +34,7 @@ public class UserService implements UserUseCase {
 
     private final UserDatabasePort userDatabasePort;
     private final RoleDatabasePort roleDatabasePort;
+    private final TicketDatabasePort ticketDatabasePort;
     private final PasswordEncoder passwordEncoder;
     private final UserCacheService userCacheService;
 
@@ -55,6 +61,8 @@ public class UserService implements UserUseCase {
         if (userDatabasePort.findByUsername(command.username()).isPresent()) {
             throw new IllegalArgumentException("Tên đăng nhập đã tồn tại");
         }
+        validatePermissions(command.customPermissions());
+        validateRoleAssignmentAllowed(command.roleId());
         User user = User.builder()
                 .username(command.username())
                 .fullName(command.fullName())
@@ -77,6 +85,8 @@ public class UserService implements UserUseCase {
         if (Long.valueOf(1).equals(userId)) {
             throw new IllegalStateException("Không thể thay đổi quyền tài khoản quản trị viên");
         }
+        validatePermissions(customPermissions);
+        validateRoleAssignmentAllowed(roleId);
         user.setRoleId(roleId);
         user.setCustomPermissions(customPermissions != null ? customPermissions : List.of());
         User saved = userDatabasePort.save(user);
@@ -84,11 +94,48 @@ public class UserService implements UserUseCase {
         return saved;
     }
 
+    private void validatePermissions(List<String> permissions) {
+        if (permissions == null) return;
+        for (String permission : permissions) {
+            if (!Permission.VALID.contains(permission)) {
+                throw new IllegalArgumentException("Quyền không hợp lệ: " + permission);
+            }
+        }
+    }
+
+    private void validateRoleAssignmentAllowed(Long roleId) {
+        if (roleId == null) return;
+        Role role = roleDatabasePort.findById(roleId).orElse(null);
+        if (role == null || role.getPermissions() == null) return;
+        boolean grantsPrivilegeManagement = role.getPermissions().contains("ROLE_MANAGE")
+                || role.getPermissions().contains("USER_MANAGE");
+        if (grantsPrivilegeManagement && !callerHasAuthority("ROLE_MANAGE")) {
+            throw new AccessDeniedException("Chỉ người có quyền ROLE_MANAGE mới được gán vai trò có khả năng quản lý quyền/người dùng.");
+        }
+    }
+
+    private boolean callerHasAuthority(String authority) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) return false;
+        return authentication.getAuthorities().stream()
+                .anyMatch(a -> authority.equals(a.getAuthority()));
+    }
+
+    private boolean isCurrentUser(Long userId) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) return false;
+        Object principal = authentication.getPrincipal();
+        return principal instanceof User caller && caller.getId() != null && caller.getId().equals(userId);
+    }
+
     @Override
     @Transactional
     public User setUserActive(Long id, boolean active) {
         User user = userDatabasePort.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại"));
+        if (!active && isCurrentUser(id)) {
+            throw new IllegalStateException("Không thể tự khóa tài khoản đang đăng nhập của chính mình.");
+        }
         user.setIsActive(active);
         if (!active) {
             user.setRefreshToken(null);
@@ -143,6 +190,9 @@ public class UserService implements UserUseCase {
                 .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại"));
         if (Long.valueOf(1).equals(id)) {
             throw new IllegalStateException("Không thể xóa tài khoản quản trị viên");
+        }
+        if (ticketDatabasePort.existsOpenTicketForUser(id)) {
+            throw new IllegalStateException("Không thể xóa người dùng đang có phiếu bảo trì chưa đóng liên quan.");
         }
         userDatabasePort.deleteById(id);
         userCacheService.evict(user.getUsername());

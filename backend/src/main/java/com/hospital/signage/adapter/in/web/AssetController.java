@@ -26,13 +26,21 @@ public class AssetController {
 
     private final AssetUseCase assetUseCase;
 
-    @Operation(summary = "Danh sách biển báo (phân trang)")
+    @Operation(summary = "Danh sách biển báo (phân trang, lọc theo status/locationId/signTypeId)")
     @GetMapping
     public ResponseEntity<PagedResponse<Asset>> getAllAssets(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "") String search) {
-        return ResponseEntity.ok(PagedResponse.from(assetUseCase.getAssetsPage(Math.max(0, page), Math.min(Math.max(1, size), 100), search)));
+            @RequestParam(defaultValue = "") String search,
+            @RequestParam(required = false) AssetStatus status,
+            @RequestParam(required = false) Long locationId,
+            @RequestParam(required = false) Long signTypeId) {
+        int p = Math.max(0, page);
+        int s = Math.min(Math.max(1, size), 100);
+        if (status == null && locationId == null && signTypeId == null) {
+            return ResponseEntity.ok(PagedResponse.from(assetUseCase.getAssetsPage(p, s, search)));
+        }
+        return ResponseEntity.ok(PagedResponse.from(assetUseCase.getAssetsPage(p, s, search, status, locationId, signTypeId)));
     }
 
     @Operation(summary = "Toàn bộ biển báo (tối đa 1000, dùng cho cây/bản đồ)")

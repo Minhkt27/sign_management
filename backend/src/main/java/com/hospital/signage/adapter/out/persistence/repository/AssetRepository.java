@@ -42,4 +42,21 @@ public interface AssetRepository extends JpaRepository<AssetEntity, UUID> {
                         "OR f_unaccent(COALESCE(name, '')) ILIKE f_unaccent(CONCAT('%', :search, '%'))",
            nativeQuery = true)
     Page<AssetEntity> search(@Param("search") String search, Pageable pageable);
+
+    @Query(value = "SELECT * FROM assets WHERE " +
+                   "(f_unaccent(asset_code) ILIKE f_unaccent(CONCAT('%', :search, '%')) " +
+                   "OR f_unaccent(COALESCE(name, '')) ILIKE f_unaccent(CONCAT('%', :search, '%'))) " +
+                   "AND (:status IS NULL OR status = :status) " +
+                   "AND (:locationId IS NULL OR location_id = :locationId) " +
+                   "AND (:signTypeId IS NULL OR sign_type_id = :signTypeId) " +
+                   "ORDER BY created_at DESC",
+           countQuery = "SELECT COUNT(*) FROM assets WHERE " +
+                   "(f_unaccent(asset_code) ILIKE f_unaccent(CONCAT('%', :search, '%')) " +
+                   "OR f_unaccent(COALESCE(name, '')) ILIKE f_unaccent(CONCAT('%', :search, '%'))) " +
+                   "AND (:status IS NULL OR status = :status) " +
+                   "AND (:locationId IS NULL OR location_id = :locationId) " +
+                   "AND (:signTypeId IS NULL OR sign_type_id = :signTypeId)",
+           nativeQuery = true)
+    Page<AssetEntity> searchAndFilter(@Param("search") String search, @Param("status") String status,
+            @Param("locationId") Long locationId, @Param("signTypeId") Long signTypeId, Pageable pageable);
 }

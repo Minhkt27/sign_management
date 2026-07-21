@@ -4,6 +4,7 @@ import com.hospital.signage.adapter.out.persistence.entity.AssetEntity;
 import com.hospital.signage.adapter.out.persistence.mapper.AssetMapper;
 import com.hospital.signage.adapter.out.persistence.repository.AssetRepository;
 import com.hospital.signage.application.port.out.AssetDatabasePort;
+import com.hospital.signage.domain.enums.AssetStatus;
 import com.hospital.signage.domain.model.Asset;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -64,6 +65,13 @@ public class AssetPersistenceAdapter implements AssetDatabasePort {
     public Page<Asset> search(String search, Pageable pageable) {
         String s = search == null ? "" : search;
         return repository.search(s, pageable).map(mapper::toDomain);
+    }
+
+    @Override
+    public Page<Asset> searchAndFilter(String search, AssetStatus status, Long locationId, Long signTypeId, Pageable pageable) {
+        String s = search == null ? "" : search;
+        String statusName = status == null ? null : status.name();
+        return repository.searchAndFilter(s, statusName, locationId, signTypeId, pageable).map(mapper::toDomain);
     }
 
     @Override
