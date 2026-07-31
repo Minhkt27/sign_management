@@ -23,6 +23,7 @@ import org.springframework.data.domain.PageImpl;
 import java.util.Arrays;
 import java.util.Optional;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -64,7 +65,7 @@ public class TicketControllerTest {
         ticket2.setPriority(Priority.LOW);
         ticket2.setTicketStatus(TicketStatus.IN_PROGRESS);
 
-        when(ticketUseCase.getTicketsPage(0, 10, null, null, null, null))
+        when(ticketUseCase.getTicketsPage(eq(0), eq(10), eq(null), eq(null), eq(null), eq(null), any()))
                 .thenReturn(new PageImpl<>(Arrays.asList(ticket1, ticket2)));
 
         mockMvc.perform(get("/api/tickets")
@@ -80,7 +81,7 @@ public class TicketControllerTest {
         ticket.setId(1L);
         ticket.setDescription("Broken light");
 
-        when(ticketUseCase.getTicketById(1L)).thenReturn(Optional.of(ticket));
+        when(ticketUseCase.getTicketById(eq(1L), any())).thenReturn(Optional.of(ticket));
 
         mockMvc.perform(get("/api/tickets/1")
                         .contentType(MediaType.APPLICATION_JSON))
@@ -90,7 +91,7 @@ public class TicketControllerTest {
 
     @Test
     public void testGetTicketByIdNotFound() throws Exception {
-        when(ticketUseCase.getTicketById(1L)).thenReturn(Optional.empty());
+        when(ticketUseCase.getTicketById(eq(1L), any())).thenReturn(Optional.empty());
 
         mockMvc.perform(get("/api/tickets/1")
                         .contentType(MediaType.APPLICATION_JSON))
@@ -103,7 +104,7 @@ public class TicketControllerTest {
         ticket.setId(1L);
         ticket.setTicketStatus(TicketStatus.IN_PROGRESS);
 
-        when(ticketUseCase.assignTicket(eq(1L), eq(2L))).thenReturn(ticket);
+        when(ticketUseCase.assignTicket(eq(1L), eq(2L), any())).thenReturn(ticket);
 
         TicketController.AssignTicketRequest request = new TicketController.AssignTicketRequest(2L);
 
@@ -121,7 +122,7 @@ public class TicketControllerTest {
         ticket.setId(1L);
         ticket.setTicketStatus(TicketStatus.RESOLVED);
 
-        when(ticketUseCase.updateTicketStatus(eq(1L), eq(TicketStatus.RESOLVED), eq("before.jpg"), eq("after.jpg"), eq(null), eq(null)))
+        when(ticketUseCase.updateTicketStatus(eq(1L), eq(TicketStatus.RESOLVED), eq("before.jpg"), eq("after.jpg"), eq(null), eq(null), any()))
                 .thenReturn(ticket);
 
         TicketController.UpdateStatusRequest request = new TicketController.UpdateStatusRequest(

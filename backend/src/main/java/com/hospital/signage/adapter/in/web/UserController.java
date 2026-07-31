@@ -1,6 +1,7 @@
 package com.hospital.signage.adapter.in.web;
 
 import com.hospital.signage.application.port.in.UserUseCase;
+import com.hospital.signage.infrastructure.security.SecurityUtils;
 
 import com.hospital.signage.domain.model.User;
 import io.swagger.v3.oas.annotations.Operation;
@@ -30,16 +31,19 @@ public class UserController {
     public ResponseEntity<PagedResponse<UserResponse>> getAllUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "") String search) {
-        var result = userUseCase.getUsersPage(Math.max(0, page), Math.min(Math.max(1, size), 100), search).map(UserResponse::from);
+            @RequestParam(defaultValue = "") String search,
+            @RequestParam(required = false) Long hospitalId) {
+        Long resolvedHospitalId = SecurityUtils.resolveAdminHospitalId(hospitalId);
+        var result = userUseCase.getUsersPage(Math.max(0, page), Math.min(Math.max(1, size), 100), search, resolvedHospitalId).map(UserResponse::from);
         return ResponseEntity.ok(PagedResponse.from(result));
     }
 
     @Operation(summary = "Danh sách kỹ thuật viên")
     @GetMapping("/technicians")
     @PreAuthorize("hasAuthority('USER_VIEW') or hasAuthority('TICKET_MANAGE')")
-    public ResponseEntity<List<UserResponse>> getTechnicians() {
-        return ResponseEntity.ok(userUseCase.getTechnicians().stream().map(UserResponse::from).toList());
+    public ResponseEntity<List<UserResponse>> getTechnicians(@RequestParam(required = false) Long hospitalId) {
+        Long resolvedHospitalId = SecurityUtils.resolveAdminHospitalId(hospitalId);
+        return ResponseEntity.ok(userUseCase.getTechnicians(resolvedHospitalId).stream().map(UserResponse::from).toList());
     }
 
     @Operation(summary = "Tạo tài khoản")

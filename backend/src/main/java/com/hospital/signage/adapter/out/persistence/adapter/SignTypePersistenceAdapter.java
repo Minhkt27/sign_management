@@ -46,9 +46,16 @@ public class SignTypePersistenceAdapter implements SignTypeDatabasePort {
     }
 
     @Override
-    public Page<SignType> findPage(String search, Pageable pageable) {
+    public List<SignType> findAllByHospital(Long hospitalId) {
+        return repository.findAllByHospital(hospitalId).stream()
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<SignType> findPage(String search, Long hospitalId, Pageable pageable) {
         String s = search == null ? "" : search;
-        return repository.search(s, pageable).map(mapper::toDomain);
+        return repository.search(s, hospitalId, pageable).map(mapper::toDomain);
     }
 
     @Override

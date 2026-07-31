@@ -5,6 +5,7 @@ import { ticketService, TicketSummary } from '@/services/ticketService';
 import { PagedResponse } from '@/services/assetService';
 import { MaintenanceTicket, User } from '@/shared/types';
 import { Pagination } from '@/shared/components/Pagination';
+import { useAdminStore } from '@/app/store/adminStore';
 import { TicketStatsCards } from '../components/TicketStatsCards';
 import { TicketFilters } from '../components/TicketFilters';
 import { TicketTable } from '../components/TicketTable';
@@ -38,9 +39,12 @@ export default function TicketListPage() {
     }
   };
 
+  const { selectedHospitalId } = useAdminStore();
+  const hospitalIdParam = selectedHospitalId === 'ALL' ? undefined : selectedHospitalId;
+
   const { data: summary } = useQuery<TicketSummary>({
-    queryKey: ['tickets-summary'],
-    queryFn: ticketService.getTicketsSummary,
+    queryKey: ['tickets-summary', hospitalIdParam],
+    queryFn: () => ticketService.getTicketsSummary(hospitalIdParam),
     staleTime: 60 * 1000,
   });
 
@@ -51,11 +55,12 @@ export default function TicketListPage() {
   });
 
   const { data: ticketData, isLoading } = useQuery<PagedResponse<MaintenanceTicket>>({
-    queryKey: ['tickets', page, statusFilter, priorityFilter, assigneeFilter],
+    queryKey: ['tickets', page, statusFilter, priorityFilter, assigneeFilter, hospitalIdParam],
     queryFn: () => ticketService.getTickets({
       status: statusFilter,
       priority: priorityFilter,
       assigneeId: assigneeFilter !== 'ALL' ? Number(assigneeFilter) : undefined,
+      hospitalId: hospitalIdParam,
     }, page, PAGE_SIZE),
   });
 

@@ -196,6 +196,6 @@ public class DataInitializer implements CommandLineRunner {
         MaintenanceTicket ticket = ticketUseCase.createTicket(ticketCmd);
         
         // Auto assign this ticket to the technician for simulation
-        ticketUseCase.assignTicket(ticket.getId(), tech.getId());
+        ticketUseCase.assignTicket(ticket.getId(), tech.getId(), null);
     }
 }

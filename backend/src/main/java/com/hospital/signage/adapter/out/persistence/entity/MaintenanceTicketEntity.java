@@ -48,6 +48,9 @@ public class MaintenanceTicketEntity {
     @Column(name = "version", columnDefinition = "integer default 0 not null")
     private int version;
 
+    @Column(name = "hospital_id", nullable = false)
+    private Long hospitalId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "asset_id", nullable = false)
     private AssetEntity asset;

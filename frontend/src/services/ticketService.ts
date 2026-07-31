@@ -19,7 +19,7 @@ export interface TicketSummary {
 
 export const ticketService = {
   getTickets: async (
-    filters?: { assigneeId?: number; assetId?: string; status?: string; priority?: string },
+    filters?: { assigneeId?: number; assetId?: string; status?: string; priority?: string; hospitalId?: number },
     page = 0,
     size = 10
   ): Promise<PagedResponse<MaintenanceTicket>> => {
@@ -30,12 +30,15 @@ export const ticketService = {
     if (filters?.assetId) params.append('assetId', filters.assetId);
     if (filters?.status && filters.status !== 'ALL') params.append('status', filters.status);
     if (filters?.priority && filters.priority !== 'ALL') params.append('priority', filters.priority);
+    if (filters?.hospitalId !== undefined) params.append('hospitalId', String(filters.hospitalId));
     const response = await apiClient.get<PagedResponse<MaintenanceTicket>>(`/tickets?${params.toString()}`);
     return response.data;
   },
 
-  getTicketsSummary: async (): Promise<TicketSummary> => {
-    const response = await apiClient.get<Record<string, number>>('/tickets/summary');
+  getTicketsSummary: async (hospitalId?: number): Promise<TicketSummary> => {
+    const params = new URLSearchParams();
+    if (hospitalId) params.append('hospitalId', String(hospitalId));
+    const response = await apiClient.get<Record<string, number>>(`/tickets/summary${hospitalId ? '?' + params.toString() : ''}`);
     const data = response.data;
     return {
       OPEN: data.OPEN ?? 0,

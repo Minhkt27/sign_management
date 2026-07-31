@@ -6,6 +6,7 @@ import com.hospital.signage.domain.enums.TicketSource;
 import com.hospital.signage.domain.enums.TicketStatus;
 import com.hospital.signage.domain.model.MaintenanceTicket;
 import com.hospital.signage.domain.model.User;
+import com.hospital.signage.infrastructure.security.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -38,7 +39,8 @@ public class TicketController {
             @RequestParam(required = false) TicketStatus status,
             @RequestParam(required = false) Priority priority,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) Long hospitalId) {
         User caller = currentUser();
         if (!isAdminCaller()) {
             if (caller == null) {
@@ -46,22 +48,24 @@ public class TicketController {
             }
             assigneeId = caller.getId();
         }
+        Long resolvedHospitalId = SecurityUtils.resolveAdminHospitalId(hospitalId);
         return ResponseEntity.ok(PagedResponse.from(ticketUseCase.getTicketsPage(
-                Math.max(0, page), Math.min(Math.max(1, size), 100), assigneeId, assetId, status, priority)));
+                Math.max(0, page), Math.min(Math.max(1, size), 100), assigneeId, assetId, status, priority,
+                resolvedHospitalId)));
     }
 
     @Operation(summary = "Thống kê số lượng phiếu theo trạng thái")
     @GetMapping("/summary")
     @PreAuthorize("hasAuthority('ASSET_MANAGE') or hasAuthority('USER_MANAGE')")
-    public ResponseEntity<Map<String, Long>> getTicketsSummary() {
-        return ResponseEntity.ok(ticketUseCase.getTicketsSummary());
+    public ResponseEntity<Map<String, Long>> getTicketsSummary(@RequestParam(required = false) Long hospitalId) {
+        return ResponseEntity.ok(ticketUseCase.getTicketsSummary(SecurityUtils.resolveAdminHospitalId(hospitalId)));
     }
 
     @Operation(summary = "Chi tiết phiếu bảo trì theo ID")
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('TICKET_VIEW') or hasAuthority('TICKET_MANAGE')")
     public ResponseEntity<MaintenanceTicket> getTicketById(@PathVariable Long id) {
-        return ticketUseCase.getTicketById(id)
+        return ticketUseCase.getTicketById(id, SecurityUtils.getCurrentHospitalId())
                 .map(ticket -> {
                     assertCanViewTicket(ticket);
                     return ResponseEntity.ok(ticket);
@@ -95,7 +99,7 @@ public class TicketController {
     public ResponseEntity<MaintenanceTicket> assignTicket(
             @PathVariable Long id,
             @RequestBody AssignTicketRequest request) {
-        return ResponseEntity.ok(ticketUseCase.assignTicket(id, request.assigneeId()));
+        return ResponseEntity.ok(ticketUseCase.assignTicket(id, request.assigneeId(), SecurityUtils.getCurrentHospitalId()));
     }
 
     @Operation(summary = "Kỹ thuật viên tự nhận phiếu")
@@ -106,7 +110,7 @@ public class TicketController {
         if (!(principal instanceof User technician)) {
             return ResponseEntity.status(401).build();
         }
-        return ResponseEntity.ok(ticketUseCase.takeTicket(id, technician.getId()));
+        return ResponseEntity.ok(ticketUseCase.takeTicket(id, technician.getId(), SecurityUtils.getCurrentHospitalId()));
     }
 
     @Operation(summary = "Cập nhật trạng thái phiếu (xử lý, hoàn thành, đóng, từ chối)")
@@ -131,7 +135,8 @@ public class TicketController {
                 request.imageBefore(),
                 request.imageAfter(),
                 request.rejectionNote(),
-                technicianId
+                technicianId,
+                SecurityUtils.getCurrentHospitalId()
         ));
     }
 
@@ -143,7 +148,10 @@ public class TicketController {
     private boolean isAdminCaller() {
         var authorities = SecurityContextHolder.getContext().getAuthentication().getAuthorities();
         return authorities.stream().anyMatch(a ->
-                "ASSET_MANAGE".equals(a.getAuthority()) || "USER_MANAGE".equals(a.getAuthority()));
+                "ASSET_MANAGE".equals(a.getAuthority()) || 
+                "USER_MANAGE".equals(a.getAuthority()) ||
+                "TICKET_MANAGE".equals(a.getAuthority()) ||
+                "TICKET_VIEW".equals(a.getAuthority()));
     }
 
     private void assertCanViewTicket(MaintenanceTicket ticket) {

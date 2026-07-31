@@ -1,7 +1,11 @@
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Pencil, Trash2 } from 'lucide-react';
-import { SignType } from '@/shared/types';
+import { Pencil, Trash2, Building2 } from 'lucide-react';
+import { SignType, Hospital } from '@/shared/types';
+import { useAdminStore } from '@/app/store/adminStore';
+import { useQuery } from '@tanstack/react-query';
+import { hospitalService } from '@/services/hospitalService';
+import { authStore, isSuperAdmin } from '@/app/store/authStore';
 
 interface Props {
   signTypes: SignType[];
@@ -13,14 +17,30 @@ interface Props {
 }
 
 export function SignTypeTable({ signTypes, page, pageSize, search, onEdit, onDelete }: Props) {
+  const { selectedHospitalId } = useAdminStore();
+  const token = authStore.getToken();
+  const isSuper = isSuperAdmin(token);
+
+  const { data: hospitals } = useQuery<Hospital[]>({
+    queryKey: ['all-hospitals'],
+    queryFn: hospitalService.getAllHospitals,
+    enabled: isSuper && selectedHospitalId === 'ALL',
+  });
+
+  const getHospitalName = (id?: number) => {
+    if (!id || !hospitals) return '—';
+    const h = hospitals.find(x => x.id === id);
+    return h ? h.name : '—';
+  };
+
   return (
     <div className="border border-slate-200 rounded-xl overflow-x-auto">
       <Table>
         <TableHeader className="bg-slate-50">
           <TableRow>
             <TableHead className="text-sm font-bold text-slate-700 text-left w-[60px]">#</TableHead>
-            <TableHead className="text-sm font-bold text-slate-700 text-left">Mã loại</TableHead>
             <TableHead className="text-sm font-bold text-slate-700 text-left">Tên loại biển</TableHead>
+            {isSuper && selectedHospitalId === 'ALL' && <TableHead className="text-sm font-bold text-slate-700 text-left">Bệnh viện</TableHead>}
             <TableHead className="text-sm font-bold text-slate-700 text-left">Mô tả</TableHead>
             <TableHead className="text-sm font-bold text-slate-700 text-left w-[120px]">Hành động</TableHead>
           </TableRow>
@@ -30,8 +50,17 @@ export function SignTypeTable({ signTypes, page, pageSize, search, onEdit, onDel
             signTypes.map((st, idx) => (
               <TableRow key={st.id} className="hover:bg-slate-50/50">
                 <TableCell className="text-sm text-slate-400 text-left">{page * pageSize + idx + 1}</TableCell>
-                <TableCell className="font-mono font-semibold text-slate-700 text-left">{st.code}</TableCell>
                 <TableCell className="text-sm font-semibold text-slate-800 text-left">{st.name}</TableCell>
+                {isSuper && selectedHospitalId === 'ALL' && (
+                  <TableCell className="text-sm text-left text-slate-600">
+                    <div className="flex items-center gap-1.5">
+                      <Building2 size={14} className="text-slate-400" />
+                      <span className="truncate max-w-[120px]" title={getHospitalName(st.hospitalId)}>
+                        {getHospitalName(st.hospitalId)}
+                      </span>
+                    </div>
+                  </TableCell>
+                )}
                 <TableCell className="text-sm text-slate-500 text-left max-w-[300px] truncate">{st.description || '—'}</TableCell>
                 <TableCell className="text-left">
                   <div className="flex items-center space-x-1.5">
@@ -47,7 +76,7 @@ export function SignTypeTable({ signTypes, page, pageSize, search, onEdit, onDel
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={5} className="h-24 text-center text-sm text-slate-400 font-medium">
+              <TableCell colSpan={selectedHospitalId === 'ALL' ? 5 : 4} className="h-24 text-center text-sm text-slate-400 font-medium">
                 {search ? 'Không tìm thấy loại biển phù hợp.' : 'Chưa có loại biển nào. Hãy tạo loại biển đầu tiên!'}
               </TableCell>
             </TableRow>

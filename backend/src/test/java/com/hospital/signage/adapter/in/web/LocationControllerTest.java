@@ -56,7 +56,7 @@ public class LocationControllerTest {
         loc2.setId(2L);
         loc2.setName("Building B");
 
-        when(locationUseCase.getAllLocations()).thenReturn(Arrays.asList(loc1, loc2));
+        when(locationUseCase.getAllLocations(any())).thenReturn(Arrays.asList(loc1, loc2));
 
         mockMvc.perform(get("/api/locations")
                 .contentType(MediaType.APPLICATION_JSON))
@@ -106,7 +106,7 @@ public class LocationControllerTest {
         updatedLoc.setId(1L);
         updatedLoc.setName("Updated Department");
 
-        when(locationUseCase.updateLocation(any(Long.class), any(Location.class))).thenReturn(updatedLoc);
+        when(locationUseCase.updateLocation(any(Long.class), any(Location.class), any())).thenReturn(updatedLoc);
 
         mockMvc.perform(put("/api/locations/1")
                 .with(csrf())

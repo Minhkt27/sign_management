@@ -21,7 +21,7 @@ public class FileUploadController {
 
     @Operation(summary = "Tải ảnh lên (trả về URL). type=FLOOR_MAP cho phép tối đa 20MB, mặc định 5MB.")
     @PostMapping("/upload")
-    @PreAuthorize("hasAnyAuthority('ASSET_MANAGE', 'TICKET_MANAGE', 'FILE_UPLOAD')")
+    @PreAuthorize("hasAnyAuthority('ASSET_MANAGE', 'FILE_UPLOAD')")
     public ResponseEntity<UploadResponse> uploadFile(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "type", defaultValue = "ASSET") String type,

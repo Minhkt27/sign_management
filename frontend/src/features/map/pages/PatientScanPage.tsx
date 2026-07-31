@@ -1,12 +1,22 @@
 import { useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { assetService } from '@/services/assetService';
 import { mapService } from '@/services/mapService';
+import { HOSPITAL_ID_STORAGE_KEY } from '@/app/store/authStore';
 
 export default function PatientScanPage() {
   const { assetCode } = useParams<{ assetCode: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  // QR mang sẵn hospitalId qua ?h=; mặc định về viện 1 nếu thiếu (QR cũ đã in trước Phase 4).
+  // Set đồng bộ trong thân component (không phải useEffect) để đảm bảo sessionStorage đã có
+  // giá trị TRƯỚC khi apiClient interceptor xử lý request getAssetByCode bên dưới.
+  const hospitalIdParam = searchParams.get('h') || '1';
+  if (sessionStorage.getItem(HOSPITAL_ID_STORAGE_KEY) !== hospitalIdParam) {
+    sessionStorage.setItem(HOSPITAL_ID_STORAGE_KEY, hospitalIdParam);
+  }
 
   const { data: asset, isError: assetError } = useQuery({
     queryKey: ['public-asset', assetCode],

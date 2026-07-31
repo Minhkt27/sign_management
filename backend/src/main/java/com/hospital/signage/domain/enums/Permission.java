@@ -10,7 +10,8 @@ public final class Permission {
             "ASSET_VIEW", "ASSET_MANAGE",
             "TICKET_VIEW", "TICKET_MANAGE", "TICKET_CREATE",
             "MAP_VIEW", "MAP_MANAGE",
-            "FILE_UPLOAD"
+            "FILE_UPLOAD",
+            "HOSPITAL_VIEW", "HOSPITAL_MANAGE"
     );
 
     private Permission() {

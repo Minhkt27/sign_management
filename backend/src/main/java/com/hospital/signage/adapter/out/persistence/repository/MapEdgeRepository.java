@@ -22,4 +22,8 @@ public interface MapEdgeRepository extends JpaRepository<MapEdgeEntity, Long> {
 
     @Query("SELECT COUNT(e) > 0 FROM MapEdgeEntity e WHERE (e.nodeFromId = :a AND e.nodeToId = :b) OR (e.nodeFromId = :b AND e.nodeToId = :a)")
     boolean existsBetween(@Param("a") Long nodeA, @Param("b") Long nodeB);
+
+    @Query("SELECT e FROM MapEdgeEntity e WHERE (:hospitalId IS NULL OR e.nodeFromId IN " +
+           "(SELECT n.id FROM MapNodeEntity n WHERE n.floorId IN (SELECT f.id FROM MapFloorEntity f WHERE f.hospitalId = :hospitalId)))")
+    List<MapEdgeEntity> findAllByHospital(@Param("hospitalId") Long hospitalId);
 }

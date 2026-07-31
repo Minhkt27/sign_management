@@ -1,11 +1,14 @@
 package com.hospital.signage.application.service;
 
 import com.hospital.signage.application.port.in.MapUseCase;
+import com.hospital.signage.application.port.out.LocationDatabasePort;
 import com.hospital.signage.application.port.out.MapDatabasePort;
 import com.hospital.signage.domain.enums.NodeType;
+import com.hospital.signage.domain.model.Location;
 import com.hospital.signage.domain.model.MapEdge;
 import com.hospital.signage.domain.model.MapFloor;
 import com.hospital.signage.domain.model.MapNode;
+import com.hospital.signage.infrastructure.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,6 +24,7 @@ import java.util.stream.Collectors;
 public class MapService implements MapUseCase {
 
     private final MapDatabasePort mapDatabasePort;
+    private final LocationDatabasePort locationDatabasePort;
     private final MapGraphCache mapGraphCache;
 
     // ── Floor ──────────────────────────────────────────────────────────────
@@ -31,6 +35,9 @@ public class MapService implements MapUseCase {
         mapDatabasePort.findFloorByLocationId(floor.getLocationId()).ifPresent(existing -> {
             throw new IllegalArgumentException("Tầng này đã có sơ đồ (id=" + existing.getId() + ")");
         });
+        Location location = locationDatabasePort.findById(floor.getLocationId())
+                .orElseThrow(() -> new IllegalArgumentException("Vị trí không tồn tại: " + floor.getLocationId()));
+        floor.setHospitalId(location.getHospitalId());
         MapFloor saved = mapDatabasePort.saveFloor(floor);
         log.info("MapFloor created: id={}, locationId={}", saved.getId(), saved.getLocationId());
         return saved;
@@ -58,18 +65,20 @@ public class MapService implements MapUseCase {
     }
 
     @Override
-    public List<MapFloor> getAllFloors() {
-        return mapDatabasePort.findAllIndoorFloors();
+    public List<MapFloor> getAllFloors(Long hospitalId) {
+        return mapDatabasePort.findAllIndoorFloors(hospitalId);
     }
 
     @Override
     @Transactional
     public MapFloor createCampusFloor(MapFloor floor) {
-        mapDatabasePort.findCampusFloor().ifPresent(existing -> {
+        Long hospitalId = SecurityUtils.getCurrentHospitalId();
+        mapDatabasePort.findCampusFloor(hospitalId).ifPresent(existing -> {
             throw new IllegalArgumentException("Sơ đồ tổng thể đã tồn tại (id=" + existing.getId() + ")");
         });
         floor.setCampus(true);
         floor.setLocationId(null);
+        floor.setHospitalId(hospitalId != null ? hospitalId : SecurityUtils.DEFAULT_HOSPITAL_ID);
         MapFloor saved = mapDatabasePort.saveFloor(floor);
         mapGraphCache.invalidateAll();
         log.info("Campus map created: id={}", saved.getId());
@@ -79,7 +88,7 @@ public class MapService implements MapUseCase {
     @Override
     @Transactional
     public MapFloor updateCampusFloor(MapFloor floor) {
-        MapFloor existing = mapDatabasePort.findCampusFloor()
+        MapFloor existing = mapDatabasePort.findCampusFloor(SecurityUtils.getCurrentHospitalId())
                 .orElseThrow(() -> new IllegalArgumentException("Chưa có sơ đồ tổng thể"));
         existing.setImageUrl(floor.getImageUrl());
         existing.setImgWidth(floor.getImgWidth());
@@ -90,8 +99,8 @@ public class MapService implements MapUseCase {
     }
 
     @Override
-    public Optional<MapFloorData> getCampusMap() {
-        return mapDatabasePort.findCampusFloor().map(campus -> {
+    public Optional<MapFloorData> getCampusMap(Long hospitalId) {
+        return mapDatabasePort.findCampusFloor(hospitalId).map(campus -> {
             List<MapNode> nodes = mapDatabasePort.findNodesByFloorId(campus.getId());
             List<MapEdge> edges = mapDatabasePort.findEdgesByFloorId(campus.getId());
             return new MapFloorData(campus, nodes, edges);
@@ -101,7 +110,7 @@ public class MapService implements MapUseCase {
     @Override
     @Transactional
     public void deleteCampusFloor() {
-        MapFloor campus = mapDatabasePort.findCampusFloor()
+        MapFloor campus = mapDatabasePort.findCampusFloor(SecurityUtils.getCurrentHospitalId())
                 .orElseThrow(() -> new IllegalArgumentException("Chưa có sơ đồ tổng thể"));
         mapDatabasePort.deleteFloorById(campus.getId());
         mapGraphCache.invalidateAll();
@@ -238,6 +247,14 @@ public class MapService implements MapUseCase {
         MapNode to = mapDatabasePort.findNodeById(nodeToId)
                 .orElseThrow(() -> new IllegalArgumentException("Node không tồn tại: " + nodeToId));
 
+        MapFloor fromFloor = mapDatabasePort.findFloorById(from.getFloorId())
+                .orElseThrow(() -> new IllegalArgumentException("Sơ đồ không tồn tại: " + from.getFloorId()));
+        MapFloor toFloor = mapDatabasePort.findFloorById(to.getFloorId())
+                .orElseThrow(() -> new IllegalArgumentException("Sơ đồ không tồn tại: " + to.getFloorId()));
+        if (!java.util.Objects.equals(fromFloor.getHospitalId(), toFloor.getHospitalId())) {
+            throw new IllegalArgumentException("Không thể nối 2 điểm thuộc bệnh viện khác nhau.");
+        }
+
         if (mapDatabasePort.existsEdgeBetween(nodeFromId, nodeToId)) {
             throw new IllegalStateException("Kết nối giữa 2 điểm này đã tồn tại (kể cả chiều ngược lại).");
         }
@@ -272,17 +289,20 @@ public class MapService implements MapUseCase {
     // ── Wayfinding (Dijkstra's) ────────────────────────────────────────────
 
     @Override
-    public List<MapNode> findPath(Long fromNodeId, Long toNodeId, boolean avoidStairs) {
+    public List<MapNode> findPath(Long fromNodeId, Long toNodeId, boolean avoidStairs, Long hospitalId) {
         if (fromNodeId.equals(toNodeId)) {
-            return mapDatabasePort.findNodeById(fromNodeId)
-                    .map(Collections::singletonList)
+            MapNode single = mapDatabasePort.findNodeById(fromNodeId)
                     .orElseThrow(() -> new NoSuchElementException("Node không tồn tại: " + fromNodeId));
+            assertNodeInHospital(single, hospitalId);
+            return Collections.singletonList(single);
         }
 
         MapNode fromNode = mapDatabasePort.findNodeById(fromNodeId)
                 .orElseThrow(() -> new NoSuchElementException("Node không tồn tại: " + fromNodeId));
         MapNode toNode = mapDatabasePort.findNodeById(toNodeId)
                 .orElseThrow(() -> new NoSuchElementException("Node không tồn tại: " + toNodeId));
+        assertNodeInHospital(fromNode, hospitalId);
+        assertNodeInHospital(toNode, hospitalId);
 
         List<MapNode> allNodes;
         List<MapEdge> allEdges;
@@ -291,12 +311,12 @@ public class MapService implements MapUseCase {
             allNodes = floorData.nodes();
             allEdges = floorData.edges();
             if (!isReachable(fromNodeId, toNodeId, buildAdjacency(allNodes, allEdges))) {
-                MapGraphCache.GraphData fullData = mapGraphCache.loadFullGraph();
+                MapGraphCache.GraphData fullData = mapGraphCache.loadFullGraph(hospitalId);
                 allNodes = fullData.nodes();
                 allEdges = fullData.edges();
             }
         } else {
-            MapGraphCache.GraphData fullData = mapGraphCache.loadFullGraph();
+            MapGraphCache.GraphData fullData = mapGraphCache.loadFullGraph(hospitalId);
             allNodes = fullData.nodes();
             allEdges = fullData.edges();
         }
@@ -313,26 +333,29 @@ public class MapService implements MapUseCase {
     }
 
     @Override
-    public WayfindingResult findPathWithSegments(Long fromNodeId, Long toNodeId, boolean avoidStairs) {
+    public WayfindingResult findPathWithSegments(Long fromNodeId, Long toNodeId, boolean avoidStairs, Long hospitalId) {
         if (fromNodeId.equals(toNodeId)) {
-            return mapDatabasePort.findNodeById(fromNodeId)
-                    .map(n -> new WayfindingResult(List.of(new PathSegment(SegmentType.INDOOR, List.of(n)))))
+            MapNode single = mapDatabasePort.findNodeById(fromNodeId)
                     .orElseThrow(() -> new NoSuchElementException("Node không tồn tại: " + fromNodeId));
+            assertNodeInHospital(single, hospitalId);
+            return new WayfindingResult(List.of(new PathSegment(SegmentType.INDOOR, List.of(single))));
         }
 
         MapNode fromNode = mapDatabasePort.findNodeById(fromNodeId)
                 .orElseThrow(() -> new NoSuchElementException("Node không tồn tại: " + fromNodeId));
         MapNode toNode = mapDatabasePort.findNodeById(toNodeId)
                 .orElseThrow(() -> new NoSuchElementException("Node không tồn tại: " + toNodeId));
+        assertNodeInHospital(fromNode, hospitalId);
+        assertNodeInHospital(toNode, hospitalId);
 
-        Map<Long, Long> floorLocMap = mapGraphCache.loadFloorLocationMap();
+        Map<Long, Long> floorLocMap = mapGraphCache.loadFloorLocationMap(hospitalId);
         Long fromLoc = floorLocMap.get(fromNode.getFloorId());
         Long toLoc   = floorLocMap.get(toNode.getFloorId());
 
         // Same building or no campus map → single indoor segment
         boolean differentBuildings = fromLoc != null && toLoc != null && !fromLoc.equals(toLoc);
-        if (!differentBuildings || mapDatabasePort.findCampusFloor().isEmpty()) {
-            List<MapNode> path = findPath(fromNodeId, toNodeId, avoidStairs);
+        if (!differentBuildings || mapDatabasePort.findCampusFloor(hospitalId).isEmpty()) {
+            List<MapNode> path = findPath(fromNodeId, toNodeId, avoidStairs, hospitalId);
             return path.isEmpty() ? new WayfindingResult(List.of())
                     : new WayfindingResult(List.of(new PathSegment(SegmentType.INDOOR, path)));
         }
@@ -347,14 +370,14 @@ public class MapService implements MapUseCase {
 
         if (srcExits.isEmpty() || dstExits.isEmpty()) {
             // No campus-linked nodes configured yet — fallback to flat indoor path
-            List<MapNode> path = findPath(fromNodeId, toNodeId, avoidStairs);
+            List<MapNode> path = findPath(fromNodeId, toNodeId, avoidStairs, hospitalId);
             return path.isEmpty() ? new WayfindingResult(List.of())
                     : new WayfindingResult(List.of(new PathSegment(SegmentType.INDOOR, path)));
         }
 
         MapGraphCache.GraphData seg1Graph = applyAvoidStairs(mapGraphCache.loadFloorGraph(fromNode.getFloorId()), avoidStairs);
         MapGraphCache.GraphData seg3Graph = applyAvoidStairs(mapGraphCache.loadFloorGraph(toNode.getFloorId()), avoidStairs);
-        MapGraphCache.GraphData campusGraph = mapGraphCache.loadCampusGraph();
+        MapGraphCache.GraphData campusGraph = mapGraphCache.loadCampusGraph(hospitalId);
 
         double bestCost = Double.MAX_VALUE;
         DijkstraResult bestSeg1 = null, bestSeg2 = null, bestSeg3 = null;
@@ -387,7 +410,7 @@ public class MapService implements MapUseCase {
         }
 
         List<PathSegment> segments = expandTransitBuildings(
-                bestSeg1, bestSeg2, bestSeg3, srcExits, dstExits, avoidStairs);
+                bestSeg1, bestSeg2, bestSeg3, srcExits, dstExits, avoidStairs, hospitalId);
         return new WayfindingResult(segments);
     }
 
@@ -401,10 +424,10 @@ public class MapService implements MapUseCase {
      */
     private List<PathSegment> expandTransitBuildings(
             DijkstraResult seg1, DijkstraResult seg2, DijkstraResult seg3,
-            List<MapNode> srcExits, List<MapNode> dstExits, boolean avoidStairs) {
+            List<MapNode> srcExits, List<MapNode> dstExits, boolean avoidStairs, Long hospitalId) {
 
         // Build reverse map: campusNodeId → indoor ENTRANCE node
-        MapGraphCache.GraphData fullIndoor = applyAvoidStairs(mapGraphCache.loadFullIndoorGraph(), avoidStairs);
+        MapGraphCache.GraphData fullIndoor = applyAvoidStairs(mapGraphCache.loadFullIndoorGraph(hospitalId), avoidStairs);
         Map<Long, MapNode> campusToIndoor = new HashMap<>();
         for (MapNode n : fullIndoor.nodes()) {
             if (n.getLinkedCampusNodeId() != null) {
@@ -540,6 +563,17 @@ public class MapService implements MapUseCase {
             cur = prev.get(cur);
         }
         return new DijkstraResult(path, cost);
+    }
+
+    // hospitalId == null nghĩa là SUPER_ADMIN, không giới hạn viện nào.
+    // Bắt buộc kiểm tra ở đây vì loadFloorGraph(floorId) không tự lọc theo viện —
+    // nếu thiếu bước này, người dùng viện khác vẫn tìm được đường nếu biết node ID của viện khác.
+    private void assertNodeInHospital(MapNode node, Long hospitalId) {
+        if (hospitalId == null) return;
+        MapFloor floor = mapDatabasePort.findFloorById(node.getFloorId()).orElse(null);
+        if (floor == null || !hospitalId.equals(floor.getHospitalId())) {
+            throw new NoSuchElementException("Node không tồn tại: " + node.getId());
+        }
     }
 
     private MapGraphCache.GraphData applyAvoidStairs(MapGraphCache.GraphData graph, boolean avoidStairs) {

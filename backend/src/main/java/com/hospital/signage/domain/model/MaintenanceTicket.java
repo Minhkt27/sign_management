@@ -18,6 +18,7 @@ import java.time.Instant;
 public class MaintenanceTicket {
     private Long id;
     private int version;
+    private Long hospitalId;
     private Asset asset;
     private User reporter;
     private User assignee;

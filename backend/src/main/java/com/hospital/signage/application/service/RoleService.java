@@ -49,6 +49,17 @@ public class RoleService implements RoleUseCase {
     @Transactional
     public Role updateRole(UpdateRoleCommand command) {
         Role role = getRoleById(command.id());
+        
+        if ((role.getCode().equals("SUPER_ADMIN") || role.getPermissions().contains("HOSPITAL_MANAGE")) 
+                && !com.hospital.signage.infrastructure.security.SecurityUtils.isSuperAdmin()) {
+            throw new org.springframework.security.access.AccessDeniedException("Chỉ Quản trị hệ thống mới được phép sửa nhóm quyền Quản trị hệ thống.");
+        }
+        
+        if ((role.getCode().equals("SUPER_ADMIN") || role.getCode().equals("ADMIN") || role.getCode().equals("TECHNICAL")) 
+                && !role.getCode().equals(command.code())) {
+            throw new IllegalStateException("Không thể thay đổi mã của các nhóm quyền mặc định.");
+        }
+
         roleDatabasePort.findByCode(command.code()).ifPresent(existing -> {
             if (!existing.getId().equals(role.getId())) {
                 throw new IllegalArgumentException("Mã nhóm quyền đã tồn tại");
@@ -69,14 +80,22 @@ public class RoleService implements RoleUseCase {
             if (!Permission.VALID.contains(permission)) {
                 throw new IllegalArgumentException("Quyền không hợp lệ: " + permission);
             }
+            if ((permission.equals("HOSPITAL_MANAGE") || permission.equals("HOSPITAL_VIEW")) 
+                    && !com.hospital.signage.infrastructure.security.SecurityUtils.isSuperAdmin()) {
+                throw new org.springframework.security.access.AccessDeniedException("Chỉ Quản trị hệ thống mới có thể cấp quyền liên quan đến Quản lý Bệnh viện.");
+            }
         }
     }
 
     @Override
     @Transactional
     public void deleteRole(Long id) {
-        if (id == 1L || id == 2L) {
+        Role role = getRoleById(id);
+        if (role.getCode().equals("SUPER_ADMIN") || role.getCode().equals("ADMIN") || role.getCode().equals("TECHNICAL")) {
             throw new IllegalStateException("Không thể xóa nhóm quyền mặc định của hệ thống");
+        }
+        if (role.getPermissions().contains("HOSPITAL_MANAGE") && !com.hospital.signage.infrastructure.security.SecurityUtils.isSuperAdmin()) {
+            throw new org.springframework.security.access.AccessDeniedException("Chỉ Quản trị hệ thống mới được phép xóa nhóm quyền Quản trị hệ thống.");
         }
         roleDatabasePort.deleteById(id);
     }

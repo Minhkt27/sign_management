@@ -38,21 +38,26 @@ public interface TicketRepository extends JpaRepository<MaintenanceTicketEntity,
                    "AND (:assetId IS NULL OR t.asset.id = :assetId) " +
                    "AND (:status IS NULL OR t.ticketStatus = :status) " +
                    "AND (:priority IS NULL OR t.priority = :priority) " +
+                   "AND (:hospitalId IS NULL OR t.hospitalId = :hospitalId) " +
                    "ORDER BY t.createdAt DESC",
            countQuery = "SELECT COUNT(t) FROM MaintenanceTicketEntity t " +
                         "WHERE (:assigneeId IS NULL OR t.assignee.id = :assigneeId) " +
                         "AND (:assetId IS NULL OR t.asset.id = :assetId) " +
                         "AND (:status IS NULL OR t.ticketStatus = :status) " +
-                        "AND (:priority IS NULL OR t.priority = :priority)")
+                        "AND (:priority IS NULL OR t.priority = :priority) " +
+                        "AND (:hospitalId IS NULL OR t.hospitalId = :hospitalId)")
     Page<MaintenanceTicketEntity> findByFilters(
             @Param("assigneeId") Long assigneeId,
             @Param("assetId") UUID assetId,
             @Param("status") TicketStatus status,
             @Param("priority") Priority priority,
+            @Param("hospitalId") Long hospitalId,
             Pageable pageable);
 
-    @Query("SELECT t.ticketStatus, COUNT(t) FROM MaintenanceTicketEntity t GROUP BY t.ticketStatus")
-    List<Object[]> countByStatus();
+    @Query("SELECT t.ticketStatus, COUNT(t) FROM MaintenanceTicketEntity t " +
+           "WHERE (:hospitalId IS NULL OR t.hospitalId = :hospitalId) " +
+           "GROUP BY t.ticketStatus")
+    List<Object[]> countByStatus(@Param("hospitalId") Long hospitalId);
 
     @Query("SELECT COUNT(t) > 0 FROM MaintenanceTicketEntity t " +
            "WHERE (t.reporter.id = :userId OR t.assignee.id = :userId) " +

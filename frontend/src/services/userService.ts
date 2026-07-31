@@ -6,9 +6,9 @@ export const userService = {
   getAll: (): Promise<User[]> =>
     apiClient.get<User[]>('/users').then(r => r.data),
 
-  getPage: (page = 0, size = 15, search = ''): Promise<PagedResponse<User>> =>
+  getPage: (page = 0, size = 15, search = '', hospitalId?: number): Promise<PagedResponse<User>> =>
     apiClient.get<PagedResponse<User>>(
-      `/users?page=${page}&size=${size}&search=${encodeURIComponent(search)}`
+      `/users?page=${page}&size=${size}&search=${encodeURIComponent(search)}${hospitalId ? '&hospitalId=' + hospitalId : ''}`
     ).then(r => r.data),
 
   createUser: (data: { username: string; fullName: string; password: string; roleId: number; phone?: string; customPermissions: string[] }): Promise<User> =>

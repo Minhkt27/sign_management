@@ -51,6 +51,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/assets/code/**").permitAll()
                 .requestMatchers("/api/locations", "/api/locations/**").permitAll()
                 .requestMatchers("/api/sign-types", "/api/sign-types/**").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/hospitals", "/api/hospitals/**").permitAll()
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().denyAll()
             )

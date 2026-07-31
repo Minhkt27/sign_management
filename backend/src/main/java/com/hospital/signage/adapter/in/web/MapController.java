@@ -6,6 +6,7 @@ import com.hospital.signage.domain.enums.NodeType;
 import com.hospital.signage.domain.model.MapEdge;
 import com.hospital.signage.domain.model.MapFloor;
 import com.hospital.signage.domain.model.MapNode;
+import com.hospital.signage.infrastructure.security.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -30,8 +31,8 @@ public class MapController {
 
     @Operation(summary = "Danh sách tất cả sơ đồ tầng")
     @GetMapping("/floors")
-    public ResponseEntity<List<MapFloor>> getAllFloors() {
-        return ResponseEntity.ok(mapUseCase.getAllFloors());
+    public ResponseEntity<List<MapFloor>> getAllFloors(@RequestParam(required = false) Long hospitalId) {
+        return ResponseEntity.ok(mapUseCase.getAllFloors(SecurityUtils.resolveHospitalId(hospitalId)));
     }
 
     @Operation(summary = "Sơ đồ tầng theo ID (kèm nodes + edges)")
@@ -91,8 +92,8 @@ public class MapController {
 
     @Operation(summary = "Lấy sơ đồ tổng thể bệnh viện (public)")
     @GetMapping("/campus")
-    public ResponseEntity<MapFloorData> getCampusMap() {
-        return mapUseCase.getCampusMap()
+    public ResponseEntity<MapFloorData> getCampusMap(@RequestParam(required = false) Long hospitalId) {
+        return mapUseCase.getCampusMap(SecurityUtils.resolveHospitalId(hospitalId))
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -212,8 +213,9 @@ public class MapController {
     public ResponseEntity<List<MapNode>> findPath(
             @RequestParam Long from,
             @RequestParam Long to,
-            @RequestParam(defaultValue = "false") boolean avoidStairs) {
-        return ResponseEntity.ok(mapUseCase.findPath(from, to, avoidStairs));
+            @RequestParam(defaultValue = "false") boolean avoidStairs,
+            @RequestParam(required = false) Long hospitalId) {
+        return ResponseEntity.ok(mapUseCase.findPath(from, to, avoidStairs, SecurityUtils.resolveHospitalId(hospitalId)));
     }
 
     @Operation(summary = "Tìm đường theo đoạn (hỗ trợ liên tòa — public)")
@@ -221,8 +223,9 @@ public class MapController {
     public ResponseEntity<MapUseCase.WayfindingResult> findPathSegmented(
             @RequestParam Long from,
             @RequestParam Long to,
-            @RequestParam(defaultValue = "false") boolean avoidStairs) {
-        return ResponseEntity.ok(mapUseCase.findPathWithSegments(from, to, avoidStairs));
+            @RequestParam(defaultValue = "false") boolean avoidStairs,
+            @RequestParam(required = false) Long hospitalId) {
+        return ResponseEntity.ok(mapUseCase.findPathWithSegments(from, to, avoidStairs, SecurityUtils.resolveHospitalId(hospitalId)));
     }
 
     @Operation(summary = "Tìm đường đến asset (ADMIN/TECHNICAL — cho KTV)")
@@ -234,7 +237,7 @@ public class MapController {
         MapNode target = mapUseCase.getNodeByAssetId(assetId)
                 .orElse(null);
         if (target == null) return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(mapUseCase.findPath(from, target.getId(), avoidStairs));
+        return ResponseEntity.ok(mapUseCase.findPath(from, target.getId(), avoidStairs, SecurityUtils.getCurrentHospitalId()));
     }
 
     // ── Request records ────────────────────────────────────────────────────

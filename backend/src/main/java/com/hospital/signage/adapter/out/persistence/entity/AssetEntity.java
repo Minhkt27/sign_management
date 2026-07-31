@@ -41,6 +41,9 @@ public class AssetEntity {
     @Column(name = "asset_code", unique = true, nullable = false)
     private String assetCode;
 
+    @Column(name = "hospital_id", nullable = false)
+    private Long hospitalId;
+
     private String name;
 
     private String description;

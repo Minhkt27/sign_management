@@ -13,7 +13,8 @@ public interface UserDatabasePort {
     Optional<User> findById(Long id);
     Optional<User> findByUsername(String username);
     List<User> findByRoleId(Long roleId);
+    List<User> findByRoleIdAndHospital(Long roleId, Long hospitalId);
     List<User> findAll();
-    Page<User> findPage(String search, Pageable pageable);
+    Page<User> findPage(String search, Long hospitalId, Pageable pageable);
     void deleteById(Long id);
 }

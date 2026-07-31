@@ -1,5 +1,5 @@
 import axios, { InternalAxiosRequestConfig } from 'axios';
-import { authStore } from '../app/store/authStore';
+import { authStore, resolveHospitalId } from '../app/store/authStore';
 
 interface RetryableRequest extends InternalAxiosRequestConfig {
   _retry?: boolean;
@@ -21,6 +21,12 @@ apiClient.interceptors.request.use(
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    const hospitalId = resolveHospitalId();
+    if (hospitalId != null) {
+      config.params = { ...config.params, hospitalId };
+    }
+
     return config;
   },
   (error) => Promise.reject(error)

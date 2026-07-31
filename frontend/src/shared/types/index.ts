@@ -10,6 +10,22 @@ export interface Location {
   updatedAt?: string;
 }
 
+export interface Hospital {
+  id: number;
+  name: string;
+  shortCode: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  gpsRadiusM: number;
+  logoUrl?: string;
+  active: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface LocationTreeNode {
   location: Location;
   children: LocationTreeNode[];
@@ -20,6 +36,7 @@ export interface SignType {
   code: string;
   name: string;
   description?: string;
+  hospitalId?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -38,6 +55,7 @@ export interface Asset {
   installedAt?: string;
   supplier?: string;
   imageUrl?: string;
+  hospitalId?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -61,6 +79,7 @@ export interface User {
   phone?: string;
   customPermissions: string[];
   isActive: boolean;
+  hospitalId?: number;
 }
 
 export type NodeType = 'ROOM' | 'DEPARTMENT' | 'JUNCTION' | 'STAIRS' | 'ELEVATOR' | 'ENTRANCE';
@@ -72,6 +91,7 @@ export interface MapFloor {
   imgWidth: number;
   imgHeight: number;
   campus: boolean;
+  hospitalId?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -132,4 +152,5 @@ export interface MaintenanceTicket {
   imageBefore?: string;
   imageAfter?: string;
   source?: 'MANUAL' | 'QR_SCAN';
+  hospitalId?: number;
 }

@@ -13,6 +13,7 @@ import java.time.Instant;
 @AllArgsConstructor
 public class MapFloor {
     private Long id;
+    private Long hospitalId;
     private Long locationId;
     private String imageUrl;
     private int imgWidth;

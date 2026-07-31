@@ -38,9 +38,10 @@ public class SignTypeService implements SignTypeUseCase {
 
     @Override
     @Transactional
-    public SignType updateSignType(Long id, SignType signTypeDetails) {
+    public SignType updateSignType(Long id, SignType signTypeDetails, Long callerHospitalId) {
         SignType existing = signTypeDatabasePort.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy loại biển với ID: " + id));
+        assertSameHospital(existing, callerHospitalId);
 
         // Check unique code if changed
         if (!existing.getCode().equals(signTypeDetails.getCode())) {
@@ -61,20 +62,21 @@ public class SignTypeService implements SignTypeUseCase {
     }
 
     @Override
-    public List<SignType> getAllSignTypes() {
-        return signTypeDatabasePort.findAll();
+    public List<SignType> getAllSignTypes(Long hospitalId) {
+        return signTypeDatabasePort.findAllByHospital(hospitalId);
     }
 
     @Override
-    public Page<SignType> getSignTypesPage(int page, int size, String search) {
-        return signTypeDatabasePort.findPage(search, PageRequest.of(page, size));
+    public Page<SignType> getSignTypesPage(int page, int size, String search, Long hospitalId) {
+        return signTypeDatabasePort.findPage(search, hospitalId, PageRequest.of(page, size));
     }
 
     @Override
     @Transactional
-    public void deleteSignType(Long id) {
-        signTypeDatabasePort.findById(id)
+    public void deleteSignType(Long id, Long callerHospitalId) {
+        SignType existing = signTypeDatabasePort.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy loại biển với ID: " + id));
+        assertSameHospital(existing, callerHospitalId);
 
         // Check if any assets are using this sign type
         if (assetDatabasePort.existsBySignTypeId(id)) {
@@ -82,5 +84,13 @@ public class SignTypeService implements SignTypeUseCase {
         }
 
         signTypeDatabasePort.deleteById(id);
+    }
+
+    // callerHospitalId == null nghĩa là SUPER_ADMIN, không giới hạn viện nào.
+    private void assertSameHospital(SignType signType, Long callerHospitalId) {
+        if (callerHospitalId != null && !callerHospitalId.equals(signType.getHospitalId())) {
+            throw new com.hospital.signage.domain.exception.HospitalScopeException(
+                    "Không có quyền truy cập loại biển thuộc bệnh viện khác.");
+        }
     }
 }

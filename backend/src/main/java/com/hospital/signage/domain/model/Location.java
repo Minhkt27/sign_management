@@ -16,6 +16,7 @@ public class Location {
     private Long id;
     private String locationCode; // For display and lookup, e.g. "B1-T2-P01"
     private String name;
+    private Long hospitalId;
     private Long parentId;
     private String path; // For ltree structure later
     private String description;

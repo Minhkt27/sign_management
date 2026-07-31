@@ -46,7 +46,7 @@ public class TicketPersistenceAdapter implements TicketDatabasePort {
 
     @Override
     public Page<MaintenanceTicket> findAll(Pageable pageable) {
-        return repository.findByFilters(null, null, null, null, pageable).map(mapper::toDomain);
+        return repository.findByFilters(null, null, null, null, null, pageable).map(mapper::toDomain);
     }
 
     @Override
@@ -57,8 +57,8 @@ public class TicketPersistenceAdapter implements TicketDatabasePort {
     }
 
     @Override
-    public Page<MaintenanceTicket> findByFilters(Long assigneeId, UUID assetId, TicketStatus status, Priority priority, Pageable pageable) {
-        return repository.findByFilters(assigneeId, assetId, status, priority, pageable)
+    public Page<MaintenanceTicket> findByFilters(Long assigneeId, UUID assetId, TicketStatus status, Priority priority, Long hospitalId, Pageable pageable) {
+        return repository.findByFilters(assigneeId, assetId, status, priority, hospitalId, pageable)
                 .map(mapper::toDomain);
     }
 
@@ -73,8 +73,8 @@ public class TicketPersistenceAdapter implements TicketDatabasePort {
     }
 
     @Override
-    public Map<String, Long> countByStatus() {
-        return repository.countByStatus().stream()
+    public Map<String, Long> countByStatus(Long hospitalId) {
+        return repository.countByStatus(hospitalId).stream()
                 .collect(Collectors.toMap(
                         row -> ((Enum<?>) row[0]).name(),
                         row -> (Long) row[1]

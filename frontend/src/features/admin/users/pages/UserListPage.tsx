@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userService } from '@/services/userService';
 import { authStore } from '@/app/store/authStore';
+import { useAdminStore } from '@/app/store/adminStore';
 import { User } from '@/shared/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,9 +45,12 @@ export default function UserListPage() {
     queryFn: roleService.getAllRoles,
   });
 
+  const { selectedHospitalId } = useAdminStore();
+  const hospitalIdParam = selectedHospitalId === 'ALL' ? undefined : selectedHospitalId;
+
   const { data: pagedUsers, isLoading } = useQuery({
-    queryKey: ['users', page, search],
-    queryFn: () => userService.getPage(page, PAGE_SIZE, search),
+    queryKey: ['users', page, search, hospitalIdParam],
+    queryFn: () => userService.getPage(page, PAGE_SIZE, search, hospitalIdParam),
   });
 
   const users = pagedUsers?.content ?? [];

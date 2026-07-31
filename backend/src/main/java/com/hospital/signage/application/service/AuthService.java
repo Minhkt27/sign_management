@@ -50,20 +50,8 @@ public class AuthService implements AuthUseCase {
 
         loginAttemptService.recordSuccess(command.username());
 
-        java.util.List<String> permissions = new java.util.ArrayList<>();
-        UiMode uiMode = UiMode.ADMIN;
-        if (user.getRoleId() != null) {
-            Role role = roleDatabasePort.findById(user.getRoleId()).orElse(null);
-            if (role != null) {
-                if (role.getPermissions() != null) permissions.addAll(role.getPermissions());
-                if (role.getUiMode() != null) uiMode = role.getUiMode();
-            }
-        }
-        if (user.getCustomPermissions() != null) {
-            permissions.addAll(user.getCustomPermissions());
-        }
-
-        String token = jwtTokenProvider.generateToken(user.getUsername(), permissions, uiMode.name());
+        AuthClaims claims = buildAuthClaims(user);
+        String token = jwtTokenProvider.generateToken(user.getUsername(), claims.permissions(), claims.uiMode(), user.getHospitalId());
         String refreshToken = jwtTokenProvider.generateRefreshToken(user.getUsername());
 
         user.setRefreshToken(refreshToken);
@@ -87,20 +75,8 @@ public class AuthService implements AuthUseCase {
             throw new InvalidCredentialsException("Invalid or expired refresh token");
         }
 
-        java.util.List<String> permissions = new java.util.ArrayList<>();
-        UiMode uiMode = UiMode.ADMIN;
-        if (user.getRoleId() != null) {
-            Role role = roleDatabasePort.findById(user.getRoleId()).orElse(null);
-            if (role != null) {
-                if (role.getPermissions() != null) permissions.addAll(role.getPermissions());
-                if (role.getUiMode() != null) uiMode = role.getUiMode();
-            }
-        }
-        if (user.getCustomPermissions() != null) {
-            permissions.addAll(user.getCustomPermissions());
-        }
-
-        String newToken = jwtTokenProvider.generateToken(user.getUsername(), permissions, uiMode.name());
+        AuthClaims claims = buildAuthClaims(user);
+        String newToken = jwtTokenProvider.generateToken(user.getUsername(), claims.permissions(), claims.uiMode(), user.getHospitalId());
         String newRefreshToken = jwtTokenProvider.generateRefreshToken(user.getUsername());
 
         user.setRefreshToken(newRefreshToken);
@@ -116,5 +92,24 @@ public class AuthService implements AuthUseCase {
             user.setRefreshToken(null);
             userDatabasePort.save(user);
         });
+    }
+
+    private AuthClaims buildAuthClaims(User user) {
+        java.util.List<String> permissions = new java.util.ArrayList<>();
+        UiMode uiMode = UiMode.ADMIN;
+        if (user.getRoleId() != null) {
+            Role role = roleDatabasePort.findById(user.getRoleId()).orElse(null);
+            if (role != null) {
+                if (role.getPermissions() != null) permissions.addAll(role.getPermissions());
+                if (role.getUiMode() != null) uiMode = role.getUiMode();
+            }
+        }
+        if (user.getCustomPermissions() != null) {
+            permissions.addAll(user.getCustomPermissions());
+        }
+        return new AuthClaims(permissions, uiMode.name());
+    }
+
+    private record AuthClaims(java.util.List<String> permissions, String uiMode) {
     }
 }

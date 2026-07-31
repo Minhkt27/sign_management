@@ -16,6 +16,9 @@ public class MapFloorEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "hospital_id", nullable = false)
+    private Long hospitalId;
+
     @Column(name = "location_id")
     private Long locationId;
 

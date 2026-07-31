@@ -15,7 +15,7 @@ public interface MapUseCase {
     MapFloor updateFloor(Long id, MapFloor floor);
     Optional<MapFloor> getFloorById(Long id);
     Optional<MapFloor> getFloorByLocationId(Long locationId);
-    List<MapFloor> getAllFloors();
+    List<MapFloor> getAllFloors(Long hospitalId);
     void deleteFloor(Long id);
     MapFloorData getFloorData(Long floorId);
     List<MapFloorData> getFloorDataBatch(List<Long> floorIds);
@@ -23,7 +23,7 @@ public interface MapUseCase {
     // Campus map
     MapFloor createCampusFloor(MapFloor floor);
     MapFloor updateCampusFloor(MapFloor floor);
-    Optional<MapFloorData> getCampusMap();
+    Optional<MapFloorData> getCampusMap(Long hospitalId);
     void deleteCampusFloor();
 
     // Node
@@ -38,8 +38,8 @@ public interface MapUseCase {
     void deleteEdge(Long id);
 
     // Wayfinding
-    List<MapNode> findPath(Long fromNodeId, Long toNodeId, boolean avoidStairs);
-    WayfindingResult findPathWithSegments(Long fromNodeId, Long toNodeId, boolean avoidStairs);
+    List<MapNode> findPath(Long fromNodeId, Long toNodeId, boolean avoidStairs, Long hospitalId);
+    WayfindingResult findPathWithSegments(Long fromNodeId, Long toNodeId, boolean avoidStairs, Long hospitalId);
 
     enum SegmentType { INDOOR, OUTDOOR }
     record PathSegment(SegmentType type, List<MapNode> nodes) {}

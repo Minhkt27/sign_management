@@ -14,8 +14,8 @@ public interface MapDatabasePort {
     MapFloor saveFloor(MapFloor floor);
     Optional<MapFloor> findFloorById(Long id);
     Optional<MapFloor> findFloorByLocationId(Long locationId);
-    Optional<MapFloor> findCampusFloor();
-    List<MapFloor> findAllIndoorFloors();
+    Optional<MapFloor> findCampusFloor(Long hospitalId);
+    List<MapFloor> findAllIndoorFloors(Long hospitalId);
     List<MapFloor> findAllFloors();
     List<MapFloor> findFloorsByIds(List<Long> ids);
     void deleteFloorById(Long id);
@@ -35,10 +35,10 @@ public interface MapDatabasePort {
     List<MapEdge> findEdgesByFloorId(Long floorId);
     List<MapEdge> findEdgesByFloorIds(List<Long> floorIds);
     List<MapEdge> findEdgesByNodeId(Long nodeId);
-    List<MapEdge> findAllEdges();
     void deleteEdgeById(Long id);
     boolean existsEdgeBetween(Long nodeAId, Long nodeBId);
 
     // Wayfinding
-    List<MapNode> findAllNodes();
+    List<MapNode> findAllNodes(Long hospitalId);
+    List<MapEdge> findAllEdgesByHospital(Long hospitalId);
 }

@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { signTypeService } from '@/services/signTypeService';
 import { SignType } from '@/shared/types';
+import { useAdminStore } from '@/app/store/adminStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Search, Tags, FileText, HelpCircle } from 'lucide-react';
@@ -27,9 +28,12 @@ export default function SignTypeListPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<SignType | null>(null);
 
+  const { selectedHospitalId } = useAdminStore();
+  const hospitalIdParam = selectedHospitalId === 'ALL' ? undefined : selectedHospitalId;
+
   const { data: pagedData } = useQuery({
-    queryKey: ['signTypes', page, search],
-    queryFn: () => signTypeService.getPage(page, PAGE_SIZE, search),
+    queryKey: ['signTypes', page, search, hospitalIdParam],
+    queryFn: () => signTypeService.getPage(page, PAGE_SIZE, search, hospitalIdParam),
   });
 
   const signTypes = pagedData?.content ?? [];

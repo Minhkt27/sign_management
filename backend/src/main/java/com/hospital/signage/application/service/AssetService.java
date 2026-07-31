@@ -48,6 +48,9 @@ public class AssetService implements AssetUseCase {
         if (asset.getLocation() != null && asset.getLocation().getId() != null) {
             Location location = locationDatabasePort.findById(asset.getLocation().getId())
                     .orElseThrow(() -> new IllegalArgumentException("Location not found"));
+            if (!java.util.Objects.equals(location.getHospitalId(), asset.getHospitalId())) {
+                throw new IllegalArgumentException("Vị trí thuộc bệnh viện khác.");
+            }
             asset.setLocation(location);
         }
 
@@ -64,9 +67,10 @@ public class AssetService implements AssetUseCase {
 
     @Override
     @Transactional
-    public Asset updateAsset(UUID id, Asset updatedAsset) {
+    public Asset updateAsset(UUID id, Asset updatedAsset, Long callerHospitalId) {
         Asset existing = assetDatabasePort.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Asset not found"));
+        assertSameHospital(existing, callerHospitalId);
 
         existing.setAssetCode(updatedAsset.getAssetCode());
         existing.setName(updatedAsset.getName());
@@ -104,41 +108,51 @@ public class AssetService implements AssetUseCase {
     }
 
     @Override
-    public Optional<Asset> getAssetByCode(String assetCode) {
-        return assetDatabasePort.findByAssetCode(assetCode);
+    public Optional<Asset> getAssetByCode(String assetCode, Long hospitalId) {
+        return assetDatabasePort.findByAssetCode(assetCode)
+                .filter(asset -> hospitalId == null || hospitalId.equals(asset.getHospitalId()));
     }
 
     @Override
-    public List<Asset> getAllAssets() {
-        return assetDatabasePort.findAll();
+    public List<Asset> getAllAssets(Long hospitalId) {
+        return assetDatabasePort.findAllByHospital(hospitalId);
     }
 
     @Override
-    public Page<Asset> getAssetsPage(int page, int size, String search) {
-        return assetDatabasePort.search(search, PageRequest.of(page, size));
+    public Page<Asset> getAssetsPage(int page, int size, String search, Long hospitalId) {
+        return assetDatabasePort.search(search, hospitalId, PageRequest.of(page, size));
     }
 
     @Override
     public Page<Asset> getAssetsPage(int page, int size, String search, com.hospital.signage.domain.enums.AssetStatus status,
-            Long locationId, Long signTypeId) {
-        return assetDatabasePort.searchAndFilter(search, status, locationId, signTypeId, PageRequest.of(page, size));
+            Long locationId, Long signTypeId, Long hospitalId) {
+        return assetDatabasePort.searchAndFilter(search, status, locationId, signTypeId, hospitalId, PageRequest.of(page, size));
     }
 
     @Override
-    public Page<Asset> getAssetsByLocation(Long locationId, int page, int size) {
-        return assetDatabasePort.findByLocationId(locationId, PageRequest.of(page, size));
+    public Page<Asset> getAssetsByLocation(Long locationId, int page, int size, Long hospitalId) {
+        return assetDatabasePort.findByLocationIdAndHospital(locationId, hospitalId, PageRequest.of(page, size));
     }
 
     @Override
     @Transactional
-    public void deleteAsset(UUID id) {
+    public void deleteAsset(UUID id, Long callerHospitalId) {
         Asset asset = assetDatabasePort.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Asset not found"));
+        assertSameHospital(asset, callerHospitalId);
         if (ticketDatabasePort.existsByAssetId(id)) {
             throw new IllegalArgumentException("Không thể xóa biển báo này vì đang có phiếu bảo trì liên kết.");
         }
         assetDatabasePort.deleteById(id);
         scheduleImageDeletion(asset.getImageUrl());
+    }
+
+    // callerHospitalId == null nghĩa là SUPER_ADMIN, không giới hạn viện nào.
+    private void assertSameHospital(Asset asset, Long callerHospitalId) {
+        if (callerHospitalId != null && !callerHospitalId.equals(asset.getHospitalId())) {
+            throw new com.hospital.signage.domain.exception.HospitalScopeException(
+                    "Không có quyền truy cập biển báo thuộc bệnh viện khác.");
+        }
     }
 
     // Registers a post-commit hook so MinIO deletion only happens after DB commits.

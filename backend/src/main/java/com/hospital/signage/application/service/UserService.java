@@ -8,11 +8,11 @@ import com.hospital.signage.application.port.out.UserDatabasePort;
 import com.hospital.signage.domain.enums.Permission;
 import com.hospital.signage.domain.model.Role;
 import com.hospital.signage.domain.model.User;
+import com.hospital.signage.infrastructure.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -44,14 +44,14 @@ public class UserService implements UserUseCase {
     }
 
     @Override
-    public Page<User> getUsersPage(int page, int size, String search) {
-        return userDatabasePort.findPage(search, PageRequest.of(page, size));
+    public Page<User> getUsersPage(int page, int size, String search, Long hospitalId) {
+        return userDatabasePort.findPage(search, hospitalId, PageRequest.of(page, size));
     }
 
     @Override
-    public List<User> getTechnicians() {
+    public List<User> getTechnicians(Long hospitalId) {
         return roleDatabasePort.findByCode("TECHNICAL")
-                .map(role -> userDatabasePort.findByRoleId(role.getId()))
+                .map(role -> userDatabasePort.findByRoleIdAndHospital(role.getId(), hospitalId))
                 .orElse(List.of());
     }
 
@@ -63,11 +63,13 @@ public class UserService implements UserUseCase {
         }
         validatePermissions(command.customPermissions());
         validateRoleAssignmentAllowed(command.roleId());
+        Long callerHospitalId = SecurityUtils.getCurrentHospitalId();
         User user = User.builder()
                 .username(command.username())
                 .fullName(command.fullName())
                 .password(passwordEncoder.encode(command.password()))
                 .roleId(command.roleId())
+                .hospitalId(callerHospitalId != null ? callerHospitalId : SecurityUtils.DEFAULT_HOSPITAL_ID)
                 .phone(command.phone())
                 .customPermissions(command.customPermissions() != null ? command.customPermissions() : List.of())
                 .isActive(true)
@@ -82,6 +84,7 @@ public class UserService implements UserUseCase {
     public User updateUserRoleAndPermissions(Long userId, Long roleId, List<String> customPermissions) {
         User user = userDatabasePort.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại"));
+        assertSameHospital(user);
         if (Long.valueOf(1).equals(userId)) {
             throw new IllegalStateException("Không thể thay đổi quyền tài khoản quản trị viên");
         }
@@ -100,6 +103,9 @@ public class UserService implements UserUseCase {
             if (!Permission.VALID.contains(permission)) {
                 throw new IllegalArgumentException("Quyền không hợp lệ: " + permission);
             }
+            if ((permission.equals("HOSPITAL_MANAGE") || permission.equals("HOSPITAL_VIEW")) && !SecurityUtils.isSuperAdmin()) {
+                throw new org.springframework.security.access.AccessDeniedException("Chỉ Quản trị hệ thống mới có thể cấp quyền liên quan đến Quản lý Bệnh viện.");
+            }
         }
     }
 
@@ -110,7 +116,11 @@ public class UserService implements UserUseCase {
         boolean grantsPrivilegeManagement = role.getPermissions().contains("ROLE_MANAGE")
                 || role.getPermissions().contains("USER_MANAGE");
         if (grantsPrivilegeManagement && !callerHasAuthority("ROLE_MANAGE")) {
-            throw new AccessDeniedException("Chỉ người có quyền ROLE_MANAGE mới được gán vai trò có khả năng quản lý quyền/người dùng.");
+            throw new org.springframework.security.access.AccessDeniedException("Chỉ người có quyền ROLE_MANAGE mới được gán vai trò có khả năng quản lý quyền/người dùng.");
+        }
+        boolean isSuperAdminRole = "SUPER_ADMIN".equals(role.getCode()) || role.getPermissions().contains("HOSPITAL_MANAGE");
+        if (isSuperAdminRole && !SecurityUtils.isSuperAdmin()) {
+            throw new org.springframework.security.access.AccessDeniedException("Chỉ Quản trị hệ thống mới được phép cấp vai trò Quản trị hệ thống.");
         }
     }
 
@@ -133,6 +143,7 @@ public class UserService implements UserUseCase {
     public User setUserActive(Long id, boolean active) {
         User user = userDatabasePort.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại"));
+        assertSameHospital(user);
         if (!active && isCurrentUser(id)) {
             throw new IllegalStateException("Không thể tự khóa tài khoản đang đăng nhập của chính mình.");
         }
@@ -150,6 +161,7 @@ public class UserService implements UserUseCase {
     public String resetPassword(Long userId) {
         User user = userDatabasePort.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại"));
+        assertSameHospital(user);
         if (Long.valueOf(1).equals(userId)) {
             throw new IllegalStateException("Không thể reset mật khẩu tài khoản quản trị.");
         }
@@ -176,6 +188,7 @@ public class UserService implements UserUseCase {
     public User updateUser(UpdateUserCommand command) {
         User user = userDatabasePort.findById(command.id())
                 .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại"));
+        assertSameHospital(user);
         user.setFullName(command.fullName());
         user.setPhone(command.phone());
         User saved = userDatabasePort.save(user);
@@ -188,6 +201,7 @@ public class UserService implements UserUseCase {
     public void deleteUser(Long id) {
         User user = userDatabasePort.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại"));
+        assertSameHospital(user);
         if (Long.valueOf(1).equals(id)) {
             throw new IllegalStateException("Không thể xóa tài khoản quản trị viên");
         }
@@ -210,5 +224,22 @@ public class UserService implements UserUseCase {
         user.setPassword(passwordEncoder.encode(command.newPassword()));
         userDatabasePort.save(user);
         userCacheService.evict(user.getUsername());
+    }
+
+    // callerHospitalId == null nghĩa là SUPER_ADMIN, không giới hạn viện nào.
+    private void assertSameHospital(User targetUser) {
+        Long callerHospitalId = SecurityUtils.getCurrentHospitalId();
+        if (callerHospitalId != null && !callerHospitalId.equals(targetUser.getHospitalId())) {
+            throw new org.springframework.security.access.AccessDeniedException("Không có quyền truy cập người dùng của bệnh viện khác");
+        }
+        
+        // Ngăn chặn Admin chỉnh sửa Super Admin
+        if (!SecurityUtils.isSuperAdmin() && targetUser.getRoleId() != null) {
+            roleDatabasePort.findById(targetUser.getRoleId()).ifPresent(role -> {
+                if ("SUPER_ADMIN".equals(role.getCode()) || role.getPermissions().contains("HOSPITAL_MANAGE")) {
+                    throw new org.springframework.security.access.AccessDeniedException("Không có quyền chỉnh sửa tài khoản Quản trị hệ thống");
+                }
+            });
+        }
     }
 }

@@ -15,6 +15,12 @@ public interface LocationRepository extends JpaRepository<LocationEntity, Long> 
     boolean existsByParentId(Long parentId);
     boolean existsByLocationCode(String locationCode);
 
+    @Query("SELECT l FROM LocationEntity l WHERE (:hospitalId IS NULL OR l.hospitalId = :hospitalId)")
+    List<LocationEntity> findAllByHospital(@Param("hospitalId") Long hospitalId);
+
+    @Query("SELECT l FROM LocationEntity l WHERE l.parent.id = :parentId AND (:hospitalId IS NULL OR l.hospitalId = :hospitalId)")
+    List<LocationEntity> findByParentIdAndHospital(@Param("parentId") Long parentId, @Param("hospitalId") Long hospitalId);
+
     @Modifying(clearAutomatically = true)
     @Query("UPDATE LocationEntity l SET l.path = CONCAT(:newPath, SUBSTRING(l.path, LENGTH(:oldPath) + 1)) WHERE l.path LIKE CONCAT(:oldPath, '.%')")
     void bulkUpdatePathPrefix(@Param("oldPath") String oldPath, @Param("newPath") String newPath);

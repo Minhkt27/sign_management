@@ -12,6 +12,7 @@ public interface SignTypeDatabasePort {
     Optional<SignType> findById(Long id);
     Optional<SignType> findByCode(String code);
     List<SignType> findAll();
-    Page<SignType> findPage(String search, Pageable pageable);
+    List<SignType> findAllByHospital(Long hospitalId);
+    Page<SignType> findPage(String search, Long hospitalId, Pageable pageable);
     void deleteById(Long id);
 }
