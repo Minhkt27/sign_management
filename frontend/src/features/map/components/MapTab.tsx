@@ -41,6 +41,7 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
   const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   const isFirstMount = useRef(true);
+  const didAutoSearch = useRef(false);
   const compass = useCompassHeading();
 
   // Derived from result
@@ -130,6 +131,18 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
       setSearching(false);
     }
   };
+
+  // Nếu vào tab với cả From lẫn To đã biết sẵn (vd. quét QR khi đã có điểm đến nhớ từ
+  // lần trước), tự tìm đường luôn thay vì bắt người dùng bấm "Tìm đường" thêm 1 lần.
+  useEffect(() => {
+    if (didAutoSearch.current) return;
+    if (fromNodeId != null && destNodeId != null) {
+      didAutoSearch.current = true;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      handleFindPath(fromNodeId, destNodeId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromNodeId, destNodeId]);
 
   const visibleNodeIds = useMemo(() => {
     const ids = new Set<number>();

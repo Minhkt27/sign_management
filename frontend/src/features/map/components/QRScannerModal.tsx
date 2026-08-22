@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { X, Camera } from 'lucide-react';
 import { MapNode } from '@/shared/types';
-import { assetService } from '@/services/assetService';
-import { mapService } from '@/services/mapService';
+import { extractAssetCode, resolveAssetCodeToNode } from '../utils/qrAssetResolver';
 
 interface QRScannerModalProps {
   open: boolean;
@@ -58,19 +57,11 @@ export function QRScannerModal({ open, onClose, onScanSuccess }: QRScannerModalP
           isProcessingRef.current = true;
           setLoading(true);
           
-          let assetCode = decodedText;
-          if (decodedText.includes('/scan/')) {
-            assetCode = decodedText.split('/scan/')[1].split('?')[0];
-          }
+          const assetCode = extractAssetCode(decodedText);
+          if (!assetCode) throw new Error('Mã QR không hợp lệ. Vui lòng thử mã khác.');
 
-          const asset = await assetService.getAssetByCode(assetCode);
-          if (!asset) throw new Error('Không tìm thấy mã tài sản');
-          
-          const node = await mapService.getNodeByAsset(asset.id);
-          if (!node) throw new Error('Mã tài sản không được gắn trên bản đồ');
-          
-          const label = node.label || asset.name || asset.location?.name || 'Vị trí của bạn';
-          
+          const { node, label } = await resolveAssetCodeToNode(assetCode);
+
           onScanSuccess(node, label);
           onClose();
         } catch (err: unknown) {

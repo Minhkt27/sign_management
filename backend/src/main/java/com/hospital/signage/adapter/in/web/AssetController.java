@@ -5,6 +5,7 @@ import com.hospital.signage.domain.enums.AssetStatus;
 import com.hospital.signage.domain.enums.Material;
 import com.hospital.signage.domain.model.Asset;
 import com.hospital.signage.domain.model.Location;
+import com.hospital.signage.infrastructure.security.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -34,33 +35,35 @@ public class AssetController {
             @RequestParam(defaultValue = "") String search,
             @RequestParam(required = false) AssetStatus status,
             @RequestParam(required = false) Long locationId,
-            @RequestParam(required = false) Long signTypeId) {
+            @RequestParam(required = false) Long signTypeId,
+            @RequestParam(required = false) Long hospitalId) {
         int p = Math.max(0, page);
         int s = Math.min(Math.max(1, size), 100);
+        Long resolvedHospitalId = SecurityUtils.resolveAdminHospitalId(hospitalId);
         if (status == null && locationId == null && signTypeId == null) {
-            return ResponseEntity.ok(PagedResponse.from(assetUseCase.getAssetsPage(p, s, search)));
+            return ResponseEntity.ok(PagedResponse.from(assetUseCase.getAssetsPage(p, s, search, resolvedHospitalId)));
         }
-        return ResponseEntity.ok(PagedResponse.from(assetUseCase.getAssetsPage(p, s, search, status, locationId, signTypeId)));
+        return ResponseEntity.ok(PagedResponse.from(assetUseCase.getAssetsPage(p, s, search, status, locationId, signTypeId, resolvedHospitalId)));
     }
 
     @Operation(summary = "Toàn bộ biển báo (tối đa 1000, dùng cho cây/bản đồ)")
     @GetMapping("/all")
     public ResponseEntity<List<Asset>> getAllAssetsList() {
-        return ResponseEntity.ok(assetUseCase.getAllAssets());
+        return ResponseEntity.ok(assetUseCase.getAllAssets(SecurityUtils.getCurrentHospitalId()));
     }
 
     @Operation(summary = "Chi tiết biển báo theo ID")
     @GetMapping("/{id}")
     public ResponseEntity<Asset> getAssetById(@PathVariable UUID id) {
-        return assetUseCase.getAssetById(id)
+        return assetUseCase.getAssetById(id, SecurityUtils.getCurrentHospitalId())
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @Operation(summary = "Tìm biển báo theo mã")
     @GetMapping("/code/{code}")
-    public ResponseEntity<Asset> getAssetByCode(@PathVariable String code) {
-        return assetUseCase.getAssetByCode(code)
+    public ResponseEntity<Asset> getAssetByCode(@PathVariable String code, @RequestParam(required = false) Long hospitalId) {
+        return assetUseCase.getAssetByCode(code, SecurityUtils.resolveHospitalId(hospitalId))
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -71,28 +74,32 @@ public class AssetController {
             @PathVariable Long locationId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(PagedResponse.from(assetUseCase.getAssetsByLocation(locationId, Math.max(0, page), Math.min(Math.max(1, size), 100))));
+        return ResponseEntity.ok(PagedResponse.from(assetUseCase.getAssetsByLocation(locationId, Math.max(0, page),
+                Math.min(Math.max(1, size), 100), SecurityUtils.getCurrentHospitalId())));
     }
 
     @Operation(summary = "Tạo biển báo mới")
     @PreAuthorize("hasAuthority('ASSET_MANAGE')")
     @PostMapping
     public ResponseEntity<Asset> createAsset(@Valid @RequestBody AssetRequest request) {
-        return ResponseEntity.ok(assetUseCase.createAsset(request.toDomain()));
+        Asset asset = request.toDomain();
+        Long hospitalId = SecurityUtils.getCurrentHospitalId();
+        asset.setHospitalId(hospitalId != null ? hospitalId : SecurityUtils.DEFAULT_HOSPITAL_ID);
+        return ResponseEntity.ok(assetUseCase.createAsset(asset));
     }
 
     @Operation(summary = "Cập nhật biển báo")
     @PreAuthorize("hasAuthority('ASSET_MANAGE')")
     @PutMapping("/{id}")
     public ResponseEntity<Asset> updateAsset(@PathVariable UUID id, @Valid @RequestBody AssetRequest request) {
-        return ResponseEntity.ok(assetUseCase.updateAsset(id, request.toDomain()));
+        return ResponseEntity.ok(assetUseCase.updateAsset(id, request.toDomain(), SecurityUtils.getCurrentHospitalId()));
     }
 
     @Operation(summary = "Xóa biển báo")
     @PreAuthorize("hasAuthority('ASSET_MANAGE')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteAsset(@PathVariable UUID id) {
-        assetUseCase.deleteAsset(id);
+        assetUseCase.deleteAsset(id, SecurityUtils.getCurrentHospitalId());
         return ResponseEntity.ok().build();
     }
 

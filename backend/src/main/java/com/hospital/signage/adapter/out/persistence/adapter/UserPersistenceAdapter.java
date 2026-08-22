@@ -45,14 +45,21 @@ public class UserPersistenceAdapter implements UserDatabasePort {
     }
 
     @Override
+    public List<User> findByRoleIdAndHospital(Long roleId, Long hospitalId) {
+        return repository.findByRoleIdAndHospital(roleId, hospitalId).stream()
+                .map(mapper::toDomain)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
     public List<User> findAll() {
         return repository.findAll().stream().map(mapper::toDomain).toList();
     }
 
     @Override
-    public Page<User> findPage(String search, Pageable pageable) {
+    public Page<User> findPage(String search, Long hospitalId, Pageable pageable) {
         String s = search == null ? "" : search;
-        return repository.search(s, pageable).map(mapper::toDomain);
+        return repository.search(s, hospitalId, pageable).map(mapper::toDomain);
     }
 
     @Override

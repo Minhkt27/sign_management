@@ -25,6 +25,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -66,7 +67,7 @@ public class AssetControllerTest {
         asset2.setMaterial(Material.INOX);
         asset2.setStatus(AssetStatus.DAMAGED);
 
-        when(assetUseCase.getAssetsPage(0, 10, ""))
+        when(assetUseCase.getAssetsPage(eq(0), eq(10), eq(""), any()))
                 .thenReturn(new PageImpl<>(Arrays.asList(asset1, asset2)));
 
         mockMvc.perform(get("/api/assets")
@@ -84,7 +85,7 @@ public class AssetControllerTest {
         asset.setAssetCode("ASSET-001");
         asset.setStatus(AssetStatus.ACTIVE);
 
-        when(assetUseCase.getAssetById(id)).thenReturn(Optional.of(asset));
+        when(assetUseCase.getAssetById(eq(id), any())).thenReturn(Optional.of(asset));
 
         mockMvc.perform(get("/api/assets/" + id)
                         .contentType(MediaType.APPLICATION_JSON))
@@ -95,7 +96,7 @@ public class AssetControllerTest {
     @Test
     public void testGetAssetByIdNotFound() throws Exception {
         UUID id = UUID.randomUUID();
-        when(assetUseCase.getAssetById(id)).thenReturn(Optional.empty());
+        when(assetUseCase.getAssetById(eq(id), any())).thenReturn(Optional.empty());
 
         mockMvc.perform(get("/api/assets/" + id)
                         .contentType(MediaType.APPLICATION_JSON))
@@ -128,7 +129,7 @@ public class AssetControllerTest {
     @Test
     public void testDeleteAsset() throws Exception {
         UUID id = UUID.randomUUID();
-        doNothing().when(assetUseCase).deleteAsset(id);
+        doNothing().when(assetUseCase).deleteAsset(any(), any());
 
         mockMvc.perform(delete("/api/assets/" + id)
                         .with(csrf()))

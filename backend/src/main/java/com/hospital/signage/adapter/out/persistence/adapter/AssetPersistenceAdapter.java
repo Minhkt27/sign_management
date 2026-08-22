@@ -57,26 +57,43 @@ public class AssetPersistenceAdapter implements AssetDatabasePort {
     }
 
     @Override
+    public List<Asset> findAllByHospital(Long hospitalId) {
+        Page<AssetEntity> page = hospitalId == null
+                ? repository.findAll(PageRequest.of(0, MAX_TREE_ASSETS))
+                : repository.findByHospitalId(hospitalId, PageRequest.of(0, MAX_TREE_ASSETS));
+        List<Asset> result = page.stream().map(mapper::toDomain).collect(Collectors.toList());
+        if (result.size() == MAX_TREE_ASSETS) {
+            log.warn("getAllAssets hit the {} limit — tree view may be incomplete", MAX_TREE_ASSETS);
+        }
+        return result;
+    }
+
+    @Override
     public Page<Asset> findAll(Pageable pageable) {
         return repository.findAll(pageable).map(mapper::toDomain);
     }
 
     @Override
-    public Page<Asset> search(String search, Pageable pageable) {
+    public Page<Asset> search(String search, Long hospitalId, Pageable pageable) {
         String s = search == null ? "" : search;
-        return repository.search(s, pageable).map(mapper::toDomain);
+        return repository.search(s, hospitalId, pageable).map(mapper::toDomain);
     }
 
     @Override
-    public Page<Asset> searchAndFilter(String search, AssetStatus status, Long locationId, Long signTypeId, Pageable pageable) {
+    public Page<Asset> searchAndFilter(String search, AssetStatus status, Long locationId, Long signTypeId, Long hospitalId, Pageable pageable) {
         String s = search == null ? "" : search;
         String statusName = status == null ? null : status.name();
-        return repository.searchAndFilter(s, statusName, locationId, signTypeId, pageable).map(mapper::toDomain);
+        return repository.searchAndFilter(s, statusName, locationId, signTypeId, hospitalId, pageable).map(mapper::toDomain);
     }
 
     @Override
     public Page<Asset> findByLocationId(Long locationId, Pageable pageable) {
         return repository.findByLocationId(locationId, pageable).map(mapper::toDomain);
+    }
+
+    @Override
+    public Page<Asset> findByLocationIdAndHospital(Long locationId, Long hospitalId, Pageable pageable) {
+        return repository.findByLocationIdAndHospitalId(locationId, hospitalId, pageable).map(mapper::toDomain);
     }
 
     @Override

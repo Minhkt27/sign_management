@@ -1,0 +1,40 @@
+# Override dùng khi triển khai thật trên VPS, cùng với file gốc:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Việc này làm gì:
+#   - Thêm Caddy làm cổng vào duy nhất từ Internet, tự lo HTTPS (xem Caddyfile)
+#   - Bỏ public trực tiếp cổng 3000 (frontend) và 8080 (backend) ra ngoài —
+#     chỉ Caddy được expose ra Internet, frontend/backend chỉ nói chuyện nội bộ qua docker network
+#   - ngrok không tự chạy (đã gắn profile "dev" ở file gốc, không cần override thêm ở đây)
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: signage_caddy
+    restart: unless-stopped
+    depends_on:
+      - frontend
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  # ports: []  không xoá được cổng publish của file gốc — Compose mặc định GỘP THÊM, không thay thế,
+  # nên phải dùng tag !override để ép ghi đè hẳn danh sách cổng.
+  # Sau khi ghi đè, cổng chỉ bind về 127.0.0.1 (chỉ truy cập được từ chính VPS), không lộ ra Internet.
+  # Caddy vẫn gọi được vào frontend/backend qua tên service nội bộ (docker network), không qua các cổng này.
+  frontend:
+    ports: !override
+      - "127.0.0.1:3000:80"
+
+  backend:
+    ports: !override
+      - "127.0.0.1:8080:8080"
+
+volumes:
+  caddy_data:
+  caddy_config:

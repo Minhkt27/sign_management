@@ -44,7 +44,7 @@ public class SecurityIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void testAdminEndpoints_WithTechToken_ShouldReturn403() throws Exception {
-        String techToken = jwtTokenProvider.generateToken("tech", java.util.List.of("TICKET_VIEW"), "TECHNICIAN");
+        String techToken = jwtTokenProvider.generateToken("tech", java.util.List.of("TICKET_VIEW"), "TECHNICIAN", 1L);
 
         mockMvc.perform(post("/api/assets")
                         .header("Authorization", "Bearer " + techToken)
@@ -55,7 +55,7 @@ public class SecurityIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void testAdminEndpoints_WithAdminToken_ShouldReturnBadRequest() throws Exception {
-        String adminToken = jwtTokenProvider.generateToken("admin", java.util.List.of("TICKET_MANAGE", "ASSET_MANAGE"), "ADMIN");
+        String adminToken = jwtTokenProvider.generateToken("admin", java.util.List.of("TICKET_MANAGE", "ASSET_MANAGE"), "ADMIN", 1L);
 
         // Vượt qua 401/403, nhưng body sai format nên trả về 400 Bad Request
         mockMvc.perform(post("/api/assets")

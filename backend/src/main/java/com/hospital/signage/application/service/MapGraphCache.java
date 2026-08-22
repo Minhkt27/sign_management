@@ -21,9 +21,9 @@ public class MapGraphCache {
 
     public record GraphData(List<MapNode> nodes, List<MapEdge> edges) {}
 
-    @Cacheable("mapGraph")
-    public GraphData loadFullGraph() {
-        return new GraphData(mapDatabasePort.findAllNodes(), mapDatabasePort.findAllEdges());
+    @Cacheable(value = "mapGraph", key = "#hospitalId")
+    public GraphData loadFullGraph(Long hospitalId) {
+        return new GraphData(mapDatabasePort.findAllNodes(hospitalId), mapDatabasePort.findAllEdgesByHospital(hospitalId));
     }
 
     @Cacheable(value = "mapFloorGraph", key = "#floorId")
@@ -33,9 +33,9 @@ public class MapGraphCache {
                 mapDatabasePort.findEdgesByFloorId(floorId));
     }
 
-    @Cacheable("mapCampusGraph")
-    public GraphData loadCampusGraph() {
-        return mapDatabasePort.findCampusFloor()
+    @Cacheable(value = "mapCampusGraph", key = "#hospitalId")
+    public GraphData loadCampusGraph(Long hospitalId) {
+        return mapDatabasePort.findCampusFloor(hospitalId)
                 .map(campus -> new GraphData(
                         mapDatabasePort.findNodesByFloorId(campus.getId()),
                         mapDatabasePort.findEdgesByFloorId(campus.getId())))
@@ -43,13 +43,13 @@ public class MapGraphCache {
     }
 
     // All indoor nodes/edges — campus floor strictly excluded to prevent rogue cross-floor edges
-    @Cacheable("mapIndoorFullGraph")
-    public GraphData loadFullIndoorGraph() {
-        Long campusFloorId = mapDatabasePort.findCampusFloor()
+    @Cacheable(value = "mapIndoorFullGraph", key = "#hospitalId")
+    public GraphData loadFullIndoorGraph(Long hospitalId) {
+        Long campusFloorId = mapDatabasePort.findCampusFloor(hospitalId)
                 .map(f -> f.getId())
                 .orElse(null);
-        List<MapNode> allNodes = mapDatabasePort.findAllNodes();
-        List<MapEdge> allEdges = mapDatabasePort.findAllEdges();
+        List<MapNode> allNodes = mapDatabasePort.findAllNodes(hospitalId);
+        List<MapEdge> allEdges = mapDatabasePort.findAllEdgesByHospital(hospitalId);
         if (campusFloorId == null) return new GraphData(allNodes, allEdges);
 
         final Long cid = campusFloorId;
@@ -66,9 +66,9 @@ public class MapGraphCache {
     }
 
     // floorId → locationId mapping (indoor floors only)
-    @Cacheable("mapFloorLocationMap")
-    public Map<Long, Long> loadFloorLocationMap() {
-        return mapDatabasePort.findAllIndoorFloors().stream()
+    @Cacheable(value = "mapFloorLocationMap", key = "#hospitalId")
+    public Map<Long, Long> loadFloorLocationMap(Long hospitalId) {
+        return mapDatabasePort.findAllIndoorFloors(hospitalId).stream()
                 .filter(f -> f.getLocationId() != null)
                 .collect(Collectors.toMap(f -> f.getId(), f -> f.getLocationId()));
     }

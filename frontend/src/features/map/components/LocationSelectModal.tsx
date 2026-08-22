@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Html5Qrcode } from 'html5-qrcode';
-import { mapService } from '@/services/mapService';
 import { assetService } from '@/services/assetService';
 import { MapNode, MapFloorData, Location } from '@/shared/types';
 import { Search, CheckCircle2, XCircle } from 'lucide-react';
 import { normalize } from '../utils/pathHelpers';
+import { extractAssetCode, resolveAssetCodeToNode } from '../utils/qrAssetResolver';
 import {
   Dialog,
   DialogContent,
@@ -19,16 +19,6 @@ interface Props {
   allFloorData: MapFloorData[];
   locations: Location[];
   onSetLocation: (node: MapNode, label: string) => void;
-}
-
-function extractAssetCode(raw: string): string | null {
-  const match = raw.match(/\/(?:scan|tech\/assets|assets)\/([^/?#]+)/);
-  if (match) return match[1];
-  
-  if (!raw.startsWith('http://') && !raw.startsWith('https://')) {
-    return raw.trim();
-  }
-  return null;
 }
 
 export function LocationSelectModal({ open, onClose, allFloorData, locations, onSetLocation }: Props) {
@@ -125,9 +115,7 @@ export function LocationSelectModal({ open, onClose, allFloorData, locations, on
     }
 
     try {
-      const asset = await assetService.getAssetByCode(assetCode);
-      const node = await mapService.getNodeByAsset(asset.id);
-      const displayLabel = node.label || asset.name || 'Vị trí của bạn';
+      const { node, label: displayLabel } = await resolveAssetCodeToNode(assetCode);
       setStatus('ok');
       setMessage(`Đã xác định: ${displayLabel}`);
       onSetLocation(node, displayLabel);

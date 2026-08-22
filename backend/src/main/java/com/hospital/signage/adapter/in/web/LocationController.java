@@ -3,6 +3,7 @@ package com.hospital.signage.adapter.in.web;
 import com.hospital.signage.application.port.in.LocationUseCase;
 import com.hospital.signage.domain.enums.LocationType;
 import com.hospital.signage.domain.model.Location;
+import com.hospital.signage.infrastructure.security.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -25,20 +26,20 @@ public class LocationController {
 
     @Operation(summary = "Danh sách tất cả vị trí")
     @GetMapping
-    public ResponseEntity<List<Location>> getAllLocations() {
-        return ResponseEntity.ok(locationUseCase.getAllLocations());
+    public ResponseEntity<List<Location>> getAllLocations(@RequestParam(required = false) Long hospitalId) {
+        return ResponseEntity.ok(locationUseCase.getAllLocations(SecurityUtils.resolveHospitalId(hospitalId)));
     }
 
     @Operation(summary = "Cây vị trí (dạng phân cấp)")
     @GetMapping("/tree")
-    public ResponseEntity<List<LocationUseCase.LocationTreeNode>> getLocationTree() {
-        return ResponseEntity.ok(locationUseCase.getLocationTree());
+    public ResponseEntity<List<LocationUseCase.LocationTreeNode>> getLocationTree(@RequestParam(required = false) Long hospitalId) {
+        return ResponseEntity.ok(locationUseCase.getLocationTree(SecurityUtils.resolveHospitalId(hospitalId)));
     }
 
     @Operation(summary = "Chi tiết vị trí theo ID")
     @GetMapping("/{id}")
     public ResponseEntity<Location> getLocationById(@PathVariable Long id) {
-        return locationUseCase.getLocationById(id)
+        return locationUseCase.getLocationById(id, SecurityUtils.getCurrentHospitalId())
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -47,9 +48,11 @@ public class LocationController {
     @PreAuthorize("hasAuthority('MAP_MANAGE')")
     @PostMapping
     public ResponseEntity<Location> createLocation(@Valid @RequestBody LocationRequest req) {
+        Long hospitalId = SecurityUtils.getCurrentHospitalId();
         Location location = Location.builder()
                 .locationCode(req.locationCode())
                 .name(req.name())
+                .hospitalId(hospitalId != null ? hospitalId : SecurityUtils.DEFAULT_HOSPITAL_ID)
                 .parentId(req.parentId())
                 .description(req.description())
                 .type(req.type())
@@ -68,14 +71,14 @@ public class LocationController {
                 .description(req.description())
                 .type(req.type())
                 .build();
-        return ResponseEntity.ok(locationUseCase.updateLocation(id, location));
+        return ResponseEntity.ok(locationUseCase.updateLocation(id, location, SecurityUtils.getCurrentHospitalId()));
     }
 
     @Operation(summary = "Xóa vị trí")
     @PreAuthorize("hasAuthority('MAP_MANAGE')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteLocation(@PathVariable Long id) {
-        locationUseCase.deleteLocation(id);
+        locationUseCase.deleteLocation(id, SecurityUtils.getCurrentHospitalId());
         return ResponseEntity.ok().build();
     }
 

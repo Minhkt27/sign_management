@@ -28,6 +28,30 @@ export const getUiModeFromToken = (token: string | null): 'ADMIN' | 'TECHNICIAN'
   return payload?.uiMode === 'TECHNICIAN' ? 'TECHNICIAN' : 'ADMIN';
 };
 
+// null = SUPER_ADMIN (không giới hạn viện nào) hoặc chưa đăng nhập.
+export const getHospitalIdFromToken = (token: string | null): number | null => {
+  if (!token) return null;
+  const payload = decodeJwtPayload(token);
+  return typeof payload?.hospitalId === 'number' ? payload.hospitalId : null;
+};
+
+export const isSuperAdmin = (token: string | null): boolean => {
+  return getPermissionsFromToken(token).includes('HOSPITAL_MANAGE');
+};
+
+export const HOSPITAL_ID_STORAGE_KEY = 'hospitalId';
+
+// Đã đăng nhập: lấy hospitalId từ JWT (null = SUPER_ADMIN, không gửi param).
+// Chưa đăng nhập (luồng public/QR): lấy từ sessionStorage (do QR scan hoặc GPS-detect set).
+export const resolveHospitalId = (): string | null => {
+  const token = authStore.getToken();
+  if (token) {
+    const fromToken = getHospitalIdFromToken(token);
+    return fromToken != null ? String(fromToken) : null;
+  }
+  return sessionStorage.getItem(HOSPITAL_ID_STORAGE_KEY);
+};
+
 export const authStore = {
   getUser: (): AuthUser | null => {
     const user = localStorage.getItem('auth_user');

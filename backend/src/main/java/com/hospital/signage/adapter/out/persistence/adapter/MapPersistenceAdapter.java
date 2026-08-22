@@ -47,13 +47,13 @@ public class MapPersistenceAdapter implements MapDatabasePort {
     }
 
     @Override
-    public Optional<MapFloor> findCampusFloor() {
-        return floorRepository.findByCampusTrue().map(floorMapper::toDomain);
+    public Optional<MapFloor> findCampusFloor(Long hospitalId) {
+        return floorRepository.findByCampusTrue(hospitalId).map(floorMapper::toDomain);
     }
 
     @Override
-    public List<MapFloor> findAllIndoorFloors() {
-        return floorRepository.findByCampusFalse().stream().map(floorMapper::toDomain).collect(Collectors.toList());
+    public List<MapFloor> findAllIndoorFloors(Long hospitalId) {
+        return floorRepository.findByCampusFalse(hospitalId).stream().map(floorMapper::toDomain).collect(Collectors.toList());
     }
 
     @Override
@@ -136,11 +136,6 @@ public class MapPersistenceAdapter implements MapDatabasePort {
     }
 
     @Override
-    public List<MapEdge> findAllEdges() {
-        return edgeRepository.findAll().stream().map(edgeMapper::toDomain).collect(Collectors.toList());
-    }
-
-    @Override
     public void deleteEdgeById(Long id) {
         edgeRepository.deleteById(id);
     }
@@ -151,7 +146,12 @@ public class MapPersistenceAdapter implements MapDatabasePort {
     }
 
     @Override
-    public List<MapNode> findAllNodes() {
-        return nodeRepository.findAll().stream().map(nodeMapper::toDomain).collect(Collectors.toList());
+    public List<MapNode> findAllNodes(Long hospitalId) {
+        return nodeRepository.findAllByHospital(hospitalId).stream().map(nodeMapper::toDomain).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<MapEdge> findAllEdgesByHospital(Long hospitalId) {
+        return edgeRepository.findAllByHospital(hospitalId).stream().map(edgeMapper::toDomain).collect(Collectors.toList());
     }
 }

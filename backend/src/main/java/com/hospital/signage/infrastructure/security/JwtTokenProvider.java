@@ -34,10 +34,11 @@ public class JwtTokenProvider {
         this.key = Keys.hmacShaKeyFor(jwtSecret.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
-    public String generateToken(String username, java.util.List<String> permissions, String uiMode) {
+    public String generateToken(String username, java.util.List<String> permissions, String uiMode, Long hospitalId) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("permissions", permissions);
         claims.put("uiMode", uiMode);
+        claims.put("hospitalId", hospitalId);
         return createToken(claims, username, jwtExpirationInMs);
     }
 
@@ -66,6 +67,10 @@ public class JwtTokenProvider {
 
     public String extractUiMode(String token) {
         return extractAllClaims(token).get("uiMode", String.class);
+    }
+
+    public Long extractHospitalId(String token) {
+        return extractAllClaims(token).get("hospitalId", Long.class);
     }
 
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {

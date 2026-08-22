@@ -14,13 +14,13 @@ import java.util.UUID;
 
 public interface TicketUseCase {
     MaintenanceTicket createTicket(CreateTicketCommand command);
-    MaintenanceTicket assignTicket(Long ticketId, Long assigneeId);
-    MaintenanceTicket takeTicket(Long ticketId, Long technicianId);
-    MaintenanceTicket updateTicketStatus(Long ticketId, TicketStatus status, String imageBefore, String imageAfter, String rejectionNote, Long technicianId);
-    Optional<MaintenanceTicket> getTicketById(Long id);
+    MaintenanceTicket assignTicket(Long ticketId, Long assigneeId, Long callerHospitalId);
+    MaintenanceTicket takeTicket(Long ticketId, Long technicianId, Long callerHospitalId);
+    MaintenanceTicket updateTicketStatus(Long ticketId, TicketStatus status, String imageBefore, String imageAfter, String rejectionNote, Long technicianId, Long callerHospitalId);
+    Optional<MaintenanceTicket> getTicketById(Long id, Long callerHospitalId);
     List<MaintenanceTicket> getAllTickets();
-    Page<MaintenanceTicket> getTicketsPage(int page, int size, Long assigneeId, UUID assetId, TicketStatus status, Priority priority);
-    Map<String, Long> getTicketsSummary();
+    Page<MaintenanceTicket> getTicketsPage(int page, int size, Long assigneeId, UUID assetId, TicketStatus status, Priority priority, Long hospitalId);
+    Map<String, Long> getTicketsSummary(Long hospitalId);
     List<MaintenanceTicket> getTicketsByAsset(UUID assetId);
     List<MaintenanceTicket> getTicketsByAssignee(Long assigneeId);
 

@@ -32,18 +32,27 @@ public interface AssetRepository extends JpaRepository<AssetEntity, UUID> {
     @EntityGraph(attributePaths = {"location"})
     Page<AssetEntity> findBySignTypeId(Long signTypeId, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"location"})
+    Page<AssetEntity> findByLocationIdAndHospitalId(Long locationId, Long hospitalId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"location"})
+    Page<AssetEntity> findByHospitalId(Long hospitalId, Pageable pageable);
+
     boolean existsByLocationId(Long locationId);
     boolean existsBySignTypeId(Long signTypeId);
 
-    @Query(value = "SELECT * FROM assets WHERE f_unaccent(asset_code) ILIKE f_unaccent(CONCAT('%', :search, '%')) " +
-                   "OR f_unaccent(COALESCE(name, '')) ILIKE f_unaccent(CONCAT('%', :search, '%')) " +
+    @Query(value = "SELECT * FROM assets WHERE (:hospitalId IS NULL OR hospital_id = :hospitalId) AND (" +
+                   "f_unaccent(asset_code) ILIKE f_unaccent(CONCAT('%', :search, '%')) " +
+                   "OR f_unaccent(COALESCE(name, '')) ILIKE f_unaccent(CONCAT('%', :search, '%'))) " +
                    "ORDER BY created_at DESC",
-           countQuery = "SELECT COUNT(*) FROM assets WHERE f_unaccent(asset_code) ILIKE f_unaccent(CONCAT('%', :search, '%')) " +
-                        "OR f_unaccent(COALESCE(name, '')) ILIKE f_unaccent(CONCAT('%', :search, '%'))",
+           countQuery = "SELECT COUNT(*) FROM assets WHERE (:hospitalId IS NULL OR hospital_id = :hospitalId) AND (" +
+                        "f_unaccent(asset_code) ILIKE f_unaccent(CONCAT('%', :search, '%')) " +
+                        "OR f_unaccent(COALESCE(name, '')) ILIKE f_unaccent(CONCAT('%', :search, '%')))",
            nativeQuery = true)
-    Page<AssetEntity> search(@Param("search") String search, Pageable pageable);
+    Page<AssetEntity> search(@Param("search") String search, @Param("hospitalId") Long hospitalId, Pageable pageable);
 
     @Query(value = "SELECT * FROM assets WHERE " +
+                   "(:hospitalId IS NULL OR hospital_id = :hospitalId) AND " +
                    "(f_unaccent(asset_code) ILIKE f_unaccent(CONCAT('%', :search, '%')) " +
                    "OR f_unaccent(COALESCE(name, '')) ILIKE f_unaccent(CONCAT('%', :search, '%'))) " +
                    "AND (:status IS NULL OR status = :status) " +
@@ -51,6 +60,7 @@ public interface AssetRepository extends JpaRepository<AssetEntity, UUID> {
                    "AND (:signTypeId IS NULL OR sign_type_id = :signTypeId) " +
                    "ORDER BY created_at DESC",
            countQuery = "SELECT COUNT(*) FROM assets WHERE " +
+                   "(:hospitalId IS NULL OR hospital_id = :hospitalId) AND " +
                    "(f_unaccent(asset_code) ILIKE f_unaccent(CONCAT('%', :search, '%')) " +
                    "OR f_unaccent(COALESCE(name, '')) ILIKE f_unaccent(CONCAT('%', :search, '%'))) " +
                    "AND (:status IS NULL OR status = :status) " +
@@ -58,5 +68,6 @@ public interface AssetRepository extends JpaRepository<AssetEntity, UUID> {
                    "AND (:signTypeId IS NULL OR sign_type_id = :signTypeId)",
            nativeQuery = true)
     Page<AssetEntity> searchAndFilter(@Param("search") String search, @Param("status") String status,
-            @Param("locationId") Long locationId, @Param("signTypeId") Long signTypeId, Pageable pageable);
+            @Param("locationId") Long locationId, @Param("signTypeId") Long signTypeId,
+            @Param("hospitalId") Long hospitalId, Pageable pageable);
 }

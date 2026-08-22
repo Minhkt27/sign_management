@@ -44,6 +44,9 @@ public class LocationEntity {
     @Column(nullable = false)
     private String name;
 
+    @Column(name = "hospital_id", nullable = false)
+    private Long hospitalId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
     private LocationEntity parent;

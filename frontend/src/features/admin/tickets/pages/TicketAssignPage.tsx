@@ -4,8 +4,8 @@ import { ticketService } from '@/services/ticketService';
 import { MaintenanceTicket, User } from '@/shared/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, UserCheck } from 'lucide-react';
-import { PRIORITY_LABELS } from '@/shared/helpers/ticketBadges';
+import { ArrowLeft, UserCheck, Lock, CheckCircle2 } from 'lucide-react';
+import { PRIORITY_LABELS, TICKET_STATUS_LABELS } from '@/shared/helpers/ticketBadges';
 
 export default function TicketAssignPage() {
   const { id } = useParams<{ id: string }>();
@@ -98,13 +98,32 @@ export default function TicketAssignPage() {
       {/* Technicians List Grid */}
       <div className="space-y-4">
         <h3 className="text-lg font-bold text-slate-800">Chọn Kỹ thuật viên phân công</h3>
+        
+        {(ticket.ticketStatus === 'RESOLVED' || ticket.ticketStatus === 'CLOSED') && (
+          <div className="bg-amber-50 border border-amber-200 text-amber-700 p-4 rounded-xl flex items-start space-x-3">
+            <Lock className="shrink-0 mt-0.5" size={18} />
+            <div>
+              <h4 className="font-semibold text-sm">Phiếu này đã bị khóa</h4>
+              <p className="text-xs mt-1">
+                Trạng thái hiện tại là <span className="font-bold">{TICKET_STATUS_LABELS[ticket.ticketStatus]}</span>. Không thể thay đổi người phụ trách cho những phiếu đã hoàn thành hoặc đã đóng.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {techs.length > 0 ? (
-            techs.map((tech) => (
-              <div 
-                key={tech.id} 
-                className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between hover:border-blue-400 transition-all duration-200"
-              >
+            techs.map((tech) => {
+              const isCurrentAssignee = ticket.assignee?.id === tech.id;
+              const isLocked = ticket.ticketStatus === 'RESOLVED' || ticket.ticketStatus === 'CLOSED';
+              
+              return (
+                <div 
+                  key={tech.id} 
+                  className={`bg-white p-5 rounded-2xl border shadow-sm flex items-center justify-between transition-all duration-200 ${
+                    isCurrentAssignee ? 'border-blue-400 bg-blue-50/30' : 'border-slate-200/80 hover:border-blue-400'
+                  }`}
+                >
                 <div className="flex items-center space-x-3.5">
                   <div className="w-11 h-11 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-lg">
                     {tech.fullName.charAt(0)}
@@ -118,15 +137,25 @@ export default function TicketAssignPage() {
                   </div>
                 </div>
 
-                <Button 
-                  onClick={() => handleAssign(tech.id)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2.5 px-4 text-sm flex items-center space-x-2 font-semibold"
-                >
-                  <UserCheck size={14} />
-                  <span>Giao việc</span>
-                </Button>
+                {!isLocked && (
+                  isCurrentAssignee ? (
+                    <div className="bg-blue-100 text-blue-700 rounded-xl py-2.5 px-4 text-sm flex items-center space-x-1.5 font-semibold cursor-default">
+                      <CheckCircle2 size={14} />
+                      <span>Đang đảm nhận</span>
+                    </div>
+                  ) : (
+                    <Button 
+                      onClick={() => handleAssign(tech.id)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2.5 px-4 text-sm flex items-center space-x-2 font-semibold"
+                    >
+                      <UserCheck size={14} />
+                      <span>{ticket.assignee ? 'Giao lại' : 'Giao việc'}</span>
+                    </Button>
+                  )
+                )}
               </div>
-            ))
+            );
+          })
           ) : (
             <p className="text-center py-6 text-slate-400 font-medium">Không tìm thấy kỹ thuật viên trực tuyến nào.</p>
           )}

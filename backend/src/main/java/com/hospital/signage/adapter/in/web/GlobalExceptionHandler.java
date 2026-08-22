@@ -1,6 +1,7 @@
 package com.hospital.signage.adapter.in.web;
 
 import com.hospital.signage.domain.exception.AccountInactiveException;
+import com.hospital.signage.domain.exception.HospitalScopeException;
 import com.hospital.signage.domain.exception.InvalidCredentialsException;
 import com.hospital.signage.domain.exception.TicketNotFoundException;
 import com.hospital.signage.domain.exception.TicketRejectionLimitExceededException;
@@ -70,6 +71,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(UnauthorizedTicketUpdateException.class)
     public ResponseEntity<Map<String, String>> handleUnauthorizedTicketUpdate(UnauthorizedTicketUpdateException ex) {
+        return error(HttpStatus.FORBIDDEN, "Forbidden", ex.getMessage());
+    }
+
+    @ExceptionHandler(HospitalScopeException.class)
+    public ResponseEntity<Map<String, String>> handleHospitalScope(HospitalScopeException ex) {
         return error(HttpStatus.FORBIDDEN, "Forbidden", ex.getMessage());
     }
 

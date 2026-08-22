@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ticketService } from '@/services/ticketService';
 import { fileService } from '@/services/fileService';
 import { MaintenanceTicket } from '@/shared/types';
-import { authStore } from '@/app/store/authStore';
+import { authStore, getPermissionsFromToken } from '@/app/store/authStore';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, CheckCircle2, Wrench, Camera, ShieldCheck, Image as ImageIcon, Plus, RotateCcw, FolderOpen, Map } from 'lucide-react';
@@ -84,16 +84,26 @@ export default function TaskDetailPage() {
 
   const handleCompleteWork = async () => {
     if (!task) return;
-    if (!afterFile) {
+    
+    const userPermissions = getPermissionsFromToken(authStore.getToken());
+    const canUpload = userPermissions.includes('FILE_UPLOAD') || userPermissions.includes('ASSET_MANAGE');
+    
+    if (canUpload && !afterFile) {
       setUploadError('Vui lòng chọn hình ảnh sau khi sửa để đối chiếu!');
       return;
     }
-    const err = validateImage(afterFile);
-    if (err) { setUploadError(err); return; }
+    
+    if (canUpload && afterFile) {
+      const err = validateImage(afterFile);
+      if (err) { setUploadError(err); return; }
+    }
     setIsUploading(true);
     setUploadError('');
     try {
-      const imageAfterPath = await fileService.uploadFile(afterFile);
+      let imageAfterPath = undefined;
+      if (canUpload && afterFile) {
+        imageAfterPath = await fileService.uploadFile(afterFile);
+      }
       updateStatusMutation.mutate({ status: 'RESOLVED', imageAfter: imageAfterPath });
     } catch {
       setUploadError('Lỗi tải lên hình ảnh sau khi sửa!');
@@ -117,6 +127,9 @@ export default function TaskDetailPage() {
 
   const locationName = task.asset?.location?.name || 'Vị trí lắp đặt';
   const currentUser = authStore.getUser();
+  const token = authStore.getToken();
+  const userPermissions = getPermissionsFromToken(token);
+  const canUpload = userPermissions.includes('FILE_UPLOAD') || userPermissions.includes('ASSET_MANAGE');
   const isAssignee = !task.assignee || task.assignee.id === currentUser?.id;
 
   return (
@@ -231,22 +244,24 @@ export default function TaskDetailPage() {
         {task.ticketStatus === 'OPEN' && (
           isAssignee ? (
             <div className="space-y-3">
-              <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm space-y-3">
-                <p className="text-sm font-semibold text-slate-600">Hình ảnh trước khi sửa (tùy chọn)</p>
-                <input ref={cameraBeforeRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => setBeforeFile(e.target.files?.[0] || null)} />
-                <input ref={galleryBeforeRef} type="file" accept="image/*" hidden onChange={(e) => setBeforeFile(e.target.files?.[0] || null)} />
-                <div className="grid grid-cols-2 gap-2">
-                  <button type="button" onClick={() => cameraBeforeRef.current?.click()} className="flex items-center justify-center gap-2 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 hover:bg-slate-100 active:bg-slate-200">
-                    <Camera size={16} />
-                    <span>Chụp ảnh</span>
-                  </button>
-                  <button type="button" onClick={() => galleryBeforeRef.current?.click()} className="flex items-center justify-center gap-2 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 hover:bg-slate-100 active:bg-slate-200">
-                    <FolderOpen size={16} />
-                    <span>Thư viện</span>
-                  </button>
+              {canUpload && (
+                <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm space-y-3">
+                  <p className="text-sm font-semibold text-slate-600">Hình ảnh trước khi sửa (tùy chọn)</p>
+                  <input ref={cameraBeforeRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => setBeforeFile(e.target.files?.[0] || null)} />
+                  <input ref={galleryBeforeRef} type="file" accept="image/*" hidden onChange={(e) => setBeforeFile(e.target.files?.[0] || null)} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <button type="button" onClick={() => cameraBeforeRef.current?.click()} className="flex items-center justify-center gap-2 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 hover:bg-slate-100 active:bg-slate-200">
+                      <Camera size={16} />
+                      <span>Chụp ảnh</span>
+                    </button>
+                    <button type="button" onClick={() => galleryBeforeRef.current?.click()} className="flex items-center justify-center gap-2 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 hover:bg-slate-100 active:bg-slate-200">
+                      <FolderOpen size={16} />
+                      <span>Thư viện</span>
+                    </button>
+                  </div>
+                  {beforeFile && <p className="text-xs text-emerald-600 font-semibold truncate">Đã chọn: {beforeFile.name}</p>}
                 </div>
-                {beforeFile && <p className="text-xs text-emerald-600 font-semibold truncate">Đã chọn: {beforeFile.name}</p>}
-              </div>
+              )}
               {uploadError && <p className="text-red-500 text-sm font-semibold">{uploadError}</p>}
               <Button
                 onClick={handleStartWork}
@@ -267,22 +282,24 @@ export default function TaskDetailPage() {
         {task.ticketStatus === 'IN_PROGRESS' && (
           isAssignee ? (
             <div className="space-y-3">
-              <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm space-y-3">
-                <p className="text-sm font-semibold text-slate-600">Hình ảnh sau khi sửa <span className="text-red-500">(bắt buộc)</span></p>
-                <input ref={cameraAfterRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => setAfterFile(e.target.files?.[0] || null)} />
-                <input ref={galleryAfterRef} type="file" accept="image/*" hidden onChange={(e) => setAfterFile(e.target.files?.[0] || null)} />
-                <div className="grid grid-cols-2 gap-2">
-                  <button type="button" onClick={() => cameraAfterRef.current?.click()} className="flex items-center justify-center gap-2 py-2.5 rounded-lg border border-green-200 bg-green-50 text-sm font-semibold text-green-700 hover:bg-green-100 active:bg-green-200">
-                    <Camera size={16} />
-                    <span>Chụp ảnh</span>
-                  </button>
-                  <button type="button" onClick={() => galleryAfterRef.current?.click()} className="flex items-center justify-center gap-2 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 hover:bg-slate-100 active:bg-slate-200">
-                    <FolderOpen size={16} />
-                    <span>Thư viện</span>
-                  </button>
+              {canUpload && (
+                <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm space-y-3">
+                  <p className="text-sm font-semibold text-slate-600">Hình ảnh sau khi sửa <span className="text-red-500">(bắt buộc)</span></p>
+                  <input ref={cameraAfterRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => setAfterFile(e.target.files?.[0] || null)} />
+                  <input ref={galleryAfterRef} type="file" accept="image/*" hidden onChange={(e) => setAfterFile(e.target.files?.[0] || null)} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <button type="button" onClick={() => cameraAfterRef.current?.click()} className="flex items-center justify-center gap-2 py-2.5 rounded-lg border border-green-200 bg-green-50 text-sm font-semibold text-green-700 hover:bg-green-100 active:bg-green-200">
+                      <Camera size={16} />
+                      <span>Chụp ảnh</span>
+                    </button>
+                    <button type="button" onClick={() => galleryAfterRef.current?.click()} className="flex items-center justify-center gap-2 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 hover:bg-slate-100 active:bg-slate-200">
+                      <FolderOpen size={16} />
+                      <span>Thư viện</span>
+                    </button>
+                  </div>
+                  {afterFile && <p className="text-xs text-emerald-600 font-semibold truncate">Đã chọn: {afterFile.name}</p>}
                 </div>
-                {afterFile && <p className="text-xs text-emerald-600 font-semibold truncate">Đã chọn: {afterFile.name}</p>}
-              </div>
+              )}
               {uploadError && <p className="text-red-500 text-sm font-semibold">{uploadError}</p>}
               <Button
                 onClick={handleCompleteWork}

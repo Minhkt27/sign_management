@@ -17,8 +17,8 @@ public interface TicketDatabasePort {
     List<MaintenanceTicket> findAll();
     Page<MaintenanceTicket> findAll(Pageable pageable);
     List<MaintenanceTicket> findByAssetId(UUID assetId);
-    Page<MaintenanceTicket> findByFilters(Long assigneeId, UUID assetId, TicketStatus status, Priority priority, Pageable pageable);
+    Page<MaintenanceTicket> findByFilters(Long assigneeId, UUID assetId, TicketStatus status, Priority priority, Long hospitalId, Pageable pageable);
     boolean existsByAssetId(UUID assetId);
-    Map<String, Long> countByStatus();
+    Map<String, Long> countByStatus(Long hospitalId);
     boolean existsOpenTicketForUser(Long userId);
 }

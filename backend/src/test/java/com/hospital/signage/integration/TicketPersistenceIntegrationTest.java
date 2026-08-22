@@ -60,12 +60,14 @@ public class TicketPersistenceIntegrationTest extends AbstractIntegrationTest {
         LocationEntity loc = locationRepository.save(LocationEntity.builder()
                 .locationCode("LOC-" + UUID.randomUUID())
                 .name("Test Location")
+                .hospitalId(1L)
                 .type(LocationType.ROOM)
                 .build());
 
         asset = assetRepository.save(AssetEntity.builder()
                 .id(UUID.randomUUID())
                 .assetCode("ASSET-" + UUID.randomUUID())
+                .hospitalId(1L)
                 .material(Material.LED)
                 .status(AssetStatus.ACTIVE)
                 .location(loc)
@@ -92,6 +94,7 @@ public class TicketPersistenceIntegrationTest extends AbstractIntegrationTest {
 
         ticketRepository.save(MaintenanceTicketEntity.builder()
                 .asset(asset)
+                .hospitalId(1L)
                 .reporter(admin)
                 .assignee(tech)
                 .priority(Priority.HIGH)
@@ -114,6 +117,7 @@ public class TicketPersistenceIntegrationTest extends AbstractIntegrationTest {
     void version_field_prevents_concurrent_updates() {
         MaintenanceTicketEntity saved = ticketRepository.save(MaintenanceTicketEntity.builder()
                 .asset(asset)
+                .hospitalId(1L)
                 .reporter(admin)
                 .priority(Priority.MEDIUM)
                 .ticketStatus(TicketStatus.OPEN)
@@ -151,6 +155,7 @@ public class TicketPersistenceIntegrationTest extends AbstractIntegrationTest {
         for (int i = 0; i < 5; i++) {
             ticketRepository.save(MaintenanceTicketEntity.builder()
                     .asset(asset)
+                    .hospitalId(1L)
                     .reporter(admin)
                     .priority(Priority.LOW)
                     .ticketStatus(TicketStatus.OPEN)
@@ -159,8 +164,8 @@ public class TicketPersistenceIntegrationTest extends AbstractIntegrationTest {
                     .build());
         }
 
-        Page<MaintenanceTicketEntity> page0 = ticketRepository.findByFilters(null, null, TicketStatus.OPEN, null, PageRequest.of(0, 3));
-        Page<MaintenanceTicketEntity> page1 = ticketRepository.findByFilters(null, null, TicketStatus.OPEN, null, PageRequest.of(1, 3));
+        Page<MaintenanceTicketEntity> page0 = ticketRepository.findByFilters(null, null, TicketStatus.OPEN, null, null, PageRequest.of(0, 3));
+        Page<MaintenanceTicketEntity> page1 = ticketRepository.findByFilters(null, null, TicketStatus.OPEN, null, null, PageRequest.of(1, 3));
 
         assertThat(page0.getTotalElements()).isEqualTo(5);
         assertThat(page0.getContent()).hasSize(3);

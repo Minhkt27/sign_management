@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { assetService, PagedResponse } from '@/services/assetService';
+import { useAdminStore } from '@/app/store/adminStore';
 import { locationService } from '@/services/locationService';
 import { signTypeService } from '@/services/signTypeService';
 import { Asset, Location, SignType } from '@/shared/types';
@@ -30,9 +31,12 @@ export default function AssetListPage() {
     { replace: true },
   );
 
+  const { selectedHospitalId } = useAdminStore();
+  const hospitalIdParam = selectedHospitalId === 'ALL' ? undefined : selectedHospitalId;
+
   const { data: assetData, isLoading } = useQuery<PagedResponse<Asset>>({
-    queryKey: ['assets', page, search],
-    queryFn: () => assetService.getAssetsPage(page, PAGE_SIZE, search),
+    queryKey: ['assets', page, search, hospitalIdParam],
+    queryFn: () => assetService.getAssetsPage(page, PAGE_SIZE, search, hospitalIdParam),
   });
   const assets = assetData?.content ?? [];
 

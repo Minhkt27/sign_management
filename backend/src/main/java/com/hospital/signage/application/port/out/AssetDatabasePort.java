@@ -14,10 +14,12 @@ public interface AssetDatabasePort {
     Optional<Asset> findById(UUID id);
     Optional<Asset> findByAssetCode(String assetCode);
     List<Asset> findAll();
+    List<Asset> findAllByHospital(Long hospitalId);
     Page<Asset> findAll(Pageable pageable);
-    Page<Asset> search(String search, Pageable pageable);
-    Page<Asset> searchAndFilter(String search, AssetStatus status, Long locationId, Long signTypeId, Pageable pageable);
+    Page<Asset> search(String search, Long hospitalId, Pageable pageable);
+    Page<Asset> searchAndFilter(String search, AssetStatus status, Long locationId, Long signTypeId, Long hospitalId, Pageable pageable);
     Page<Asset> findByLocationId(Long locationId, Pageable pageable);
+    Page<Asset> findByLocationIdAndHospital(Long locationId, Long hospitalId, Pageable pageable);
     Page<Asset> findBySignTypeId(Long signTypeId, Pageable pageable);
     boolean existsByLocationId(Long locationId);
     boolean existsBySignTypeId(Long signTypeId);

@@ -31,6 +31,10 @@ public class LocationService implements LocationUseCase {
                         .orElseThrow(() -> new IllegalArgumentException("Parent location not found"))
                 : null;
 
+        if (parent != null && !java.util.Objects.equals(parent.getHospitalId(), location.getHospitalId())) {
+            throw new IllegalArgumentException("Vị trí cha thuộc bệnh viện khác.");
+        }
+
         if (location.getLocationCode() == null || location.getLocationCode().trim().isEmpty()) {
             location.setLocationCode(generateLocationCode(location.getName(), parent));
         }
@@ -57,23 +61,28 @@ public class LocationService implements LocationUseCase {
     }
 
     @Override
-    public Optional<Location> getLocationById(Long id) {
-        return locationDatabasePort.findById(id);
+    public Optional<Location> getLocationById(Long id, Long callerHospitalId) {
+        return locationDatabasePort.findById(id)
+                .filter(loc -> callerHospitalId == null || callerHospitalId.equals(loc.getHospitalId()));
     }
 
     @Override
-    public List<Location> getAllLocations() {
-        return locationDatabasePort.findAll();
+    public List<Location> getAllLocations(Long hospitalId) {
+        return locationDatabasePort.findAllByHospital(hospitalId);
     }
 
     @Override
-    public List<Location> getChildrenLocations(Long parentId) {
-        return locationDatabasePort.findByParentId(parentId);
+    public List<Location> getChildrenLocations(Long parentId, Long hospitalId) {
+        return locationDatabasePort.findByParentIdAndHospital(parentId, hospitalId);
     }
 
     @Override
     @Transactional
-    public void deleteLocation(Long id) {
+    public void deleteLocation(Long id, Long callerHospitalId) {
+        Location existing = locationDatabasePort.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Location not found"));
+        assertSameHospital(existing, callerHospitalId);
+
         if (locationDatabasePort.existsByParentId(id)) {
             throw new IllegalArgumentException("Không thể xóa vị trí này vì vẫn còn vị trí con trực thuộc.");
         }
@@ -86,9 +95,10 @@ public class LocationService implements LocationUseCase {
 
     @Override
     @Transactional
-    public Location updateLocation(Long id, Location locationDetails) {
+    public Location updateLocation(Long id, Location locationDetails, Long callerHospitalId) {
         Location existing = locationDatabasePort.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Location not found"));
+        assertSameHospital(existing, callerHospitalId);
 
         String oldPath = existing.getPath();
         existing.setName(locationDetails.getName());
@@ -117,8 +127,8 @@ public class LocationService implements LocationUseCase {
     }
 
     @Override
-    public List<LocationTreeNode> getLocationTree() {
-        List<Location> allLocations = locationDatabasePort.findAll();
+    public List<LocationTreeNode> getLocationTree(Long hospitalId) {
+        List<Location> allLocations = locationDatabasePort.findAllByHospital(hospitalId);
 
         Map<Long, List<Location>> parentGroup = allLocations.stream()
                 .filter(l -> l.getParentId() != null)
@@ -171,5 +181,13 @@ public class LocationService implements LocationUseCase {
     private String cleanForLtree(String input) {
         if (input == null) return "";
         return input.replaceAll("[^a-zA-Z0-9_]", "_");
+    }
+
+    // callerHospitalId == null nghĩa là SUPER_ADMIN, không giới hạn viện nào.
+    private void assertSameHospital(Location location, Long callerHospitalId) {
+        if (callerHospitalId != null && !callerHospitalId.equals(location.getHospitalId())) {
+            throw new com.hospital.signage.domain.exception.HospitalScopeException(
+                    "Không có quyền truy cập vị trí thuộc bệnh viện khác.");
+        }
     }
 }

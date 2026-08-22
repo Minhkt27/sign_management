@@ -8,9 +8,9 @@ export const signTypeService = {
     return response.data;
   },
 
-  getPage: async (page = 0, size = 15, search = ''): Promise<PagedResponse<SignType>> => {
+  getPage: async (page = 0, size = 15, search = '', hospitalId?: number): Promise<PagedResponse<SignType>> => {
     const response = await apiClient.get<PagedResponse<SignType>>(
-      `/sign-types/page?page=${page}&size=${size}&search=${encodeURIComponent(search)}`
+      `/sign-types/page?page=${page}&size=${size}&search=${encodeURIComponent(search)}${hospitalId ? '&hospitalId=' + hospitalId : ''}`
     );
     return response.data;
   },

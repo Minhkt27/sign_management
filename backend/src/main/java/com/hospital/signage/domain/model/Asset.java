@@ -18,6 +18,7 @@ import java.util.UUID;
 public class Asset {
     private UUID id;
     private String assetCode;
+    private Long hospitalId;
     private String name;
     private String description;
     private String locationDescription;

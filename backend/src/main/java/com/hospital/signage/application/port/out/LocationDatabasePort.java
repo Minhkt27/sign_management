@@ -9,7 +9,9 @@ public interface LocationDatabasePort {
     Location save(Location location);
     Optional<Location> findById(Long id);
     List<Location> findAll();
+    List<Location> findAllByHospital(Long hospitalId);
     List<Location> findByParentId(Long parentId);
+    List<Location> findByParentIdAndHospital(Long parentId, Long hospitalId);
     boolean existsByParentId(Long parentId);
     boolean existsByLocationCode(String locationCode);
     void bulkUpdatePathPrefix(String oldPath, String newPath);

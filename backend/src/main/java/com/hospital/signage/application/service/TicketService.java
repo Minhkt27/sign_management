@@ -47,6 +47,7 @@ public class TicketService implements TicketUseCase {
     private final AssetDatabasePort assetDatabasePort;
     private final UserDatabasePort userDatabasePort;
     private final RoleDatabasePort roleDatabasePort;
+    private final com.hospital.signage.application.port.in.NotificationUseCase notificationUseCase;
 
     private static final String TECHNICAL_ROLE_CODE = "TECHNICAL";
 
@@ -60,8 +61,15 @@ public class TicketService implements TicketUseCase {
             throw new IllegalStateException("Biển báo này đã thanh lý, không thể tạo phiếu bảo trì.");
         }
 
+        Long callerHospitalId = command.reporter() != null ? command.reporter().getHospitalId() : null;
+        if (callerHospitalId != null && !callerHospitalId.equals(asset.getHospitalId())) {
+            throw new com.hospital.signage.domain.exception.HospitalScopeException(
+                    "Không có quyền tạo phiếu cho biển báo thuộc bệnh viện khác.");
+        }
+
         MaintenanceTicket ticket = MaintenanceTicket.builder()
                 .asset(asset)
+                .hospitalId(asset.getHospitalId())
                 .reporter(command.reporter())
                 .description(command.description())
                 .priority(command.priority())
@@ -73,30 +81,46 @@ public class TicketService implements TicketUseCase {
         assetDatabasePort.save(asset);
 
         MaintenanceTicket saved = ticketDatabasePort.save(ticket);
+        
+        notificationUseCase.notifyAdmins(
+            asset.getHospitalId(),
+            "Phiếu bảo trì mới",
+            "Phiếu #" + saved.getId() + " vừa được tạo cho " + asset.getName(),
+            "NEW_TICKET",
+            saved.getId()
+        );
+
         log.info("Ticket {} created for asset {} by user {}", saved.getId(), command.assetId(), command.reporter().getId());
         return saved;
     }
 
     @Override
     @Transactional
-    public MaintenanceTicket assignTicket(Long ticketId, Long assigneeId) {
+    public MaintenanceTicket assignTicket(Long ticketId, Long assigneeId, Long callerHospitalId) {
         MaintenanceTicket ticket = ticketDatabasePort.findById(ticketId)
                 .orElseThrow(() -> new TicketNotFoundException(ticketId));
+        assertSameHospital(ticket, callerHospitalId);
+
+        if (ticket.getTicketStatus() == TicketStatus.RESOLVED || ticket.getTicketStatus() == TicketStatus.CLOSED) {
+            throw new IllegalStateException("Không thể giao lại phiếu đã hoàn thành hoặc đã đóng.");
+        }
 
         User assignee = userDatabasePort.findById(assigneeId)
                 .orElseThrow(() -> new IllegalArgumentException("Assignee user not found"));
         validateAssigneeIsTechnician(assignee);
 
         ticket.setAssignee(assignee);
-        if (ticket.getTicketStatus() == TicketStatus.OPEN) {
-            ticket.setTicketStatus(TicketStatus.IN_PROGRESS);
-            Asset asset = ticket.getAsset();
-            if (asset != null && asset.getStatus() != com.hospital.signage.domain.enums.AssetStatus.SCRAPPED) {
-                asset.setStatus(com.hospital.signage.domain.enums.AssetStatus.REPAIRING);
-                assetDatabasePort.save(asset);
-            }
-        }
         MaintenanceTicket saved = ticketDatabasePort.save(ticket);
+        
+        notificationUseCase.notifyUser(
+            assigneeId,
+            ticket.getHospitalId(),
+            "Nhiệm vụ mới",
+            "Bạn vừa được giao xử lý phiếu bảo trì #" + ticketId,
+            "NEW_TICKET",
+            ticketId
+        );
+        
         log.info("Ticket {} assigned to user {}", ticketId, assigneeId);
         return saved;
     }
@@ -104,9 +128,10 @@ public class TicketService implements TicketUseCase {
     @Override
     @Transactional
     public MaintenanceTicket updateTicketStatus(Long ticketId, TicketStatus status, String imageBefore,
-            String imageAfter, String rejectionNote, Long technicianId) {
+            String imageAfter, String rejectionNote, Long technicianId, Long callerHospitalId) {
         MaintenanceTicket ticket = ticketDatabasePort.findById(ticketId)
                 .orElseThrow(() -> new TicketNotFoundException(ticketId));
+        assertSameHospital(ticket, callerHospitalId);
 
         TicketStatus current = ticket.getTicketStatus();
         Set<TicketStatus> allowed = ALLOWED_TRANSITIONS.getOrDefault(current, EnumSet.noneOf(TicketStatus.class));
@@ -137,13 +162,30 @@ public class TicketService implements TicketUseCase {
         ticket.setTicketStatus(finalStatus);
         updateRelatedAssetState(ticket, finalStatus);
 
-        return ticketDatabasePort.save(ticket);
+        MaintenanceTicket saved = ticketDatabasePort.save(ticket);
+        
+        if (finalStatus == TicketStatus.RESOLVED) {
+            notificationUseCase.notifyAdmins(
+                ticket.getHospitalId(),
+                "Phiếu bảo trì hoàn thành",
+                "KTV vừa cập nhật hoàn thành phiếu #" + ticket.getId(),
+                "TICKET_RESOLVED",
+                ticket.getId()
+            );
+        }
+
+        return saved;
     }
 
     private void validateResolutionEvidence(MaintenanceTicket ticket, TicketStatus status, String imageAfter) {
         boolean hasNewImage = imageAfter != null && !imageAfter.isBlank();
         boolean hasExistingImage = ticket.getImageAfter() != null && !ticket.getImageAfter().isBlank();
-        if (status == TicketStatus.RESOLVED && !hasNewImage && !hasExistingImage) {
+        
+        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        boolean canUpload = auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> "FILE_UPLOAD".equals(a.getAuthority()) || "ASSET_MANAGE".equals(a.getAuthority()));
+
+        if (canUpload && status == TicketStatus.RESOLVED && !hasNewImage && !hasExistingImage) {
             throw new IllegalArgumentException("Phải đính kèm ảnh sau khi sửa (imageAfter) trước khi đánh dấu hoàn thành.");
         }
     }
@@ -218,29 +260,25 @@ public class TicketService implements TicketUseCase {
 
     @Override
     @Transactional
-    public MaintenanceTicket takeTicket(Long ticketId, Long technicianId) {
+    public MaintenanceTicket takeTicket(Long ticketId, Long technicianId, Long callerHospitalId) {
         MaintenanceTicket ticket = ticketDatabasePort.findById(ticketId)
                 .orElseThrow(() -> new TicketNotFoundException(ticketId));
+        assertSameHospital(ticket, callerHospitalId);
         if (ticket.getTicketStatus() != TicketStatus.OPEN || ticket.getAssignee() != null) {
             throw new IllegalStateException("Phiếu này đã được giao hoặc không còn ở trạng thái chờ.");
         }
         User technician = userDatabasePort.findById(technicianId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         ticket.setAssignee(technician);
-        ticket.setTicketStatus(TicketStatus.IN_PROGRESS);
-        Asset asset = ticket.getAsset();
-        if (asset != null && asset.getStatus() != com.hospital.signage.domain.enums.AssetStatus.SCRAPPED) {
-            asset.setStatus(com.hospital.signage.domain.enums.AssetStatus.REPAIRING);
-            assetDatabasePort.save(asset);
-        }
         MaintenanceTicket saved = ticketDatabasePort.save(ticket);
         log.info("Ticket {} self-taken by technician {}", ticketId, technicianId);
         return saved;
     }
 
     @Override
-    public Optional<MaintenanceTicket> getTicketById(Long id) {
-        return ticketDatabasePort.findById(id);
+    public Optional<MaintenanceTicket> getTicketById(Long id, Long callerHospitalId) {
+        return ticketDatabasePort.findById(id)
+                .filter(ticket -> callerHospitalId == null || callerHospitalId.equals(ticket.getHospitalId()));
     }
 
     @Override
@@ -249,13 +287,13 @@ public class TicketService implements TicketUseCase {
     }
 
     @Override
-    public Page<MaintenanceTicket> getTicketsPage(int page, int size, Long assigneeId, UUID assetId, TicketStatus status, Priority priority) {
-        return ticketDatabasePort.findByFilters(assigneeId, assetId, status, priority, PageRequest.of(page, size));
+    public Page<MaintenanceTicket> getTicketsPage(int page, int size, Long assigneeId, UUID assetId, TicketStatus status, Priority priority, Long hospitalId) {
+        return ticketDatabasePort.findByFilters(assigneeId, assetId, status, priority, hospitalId, PageRequest.of(page, size));
     }
 
     @Override
-    public Map<String, Long> getTicketsSummary() {
-        return ticketDatabasePort.countByStatus();
+    public Map<String, Long> getTicketsSummary(Long hospitalId) {
+        return ticketDatabasePort.countByStatus(hospitalId);
     }
 
     @Override
@@ -265,8 +303,15 @@ public class TicketService implements TicketUseCase {
 
     @Override
     public List<MaintenanceTicket> getTicketsByAssignee(Long assigneeId) {
-        return ticketDatabasePort.findByFilters(assigneeId, null, null, null, PageRequest.of(0, 200))
+        return ticketDatabasePort.findByFilters(assigneeId, null, null, null, null, PageRequest.of(0, 200))
                 .getContent();
     }
 
+    // callerHospitalId == null nghĩa là SUPER_ADMIN, không giới hạn viện nào.
+    private void assertSameHospital(MaintenanceTicket ticket, Long callerHospitalId) {
+        if (callerHospitalId != null && !callerHospitalId.equals(ticket.getHospitalId())) {
+            throw new com.hospital.signage.domain.exception.HospitalScopeException(
+                    "Không có quyền truy cập phiếu bảo trì thuộc bệnh viện khác.");
+        }
+    }
 }

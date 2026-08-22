@@ -39,8 +39,22 @@ public class LocationPersistenceAdapter implements LocationDatabasePort {
     }
 
     @Override
+    public List<Location> findAllByHospital(Long hospitalId) {
+        return repository.findAllByHospital(hospitalId).stream()
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public List<Location> findByParentId(Long parentId) {
         return repository.findByParentId(parentId).stream()
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Location> findByParentIdAndHospital(Long parentId, Long hospitalId) {
+        return repository.findByParentIdAndHospital(parentId, hospitalId).stream()
                 .map(mapper::toDomain)
                 .collect(Collectors.toList());
     }

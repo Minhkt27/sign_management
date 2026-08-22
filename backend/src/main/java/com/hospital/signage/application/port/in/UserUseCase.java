@@ -9,9 +9,9 @@ public interface UserUseCase {
 
     List<User> getAllUsers();
 
-    Page<User> getUsersPage(int page, int size, String search);
+    Page<User> getUsersPage(int page, int size, String search, Long hospitalId);
 
-    List<User> getTechnicians();
+    List<User> getTechnicians(Long hospitalId);
 
     User createUser(CreateUserCommand command);
 

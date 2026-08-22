@@ -20,6 +20,7 @@ const TaskDetailPage = lazy(() => import('../features/technician/workflow/pages/
 const AssetBrowsePage = lazy(() => import('../features/technician/workflow/pages/AssetBrowsePage'));
 const ScanLandingPage = lazy(() => import('../features/technician/workflow/pages/ScanLandingPage'));
 const SignTypeListPage = lazy(() => import('../features/admin/sign-types/pages/SignTypeListPage'));
+const HospitalListPage = lazy(() => import('../features/admin/hospitals/pages/HospitalListPage'));
 const UserListPage = lazy(() => import('../features/admin/users/pages/UserListPage'));
 const RoleListPage = lazy(() => import('../features/admin/users/pages/RoleListPage'));
 const MapListPage = lazy(() => import('../features/admin/map/pages/MapListPage'));
@@ -41,7 +42,7 @@ export default function AppRoutes() {
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
         {/* Admin routes */}
-        <Route element={<ProtectedRoute allowedAuthorities={['ASSET_VIEW', 'ASSET_MANAGE', 'MAP_VIEW', 'TICKET_VIEW', 'USER_VIEW', 'ROLE_VIEW']} />}>
+        <Route element={<ProtectedRoute allowedAuthorities={['ASSET_VIEW', 'ASSET_MANAGE', 'MAP_VIEW', 'TICKET_VIEW', 'USER_VIEW', 'ROLE_VIEW', 'HOSPITAL_MANAGE']} />}>
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="/admin/assets" replace />} />
             <Route path="assets" element={<AssetListPage />} />
@@ -57,6 +58,7 @@ export default function AppRoutes() {
             <Route path="tickets/:id" element={<TicketDetailPage />} />
             <Route path="users" element={<UserListPage />} />
             <Route path="roles" element={<RoleListPage />} />
+            <Route path="hospitals" element={<HospitalListPage />} />
           </Route>
         </Route>
 

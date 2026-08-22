@@ -38,6 +38,9 @@ public class SignTypeEntity {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "hospital_id", nullable = false)
+    private Long hospitalId;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;

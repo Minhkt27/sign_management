@@ -1,13 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { mapService } from '@/services/mapService';
 import { locationService } from '@/services/locationService';
-import { MapFloorData, MapNode } from '@/shared/types';
+import { MapFloorData, MapNode, Hospital } from '@/shared/types';
+import { authStore, HOSPITAL_ID_STORAGE_KEY } from '@/app/store/authStore';
 import { HomeTab } from '../components/HomeTab';
 import { MapTab } from '../components/MapTab';
 import { DeptsTab } from '../components/DeptsTab';
 import { LocationSelectModal } from '../components/LocationSelectModal';
+import { HospitalPickerModal } from '../components/HospitalPickerModal';
+import { useHospitalDetect } from '../hooks/useHospitalDetect';
 
 type Tab = 'home' | 'map' | 'depts';
 
@@ -27,6 +30,32 @@ export default function WayfindingPage() {
   const fromLabel = searchParams.get('fromLabel') ?? '';
 
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+  const [isHospitalPickerOpen, setIsHospitalPickerOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const { status: hospitalDetectStatus, detect: detectHospital } = useHospitalDetect();
+
+  // "Mở app lạnh": chưa đăng nhập và chưa có hospitalId nào được set (chưa quét QR).
+  // GPS chỉ là fallback phụ — nếu GPS không xác định được, bắt buộc chọn tay qua HospitalPickerModal.
+  useEffect(() => {
+    const isColdStart = !authStore.getToken() && !sessionStorage.getItem(HOSPITAL_ID_STORAGE_KEY);
+    if (!isColdStart) return;
+
+    detectHospital().then(hospital => {
+      if (hospital) {
+        sessionStorage.setItem(HOSPITAL_ID_STORAGE_KEY, String(hospital.id));
+        queryClient.invalidateQueries();
+      } else {
+        setIsHospitalPickerOpen(true);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handlePickHospital = (hospital: Hospital) => {
+    sessionStorage.setItem(HOSPITAL_ID_STORAGE_KEY, String(hospital.id));
+    queryClient.invalidateQueries();
+    setIsHospitalPickerOpen(false);
+  };
 
   const { data: floors = [] } = useQuery({
     queryKey: ['mapFloors'],
@@ -164,6 +193,16 @@ export default function WayfindingPage() {
         locations={locations}
         onSetLocation={handleSetLocation}
       />
+
+      {/* ── HOSPITAL PICKER (fallback khi mở app lạnh và GPS không xác định được) ── */}
+      <HospitalPickerModal open={isHospitalPickerOpen} onSelect={handlePickHospital} />
+
+      {hospitalDetectStatus === 'detecting' && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-3 py-1.5 rounded-full text-xs font-bold text-white shadow-lg"
+          style={{ background: 'rgba(26,92,42,.9)' }}>
+          📍 Đang xác định bệnh viện...
+        </div>
+      )}
     </div>
   );
 }

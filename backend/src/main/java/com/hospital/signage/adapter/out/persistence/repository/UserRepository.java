@@ -16,9 +16,16 @@ import java.util.Optional;
 public interface UserRepository extends JpaRepository<UserEntity, Long> {
     Optional<UserEntity> findByUsername(String username);
     List<UserEntity> findByRoleId(Long roleId);
+    List<UserEntity> findByHospitalId(Long hospitalId);
 
-    @Query(value = "SELECT * FROM users WHERE unaccent(username) ILIKE unaccent('%' || :search || '%') OR unaccent(full_name) ILIKE unaccent('%' || :search || '%') ORDER BY created_at DESC",
-           countQuery = "SELECT count(*) FROM users WHERE unaccent(username) ILIKE unaccent('%' || :search || '%') OR unaccent(full_name) ILIKE unaccent('%' || :search || '%')",
+    @Query("SELECT u FROM UserEntity u WHERE u.roleId = :roleId AND (:hospitalId IS NULL OR u.hospitalId = :hospitalId)")
+    List<UserEntity> findByRoleIdAndHospital(@Param("roleId") Long roleId, @Param("hospitalId") Long hospitalId);
+
+    @Query(value = "SELECT * FROM users WHERE (:hospitalId IS NULL OR hospital_id = :hospitalId) AND (" +
+                   "unaccent(username) ILIKE unaccent('%' || :search || '%') OR unaccent(full_name) ILIKE unaccent('%' || :search || '%')) " +
+                   "ORDER BY created_at DESC",
+           countQuery = "SELECT count(*) FROM users WHERE (:hospitalId IS NULL OR hospital_id = :hospitalId) AND (" +
+                        "unaccent(username) ILIKE unaccent('%' || :search || '%') OR unaccent(full_name) ILIKE unaccent('%' || :search || '%'))",
            nativeQuery = true)
-    Page<UserEntity> search(@Param("search") String search, Pageable pageable);
+    Page<UserEntity> search(@Param("search") String search, @Param("hospitalId") Long hospitalId, Pageable pageable);
 }

@@ -4,6 +4,7 @@ import { authStore } from '@/app/store/authStore';
 import { authService } from '@/services/authService';
 import { ClipboardList, QrCode, LogOut, KeyRound } from 'lucide-react';
 import ChangePasswordModal from '@/components/ChangePasswordModal';
+import NotificationBell from '@/components/NotificationBell';
 
 export default function MobileLayout() {
   const navigate = useNavigate();
@@ -28,9 +29,12 @@ export default function MobileLayout() {
           </div>
         </div>
 
-        <div className="flex items-center space-x-1.5">
-          <span className="w-2 h-2 rounded-full bg-green-400"></span>
-          <span className="text-xs text-green-200 font-semibold">Online</span>
+        <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-1.5 bg-black/10 px-2 py-1 rounded-full">
+            <span className="w-2 h-2 rounded-full bg-green-400"></span>
+            <span className="text-xs text-green-100 font-semibold">Online</span>
+          </div>
+          <NotificationBell light />
         </div>
       </header>
 

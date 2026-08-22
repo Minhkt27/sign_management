@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Plus, Shield, Trash2, Edit } from 'lucide-react';
 import { getApiError } from '@/shared/helpers/apiError';
 import { EditRoleDialog } from '../components/EditRoleDialog';
+import { authStore, isSuperAdmin } from '@/app/store/authStore';
 
 export default function RoleListPage() {
   const queryClient = useQueryClient();
@@ -17,6 +18,26 @@ export default function RoleListPage() {
     queryKey: ['roles'],
     queryFn: roleService.getAllRoles,
   });
+
+  const token = authStore.getToken();
+  const isSuper = isSuperAdmin(token);
+
+  const canEditRole = (role: Role) => {
+    if ((role.code === 'SUPER_ADMIN' || role.permissions.includes('HOSPITAL_MANAGE')) && !isSuper) {
+      return false;
+    }
+    return true;
+  };
+
+  const canDeleteRole = (role: Role) => {
+    if (['SUPER_ADMIN', 'ADMIN', 'TECHNICAL'].includes(role.code)) {
+      return false;
+    }
+    if (role.permissions.includes('HOSPITAL_MANAGE') && !isSuper) {
+      return false;
+    }
+    return true;
+  };
 
   const createMutation = useMutation({
     mutationFn: roleService.createRole,
@@ -76,7 +97,6 @@ export default function RoleListPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-slate-800">Quản lý Nhóm quyền</h2>
         <Button onClick={handleCreate}>
           <Plus size={16} className="mr-2" />Thêm Nhóm quyền
         </Button>
@@ -107,10 +127,12 @@ export default function RoleListPage() {
                 {role.permissions.length} quyền
               </span>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => handleEdit(role)} className="h-8 px-2 text-slate-600">
-                  <Edit size={14} className="mr-1" /> Sửa
-                </Button>
-                {role.id !== 1 && role.id !== 2 && (
+                {canEditRole(role) && (
+                  <Button variant="outline" size="sm" onClick={() => handleEdit(role)} className="h-8 px-2 text-slate-600">
+                    <Edit size={14} className="mr-1" /> Sửa
+                  </Button>
+                )}
+                {canDeleteRole(role) && (
                   <Button variant="outline" size="sm" onClick={() => handleDelete(role)} className="h-8 px-2 text-red-600 border-red-200 hover:bg-red-50">
                     <Trash2 size={14} />
                   </Button>
