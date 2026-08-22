@@ -103,8 +103,9 @@ public class AssetService implements AssetUseCase {
     }
 
     @Override
-    public Optional<Asset> getAssetById(UUID id) {
-        return assetDatabasePort.findById(id);
+    public Optional<Asset> getAssetById(UUID id, Long callerHospitalId) {
+        return assetDatabasePort.findById(id)
+                .filter(asset -> callerHospitalId == null || callerHospitalId.equals(asset.getHospitalId()));
     }
 
     @Override

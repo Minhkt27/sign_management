@@ -61,8 +61,9 @@ public class LocationService implements LocationUseCase {
     }
 
     @Override
-    public Optional<Location> getLocationById(Long id) {
-        return locationDatabasePort.findById(id);
+    public Optional<Location> getLocationById(Long id, Long callerHospitalId) {
+        return locationDatabasePort.findById(id)
+                .filter(loc -> callerHospitalId == null || callerHospitalId.equals(loc.getHospitalId()));
     }
 
     @Override

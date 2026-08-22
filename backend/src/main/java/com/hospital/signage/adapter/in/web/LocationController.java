@@ -39,7 +39,7 @@ public class LocationController {
     @Operation(summary = "Chi tiết vị trí theo ID")
     @GetMapping("/{id}")
     public ResponseEntity<Location> getLocationById(@PathVariable Long id) {
-        return locationUseCase.getLocationById(id)
+        return locationUseCase.getLocationById(id, SecurityUtils.getCurrentHospitalId())
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }

@@ -7,7 +7,7 @@ import java.util.Optional;
 public interface LocationUseCase {
     Location createLocation(Location location);
     Location updateLocation(Long id, Location location, Long callerHospitalId);
-    Optional<Location> getLocationById(Long id);
+    Optional<Location> getLocationById(Long id, Long callerHospitalId);
     List<Location> getAllLocations(Long hospitalId);
     List<Location> getChildrenLocations(Long parentId, Long hospitalId);
     void deleteLocation(Long id, Long callerHospitalId);

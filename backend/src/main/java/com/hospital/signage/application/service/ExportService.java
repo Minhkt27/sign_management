@@ -157,7 +157,10 @@ public class ExportService {
 
     @Transactional(readOnly = true)
     public byte[] exportUsers() throws IOException {
-        List<UserEntity> users = userRepository.findAll();
+        Long hospitalId = com.hospital.signage.infrastructure.security.SecurityUtils.getCurrentHospitalId();
+        List<UserEntity> users = hospitalId == null
+                ? userRepository.findAll()
+                : userRepository.findByHospitalId(hospitalId);
 
         try (XSSFWorkbook wb = new XSSFWorkbook()) {
             Sheet sheet = wb.createSheet("Danh sách người dùng");

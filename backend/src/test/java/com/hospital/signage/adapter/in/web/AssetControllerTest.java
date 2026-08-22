@@ -85,7 +85,7 @@ public class AssetControllerTest {
         asset.setAssetCode("ASSET-001");
         asset.setStatus(AssetStatus.ACTIVE);
 
-        when(assetUseCase.getAssetById(id)).thenReturn(Optional.of(asset));
+        when(assetUseCase.getAssetById(eq(id), any())).thenReturn(Optional.of(asset));
 
         mockMvc.perform(get("/api/assets/" + id)
                         .contentType(MediaType.APPLICATION_JSON))
@@ -96,7 +96,7 @@ public class AssetControllerTest {
     @Test
     public void testGetAssetByIdNotFound() throws Exception {
         UUID id = UUID.randomUUID();
-        when(assetUseCase.getAssetById(id)).thenReturn(Optional.empty());
+        when(assetUseCase.getAssetById(eq(id), any())).thenReturn(Optional.empty());
 
         mockMvc.perform(get("/api/assets/" + id)
                         .contentType(MediaType.APPLICATION_JSON))

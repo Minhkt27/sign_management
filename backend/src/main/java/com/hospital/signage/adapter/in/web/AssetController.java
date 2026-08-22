@@ -55,7 +55,7 @@ public class AssetController {
     @Operation(summary = "Chi tiết biển báo theo ID")
     @GetMapping("/{id}")
     public ResponseEntity<Asset> getAssetById(@PathVariable UUID id) {
-        return assetUseCase.getAssetById(id)
+        return assetUseCase.getAssetById(id, SecurityUtils.getCurrentHospitalId())
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }

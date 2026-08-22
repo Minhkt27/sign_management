@@ -38,20 +38,20 @@ public class MapController {
     @Operation(summary = "Sơ đồ tầng theo ID (kèm nodes + edges)")
     @GetMapping("/floors/{id}")
     public ResponseEntity<MapFloorData> getFloorData(@PathVariable Long id) {
-        return ResponseEntity.ok(mapUseCase.getFloorData(id));
+        return ResponseEntity.ok(mapUseCase.getFloorData(id, SecurityUtils.getCurrentHospitalId()));
     }
 
     @Operation(summary = "Lấy nhiều sơ đồ tầng theo danh sách ID (batch)")
     @GetMapping("/floors/batch")
     public ResponseEntity<List<MapFloorData>> getFloorDataBatch(@RequestParam List<Long> ids) {
-        return ResponseEntity.ok(mapUseCase.getFloorDataBatch(ids));
+        return ResponseEntity.ok(mapUseCase.getFloorDataBatch(ids, SecurityUtils.getCurrentHospitalId()));
     }
 
     @Operation(summary = "Sơ đồ tầng theo locationId")
     @GetMapping("/floors/by-location/{locationId}")
     public ResponseEntity<MapFloorData> getFloorByLocation(@PathVariable Long locationId) {
         return mapUseCase.getFloorByLocationId(locationId)
-                .map(f -> ResponseEntity.ok(mapUseCase.getFloorData(f.getId())))
+                .map(f -> ResponseEntity.ok(mapUseCase.getFloorData(f.getId(), SecurityUtils.getCurrentHospitalId())))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -77,14 +77,14 @@ public class MapController {
                 .imgWidth(req.imgWidth())
                 .imgHeight(req.imgHeight())
                 .build();
-        return ResponseEntity.ok(mapUseCase.updateFloor(id, floor));
+        return ResponseEntity.ok(mapUseCase.updateFloor(id, floor, SecurityUtils.getCurrentHospitalId()));
     }
 
     @Operation(summary = "Xóa sơ đồ tầng")
     @PreAuthorize("hasAuthority('MAP_MANAGE')")
     @DeleteMapping("/floors/{id}")
     public ResponseEntity<Void> deleteFloor(@PathVariable Long id) {
-        mapUseCase.deleteFloor(id);
+        mapUseCase.deleteFloor(id, SecurityUtils.getCurrentHospitalId());
         return ResponseEntity.ok().build();
     }
 
@@ -146,7 +146,7 @@ public class MapController {
                 .assetId(req.assetId())
                 .linkedCampusNodeId(req.linkedCampusNodeId())
                 .build();
-        return ResponseEntity.ok(mapUseCase.createNode(node));
+        return ResponseEntity.ok(mapUseCase.createNode(node, SecurityUtils.getCurrentHospitalId()));
     }
 
     @Operation(summary = "Cập nhật node")
@@ -162,14 +162,14 @@ public class MapController {
                 .assetId(req.assetId())
                 .linkedCampusNodeId(req.linkedCampusNodeId())
                 .build();
-        return ResponseEntity.ok(mapUseCase.updateNode(id, node));
+        return ResponseEntity.ok(mapUseCase.updateNode(id, node, SecurityUtils.getCurrentHospitalId()));
     }
 
     @Operation(summary = "Xóa node")
     @PreAuthorize("hasAuthority('MAP_MANAGE')")
     @DeleteMapping("/nodes/{id}")
     public ResponseEntity<Void> deleteNode(@PathVariable Long id) {
-        mapUseCase.deleteNode(id);
+        mapUseCase.deleteNode(id, SecurityUtils.getCurrentHospitalId());
         return ResponseEntity.ok().build();
     }
 
@@ -202,7 +202,7 @@ public class MapController {
     @PreAuthorize("hasAuthority('MAP_MANAGE')")
     @DeleteMapping("/edges/{id}")
     public ResponseEntity<Void> deleteEdge(@PathVariable Long id) {
-        mapUseCase.deleteEdge(id);
+        mapUseCase.deleteEdge(id, SecurityUtils.getCurrentHospitalId());
         return ResponseEntity.ok().build();
     }
 

@@ -57,8 +57,9 @@ public class SignTypeService implements SignTypeUseCase {
     }
 
     @Override
-    public Optional<SignType> getSignTypeById(Long id) {
-        return signTypeDatabasePort.findById(id);
+    public Optional<SignType> getSignTypeById(Long id, Long callerHospitalId) {
+        return signTypeDatabasePort.findById(id)
+                .filter(st -> callerHospitalId == null || callerHospitalId.equals(st.getHospitalId()));
     }
 
     @Override

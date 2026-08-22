@@ -21,11 +21,23 @@ public class CacheConfig {
                         .build());
         manager.registerCustomCache("mapGraph",
                 Caffeine.newBuilder()
-                        .maximumSize(1)
+                        .maximumSize(200)
                         .build());
         manager.registerCustomCache("mapFloorGraph",
                 Caffeine.newBuilder()
-                        .maximumSize(50)
+                        .maximumSize(500)
+                        .build());
+        manager.registerCustomCache("mapCampusGraph",
+                Caffeine.newBuilder()
+                        .maximumSize(200)
+                        .build());
+        manager.registerCustomCache("mapIndoorFullGraph",
+                Caffeine.newBuilder()
+                        .maximumSize(200)
+                        .build());
+        manager.registerCustomCache("mapFloorLocationMap",
+                Caffeine.newBuilder()
+                        .maximumSize(200)
                         .build());
         return manager;
     }

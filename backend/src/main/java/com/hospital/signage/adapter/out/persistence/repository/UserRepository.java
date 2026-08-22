@@ -16,6 +16,7 @@ import java.util.Optional;
 public interface UserRepository extends JpaRepository<UserEntity, Long> {
     Optional<UserEntity> findByUsername(String username);
     List<UserEntity> findByRoleId(Long roleId);
+    List<UserEntity> findByHospitalId(Long hospitalId);
 
     @Query("SELECT u FROM UserEntity u WHERE u.roleId = :roleId AND (:hospitalId IS NULL OR u.hospitalId = :hospitalId)")
     List<UserEntity> findByRoleIdAndHospital(@Param("roleId") Long roleId, @Param("hospitalId") Long hospitalId);

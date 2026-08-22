@@ -11,7 +11,7 @@ import java.util.UUID;
 public interface AssetUseCase {
     Asset createAsset(Asset asset);
     Asset updateAsset(UUID id, Asset asset, Long callerHospitalId);
-    Optional<Asset> getAssetById(UUID id);
+    Optional<Asset> getAssetById(UUID id, Long callerHospitalId);
     Optional<Asset> getAssetByCode(String assetCode, Long hospitalId);
     List<Asset> getAllAssets(Long hospitalId);
     Page<Asset> getAssetsPage(int page, int size, String search, Long hospitalId);

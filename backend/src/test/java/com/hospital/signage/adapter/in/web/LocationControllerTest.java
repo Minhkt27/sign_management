@@ -71,7 +71,7 @@ public class LocationControllerTest {
         loc.setId(1L);
         loc.setName("Building A");
 
-        when(locationUseCase.getLocationById(1L)).thenReturn(Optional.of(loc));
+        when(locationUseCase.getLocationById(any(Long.class), any())).thenReturn(Optional.of(loc));
 
         mockMvc.perform(get("/api/locations/1")
                 .contentType(MediaType.APPLICATION_JSON))

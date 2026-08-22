@@ -99,9 +99,10 @@ class AssetServiceTest {
 
     @Test
     void getAssetById_existingId_returnsAsset() {
+        sampleAsset.setHospitalId(1L);
         when(assetDatabasePort.findById(sampleAsset.getId())).thenReturn(Optional.of(sampleAsset));
 
-        Optional<Asset> result = assetService.getAssetById(sampleAsset.getId());
+        Optional<Asset> result = assetService.getAssetById(sampleAsset.getId(), 1L);
 
         assertThat(result).isPresent().contains(sampleAsset);
     }
@@ -111,7 +112,25 @@ class AssetServiceTest {
         UUID missing = UUID.randomUUID();
         when(assetDatabasePort.findById(missing)).thenReturn(Optional.empty());
 
-        assertThat(assetService.getAssetById(missing)).isEmpty();
+        assertThat(assetService.getAssetById(missing, 1L)).isEmpty();
+    }
+
+    @Test
+    void getAssetById_belongsToOtherHospital_returnsEmpty() {
+        sampleAsset.setHospitalId(2L);
+        when(assetDatabasePort.findById(sampleAsset.getId())).thenReturn(Optional.of(sampleAsset));
+
+        assertThat(assetService.getAssetById(sampleAsset.getId(), 1L)).isEmpty();
+    }
+
+    @Test
+    void getAssetById_superAdmin_ignoresHospitalId() {
+        sampleAsset.setHospitalId(2L);
+        when(assetDatabasePort.findById(sampleAsset.getId())).thenReturn(Optional.of(sampleAsset));
+
+        Optional<Asset> result = assetService.getAssetById(sampleAsset.getId(), null);
+
+        assertThat(result).isPresent().contains(sampleAsset);
     }
 
     @Test

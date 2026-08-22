@@ -45,9 +45,10 @@ public class MapService implements MapUseCase {
 
     @Override
     @Transactional
-    public MapFloor updateFloor(Long id, MapFloor floor) {
+    public MapFloor updateFloor(Long id, MapFloor floor, Long callerHospitalId) {
         MapFloor existing = mapDatabasePort.findFloorById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Sơ đồ không tồn tại: " + id));
+        assertFloorInHospital(existing, callerHospitalId);
         existing.setImageUrl(floor.getImageUrl());
         existing.setImgWidth(floor.getImgWidth());
         existing.setImgHeight(floor.getImgHeight());
@@ -119,26 +120,30 @@ public class MapService implements MapUseCase {
 
     @Override
     @Transactional
-    public void deleteFloor(Long id) {
-        mapDatabasePort.findFloorById(id)
+    public void deleteFloor(Long id, Long callerHospitalId) {
+        MapFloor existing = mapDatabasePort.findFloorById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Sơ đồ không tồn tại: " + id));
+        assertFloorInHospital(existing, callerHospitalId);
         mapDatabasePort.deleteFloorById(id);
         log.info("MapFloor deleted: id={}", id);
     }
 
     @Override
-    public MapFloorData getFloorData(Long floorId) {
+    public MapFloorData getFloorData(Long floorId, Long callerHospitalId) {
         MapFloor floor = mapDatabasePort.findFloorById(floorId)
                 .orElseThrow(() -> new IllegalArgumentException("Sơ đồ không tồn tại: " + floorId));
+        assertFloorInHospital(floor, callerHospitalId);
         List<MapNode> nodes = mapDatabasePort.findNodesByFloorId(floorId);
         List<MapEdge> edges = mapDatabasePort.findEdgesByFloorId(floorId);
         return new MapFloorData(floor, nodes, edges);
     }
 
     @Override
-    public List<MapFloorData> getFloorDataBatch(List<Long> floorIds) {
+    public List<MapFloorData> getFloorDataBatch(List<Long> floorIds, Long callerHospitalId) {
         if (floorIds == null || floorIds.isEmpty()) return Collections.emptyList();
-        List<MapFloor> floors = mapDatabasePort.findFloorsByIds(floorIds);
+        List<MapFloor> floors = mapDatabasePort.findFloorsByIds(floorIds).stream()
+                .filter(f -> callerHospitalId == null || callerHospitalId.equals(f.getHospitalId()))
+                .toList();
         List<MapNode> allNodes = mapDatabasePort.findNodesByFloorIds(floorIds);
         List<MapEdge> allEdges = mapDatabasePort.findEdgesByFloorIds(floorIds);
 
@@ -173,9 +178,10 @@ public class MapService implements MapUseCase {
 
     @Override
     @Transactional
-    public MapNode createNode(MapNode node) {
-        mapDatabasePort.findFloorById(node.getFloorId())
+    public MapNode createNode(MapNode node, Long callerHospitalId) {
+        MapFloor floor = mapDatabasePort.findFloorById(node.getFloorId())
                 .orElseThrow(() -> new IllegalArgumentException("Sơ đồ không tồn tại: " + node.getFloorId()));
+        assertFloorInHospital(floor, callerHospitalId);
         MapNode saved = mapDatabasePort.saveNode(node);
         mapGraphCache.invalidateAll();
         log.info("MapNode created: id={}, floorId={}, type={}", saved.getId(), saved.getFloorId(), saved.getType());
@@ -184,9 +190,10 @@ public class MapService implements MapUseCase {
 
     @Override
     @Transactional
-    public MapNode updateNode(Long id, MapNode node) {
+    public MapNode updateNode(Long id, MapNode node, Long callerHospitalId) {
         MapNode existing = mapDatabasePort.findNodeById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Node không tồn tại: " + id));
+        assertNodeInHospital(existing, callerHospitalId);
         boolean positionChanged = (node.getX() != null && !node.getX().equals(existing.getX()))
                 || (node.getY() != null && !node.getY().equals(existing.getY()));
         if (node.getX() != null) existing.setX(node.getX());
@@ -219,9 +226,10 @@ public class MapService implements MapUseCase {
 
     @Override
     @Transactional
-    public void deleteNode(Long id) {
-        mapDatabasePort.findNodeById(id)
+    public void deleteNode(Long id, Long callerHospitalId) {
+        MapNode existing = mapDatabasePort.findNodeById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Node không tồn tại: " + id));
+        assertNodeInHospital(existing, callerHospitalId);
         mapDatabasePort.deleteNodeById(id);
         mapGraphCache.invalidateAll();
         log.info("MapNode deleted: id={}", id);
@@ -278,9 +286,14 @@ public class MapService implements MapUseCase {
 
     @Override
     @Transactional
-    public void deleteEdge(Long id) {
-        mapDatabasePort.findEdgeById(id)
+    public void deleteEdge(Long id, Long callerHospitalId) {
+        MapEdge edge = mapDatabasePort.findEdgeById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Edge không tồn tại: " + id));
+        if (callerHospitalId != null) {
+            MapNode fromNode = mapDatabasePort.findNodeById(edge.getNodeFromId())
+                    .orElseThrow(() -> new NoSuchElementException("Edge không tồn tại: " + id));
+            assertNodeInHospital(fromNode, callerHospitalId);
+        }
         mapDatabasePort.deleteEdgeById(id);
         mapGraphCache.invalidateAll();
         log.info("MapEdge deleted: id={}", id);
@@ -573,6 +586,13 @@ public class MapService implements MapUseCase {
         MapFloor floor = mapDatabasePort.findFloorById(node.getFloorId()).orElse(null);
         if (floor == null || !hospitalId.equals(floor.getHospitalId())) {
             throw new NoSuchElementException("Node không tồn tại: " + node.getId());
+        }
+    }
+
+    // hospitalId == null nghĩa là SUPER_ADMIN, không giới hạn viện nào.
+    private void assertFloorInHospital(MapFloor floor, Long hospitalId) {
+        if (hospitalId != null && !hospitalId.equals(floor.getHospitalId())) {
+            throw new IllegalArgumentException("Sơ đồ không tồn tại: " + floor.getId());
         }
     }
 
