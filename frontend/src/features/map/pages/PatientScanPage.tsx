@@ -36,17 +36,43 @@ export default function PatientScanPage() {
     if (node) {
       const label = node.label || asset?.name || asset?.location?.name || 'Vị trí của bạn';
       let url = `/map?from=${node.id}&fromLabel=${encodeURIComponent(label)}`;
-      
+
       const savedDest = localStorage.getItem('wayfinding_dest');
       if (savedDest) {
         url += `&dest=${savedDest}`;
       }
-      
+
       navigate(url, { replace: true });
-    } else if (assetError || nodeError) {
-      navigate('/map', { replace: true });
     }
-  }, [node, asset, assetError, nodeError, navigate]);
+  }, [node, asset, navigate]);
+
+  if (assetError || nodeError) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center px-6"
+        style={{ background: '#F2F7F3', fontFamily: "'Be Vietnam Pro', sans-serif" }}
+      >
+        <div className="flex flex-col items-center gap-3 text-center max-w-xs">
+          <div className="w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-amber-100">
+            ⚠️
+          </div>
+          <p className="text-sm font-semibold" style={{ color: '#1A5C2A' }}>
+            Không xác định được vị trí từ mã QR này
+          </p>
+          <p className="text-xs" style={{ color: '#5A7A62' }}>
+            Mã có thể đã hết hạn hoặc chưa được gắn với bản đồ. Bạn có thể tự tìm đường thủ công.
+          </p>
+          <button
+            onClick={() => navigate('/map', { replace: true })}
+            className="mt-1 px-5 py-2.5 rounded-xl text-sm font-semibold text-white"
+            style={{ background: '#1A5C2A' }}
+          >
+            Tìm đường thủ công
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

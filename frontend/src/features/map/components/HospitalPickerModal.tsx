@@ -16,7 +16,7 @@ interface Props {
 // Fallback khi mở app "lạnh" (chưa quét QR nào) và GPS không xác định được viện —
 // bắt buộc chọn tay để đảm bảo luôn có 1 viện được gán trước khi dùng wayfinding.
 export function HospitalPickerModal({ open, onSelect }: Props) {
-  const { data: hospitals = [] } = useQuery({
+  const { data: hospitals = [], isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ['hospitals-public'],
     queryFn: hospitalService.getAllHospitals,
     enabled: open,
@@ -40,28 +40,58 @@ export function HospitalPickerModal({ open, onSelect }: Props) {
           <p className="text-xs text-slate-500 mb-3">
             Không xác định được vị trí tự động. Hãy chọn bệnh viện để tiếp tục.
           </p>
-          <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
-            {activeHospitals.map(hospital => (
+
+          {isLoading ? (
+            <div className="flex flex-col items-center gap-2 py-6">
+              <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin border-green-600" />
+              <p className="text-xs text-slate-400">Đang tải danh sách bệnh viện...</p>
+            </div>
+          ) : isError ? (
+            <div className="flex flex-col items-center gap-2 py-6">
+              <p className="text-xs text-center text-slate-500">
+                Không tải được danh sách bệnh viện. Vui lòng kiểm tra kết nối mạng.
+              </p>
               <button
-                key={hospital.id}
-                onClick={() => onSelect(hospital)}
-                className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left bg-slate-50 hover:bg-green-50 border border-slate-100 transition-colors"
+                onClick={() => refetch()}
+                disabled={isFetching}
+                className="px-4 py-2 rounded-lg text-xs font-semibold bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
               >
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base flex-shrink-0 bg-green-100">
-                  🏥
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold truncate text-slate-800">{hospital.name}</p>
-                  {hospital.address && (
-                    <p className="text-[11px] text-slate-500 truncate">{hospital.address}</p>
-                  )}
-                </div>
+                {isFetching ? 'Đang thử lại...' : 'Thử lại'}
               </button>
-            ))}
-            {activeHospitals.length === 0 && (
-              <p className="text-xs text-center py-4 text-slate-400">Chưa có bệnh viện nào.</p>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
+              {activeHospitals.map(hospital => (
+                <button
+                  key={hospital.id}
+                  onClick={() => onSelect(hospital)}
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left bg-slate-50 hover:bg-green-50 border border-slate-100 transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base flex-shrink-0 bg-green-100">
+                    🏥
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold truncate text-slate-800">{hospital.name}</p>
+                    {hospital.address && (
+                      <p className="text-[11px] text-slate-500 truncate">{hospital.address}</p>
+                    )}
+                  </div>
+                </button>
+              ))}
+              {activeHospitals.length === 0 && (
+                <div className="flex flex-col items-center gap-2 py-4">
+                  <p className="text-xs text-center text-slate-400">Chưa có bệnh viện nào.</p>
+                  <button
+                    onClick={() => refetch()}
+                    disabled={isFetching}
+                    className="px-4 py-2 rounded-lg text-xs font-semibold bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                  >
+                    {isFetching ? 'Đang thử lại...' : 'Thử lại'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
