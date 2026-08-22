@@ -34,9 +34,11 @@ public class JwtTokenProvider {
         this.key = Keys.hmacShaKeyFor(jwtSecret.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
-    public String generateToken(String username, String role) {
+    public String generateToken(String username, java.util.List<String> permissions, String uiMode, Long hospitalId) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("role", role);
+        claims.put("permissions", permissions);
+        claims.put("uiMode", uiMode);
+        claims.put("hospitalId", hospitalId);
         return createToken(claims, username, jwtExpirationInMs);
     }
 
@@ -55,11 +57,20 @@ public class JwtTokenProvider {
     }
 
     public String extractUsername(String token) {
-        return extractClaim(token, Claims::getSubject);
+        return extractClaim(token, c -> c.getSubject());
     }
 
-    public String extractRole(String token) {
-        return extractAllClaims(token).get("role", String.class);
+    @SuppressWarnings("unchecked")
+    public java.util.List<String> extractPermissions(String token) {
+        return extractAllClaims(token).get("permissions", java.util.List.class);
+    }
+
+    public String extractUiMode(String token) {
+        return extractAllClaims(token).get("uiMode", String.class);
+    }
+
+    public Long extractHospitalId(String token) {
+        return extractAllClaims(token).get("hospitalId", Long.class);
     }
 
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
@@ -85,6 +96,6 @@ public class JwtTokenProvider {
     }
 
     public Date extractExpiration(String token) {
-        return extractClaim(token, Claims::getExpiration);
+        return extractClaim(token, c -> c.getExpiration());
     }
 }

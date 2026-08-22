@@ -6,6 +6,8 @@ import com.hospital.signage.adapter.out.persistence.repository.UserRepository;
 import com.hospital.signage.application.port.out.UserDatabasePort;
 import com.hospital.signage.domain.model.User;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -36,8 +38,15 @@ public class UserPersistenceAdapter implements UserDatabasePort {
     }
 
     @Override
-    public List<User> findByRole(com.hospital.signage.domain.enums.Role role) {
-        return repository.findByRole(role).stream()
+    public List<User> findByRoleId(Long roleId) {
+        return repository.findByRoleId(roleId).stream()
+                .map(mapper::toDomain)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
+    public List<User> findByRoleIdAndHospital(Long roleId, Long hospitalId) {
+        return repository.findByRoleIdAndHospital(roleId, hospitalId).stream()
                 .map(mapper::toDomain)
                 .collect(java.util.stream.Collectors.toList());
     }
@@ -45,5 +54,16 @@ public class UserPersistenceAdapter implements UserDatabasePort {
     @Override
     public List<User> findAll() {
         return repository.findAll().stream().map(mapper::toDomain).toList();
+    }
+
+    @Override
+    public Page<User> findPage(String search, Long hospitalId, Pageable pageable) {
+        String s = search == null ? "" : search;
+        return repository.search(s, hospitalId, pageable).map(mapper::toDomain);
+    }
+
+    @Override
+    public void deleteById(Long id) {
+        repository.deleteById(id);
     }
 }

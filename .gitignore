@@ -2,6 +2,7 @@
 .env
 .env.local
 .env.*.local
+.env.production.example
 
 # Backend build
 backend/target/
@@ -18,6 +19,9 @@ backups/
 # Logs
 *.log
 npm-debug.log*
+
+# Claude Code local settings
+.claude/settings.local.json
 
 # IDE
 .vscode/*

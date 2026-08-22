@@ -1,25 +1,36 @@
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ticketService } from '@/services/ticketService';
 import { MaintenanceTicket } from '@/shared/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Clock, User as UserIcon, CheckCircle2, Wrench, AlertCircle, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Clock, User as UserIcon, CheckCircle2, Image as ImageIcon, RotateCcw, X } from 'lucide-react';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
+import { PRIORITY_LABELS, renderTicketStatusBadge } from '@/shared/helpers/ticketBadges';
 
 export default function TicketDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [showRejectForm, setShowRejectForm] = useState(false);
+  const [rejectionNote, setRejectionNote] = useState('');
+  const [rejectError, setRejectError] = useState('');
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
-  // Queries
+  useEffect(() => {
+    if (!lightboxSrc) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setLightboxSrc(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lightboxSrc]);
+
   const { data: ticket, isLoading: isTicketLoading } = useQuery<MaintenanceTicket>({
     queryKey: ['ticket', id],
     queryFn: () => ticketService.getTicketById(Number(id)),
     enabled: !!id,
   });
 
-  // Mutations
   const closeMutation = useMutation({
     mutationFn: (ticketId: number) => ticketService.updateTicketStatus(ticketId, 'CLOSED'),
     onSuccess: () => {
@@ -28,9 +39,25 @@ export default function TicketDetailPage() {
     },
   });
 
-  const handleCloseTicket = () => {
-    if (!ticket) return;
-    closeMutation.mutate(ticket.id);
+  const rejectMutation = useMutation({
+    mutationFn: ({ ticketId, note }: { ticketId: number; note: string }) =>
+      ticketService.updateTicketStatus(ticketId, 'IN_PROGRESS', undefined, undefined, note),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+      queryClient.invalidateQueries({ queryKey: ['tickets'] });
+      setShowRejectForm(false);
+      setRejectionNote('');
+      setRejectError('');
+    },
+    onError: () => setRejectError('Không thể yêu cầu sửa lại. Phiếu có thể đã đạt giới hạn 3 lần.'),
+  });
+
+  const handleCloseTicket = () => { if (ticket) closeMutation.mutate(ticket.id); };
+  const handleReject = () => {
+    if (ticket && rejectionNote.trim()) {
+      setRejectError('');
+      rejectMutation.mutate({ ticketId: ticket.id, note: rejectionNote.trim() });
+    }
   };
 
   if (isTicketLoading) {
@@ -48,23 +75,6 @@ export default function TicketDetailPage() {
 
   const reporter = ticket.reporter;
   const assignee = ticket.assignee;
-
-
-  // Helper: Render status badge
-  const renderStatusBadge = (status: MaintenanceTicket['ticketStatus']) => {
-    switch (status) {
-      case 'OPEN':
-        return <Badge className="bg-rose-50 text-rose-700 hover:bg-rose-50 border border-rose-200 flex items-center space-x-1 w-fit text-xs px-2 py-0.5"><AlertCircle size={12} /> <span>Chờ tiếp nhận</span></Badge>;
-      case 'IN_PROGRESS':
-        return <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-50 border border-amber-200 flex items-center space-x-1 w-fit text-xs px-2 py-0.5"><Wrench size={12} /> <span>Đang xử lý</span></Badge>;
-      case 'RESOLVED':
-        return <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border border-emerald-200 flex items-center space-x-1 w-fit text-xs px-2 py-0.5"><CheckCircle2 size={12} /> <span>Đã sửa xong</span></Badge>;
-      case 'CLOSED':
-        return <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100 border border-slate-200 flex items-center space-x-1 w-fit text-xs px-2 py-0.5"><CheckCircle2 size={12} /> <span>Đã đóng phiếu</span></Badge>;
-      default:
-        return <Badge>{status}</Badge>;
-    }
-  };
 
   return (
     <div className="space-y-8 max-w-4xl mx-auto text-left">
@@ -86,23 +96,30 @@ export default function TicketDetailPage() {
               <div className="flex items-center space-x-2">
                 <h2 className="text-2xl font-bold text-slate-800">Phiếu bảo trì #{ticket.id}</h2>
                 <Badge className="bg-slate-100 text-slate-700 border border-slate-250">
-                  {ticket.priority}
+                  {PRIORITY_LABELS[ticket.priority] ?? ticket.priority}
                 </Badge>
               </div>
-              <p className="text-xs text-slate-400 mt-1 flex items-center space-x-1">
-                <Clock size={12} /> <span>Phản ánh lúc: {new Date(ticket.createdAt).toLocaleString()}</span>
-              </p>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
+                <p className="text-sm text-slate-400 flex items-center gap-1">
+                  <Clock size={13} /> Phản ánh: {new Date(ticket.createdAt).toLocaleString('vi-VN')}
+                </p>
+                {ticket.completedAt && (
+                  <p className="text-sm text-emerald-600 flex items-center gap-1 font-medium">
+                    <CheckCircle2 size={13} /> Hoàn thành: {new Date(ticket.completedAt).toLocaleString('vi-VN')}
+                  </p>
+                )}
+              </div>
             </div>
-            <div>{renderStatusBadge(ticket.ticketStatus)}</div>
+            <div>{renderTicketStatusBadge(ticket.ticketStatus)}</div>
           </div>
 
           {/* Asset Info Card */}
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/50 space-y-2">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Thiết bị cần bảo trì</h3>
+            <h3 className="text-sm font-bold text-slate-600 uppercase tracking-wider">Thiết bị cần bảo trì</h3>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-bold text-slate-800">{ticket.asset?.assetCode}</p>
-                <p className="text-xs text-slate-500">{ticket.asset?.material} - {ticket.asset?.size}</p>
+                <p className="text-base font-bold text-slate-800">{ticket.asset?.assetCode}</p>
+                <p className="text-sm text-slate-500">{ticket.asset?.material} - {ticket.asset?.size}</p>
               </div>
               <Button 
                 onClick={() => navigate(`/admin/assets/${ticket.asset?.id}`)}
@@ -117,37 +134,43 @@ export default function TicketDetailPage() {
 
           {/* Description */}
           <div className="space-y-2">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Mô tả sự cố chi tiết</h3>
-            <p className="text-sm text-slate-750 leading-relaxed bg-white border border-slate-200/50 p-4 rounded-xl">
+            <h3 className="text-sm font-bold text-slate-600 uppercase tracking-wider">Mô tả sự cố chi tiết</h3>
+            <p className="text-base text-slate-750 leading-relaxed bg-white border border-slate-200/50 p-4 rounded-xl">
               {ticket.description}
             </p>
           </div>
 
           {/* Before & After Images */}
           <div className="space-y-3">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center space-x-1">
+            <h3 className="text-sm font-bold text-slate-600 uppercase tracking-wider flex items-center space-x-1">
               <ImageIcon size={14} /> <span>Hình ảnh đối chiếu thực địa</span>
             </h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5 text-center">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Trước khi sửa</span>
-                <div className="aspect-video bg-slate-100 rounded-xl border border-slate-200 overflow-hidden flex items-center justify-center relative">
+                <span className="text-sm font-bold text-slate-500 uppercase tracking-wider">Trước khi sửa</span>
+                <div
+                  className={`aspect-video bg-slate-100 rounded-xl border border-slate-200 overflow-hidden flex items-center justify-center relative ${ticket.imageBefore ? 'cursor-zoom-in' : ''}`}
+                  onClick={() => ticket.imageBefore && setLightboxSrc(getBackendUrl(ticket.imageBefore))}
+                >
                   {ticket.imageBefore ? (
                     <img src={getBackendUrl(ticket.imageBefore)} alt="Before repair" className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-xs text-slate-400 font-medium">Chưa cập nhật ảnh</span>
+                    <span className="text-sm text-slate-400 font-medium">Chưa cập nhật ảnh</span>
                   )}
                 </div>
               </div>
 
               <div className="space-y-1.5 text-center">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Sau khi sửa</span>
-                <div className="aspect-video bg-slate-100 rounded-xl border border-slate-200 overflow-hidden flex items-center justify-center relative">
+                <span className="text-sm font-bold text-slate-500 uppercase tracking-wider">Sau khi sửa</span>
+                <div
+                  className={`aspect-video bg-slate-100 rounded-xl border border-slate-200 overflow-hidden flex items-center justify-center relative ${ticket.imageAfter ? 'cursor-zoom-in' : ''}`}
+                  onClick={() => ticket.imageAfter && setLightboxSrc(getBackendUrl(ticket.imageAfter))}
+                >
                   {ticket.imageAfter ? (
                     <img src={getBackendUrl(ticket.imageAfter)} alt="After repair" className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-xs text-slate-400 font-medium">Chưa cập nhật ảnh</span>
+                    <span className="text-sm text-slate-400 font-medium">Chưa cập nhật ảnh</span>
                   )}
                 </div>
               </div>
@@ -162,19 +185,19 @@ export default function TicketDetailPage() {
             <h3 className="text-base font-bold text-slate-800">Thông tin Phân công</h3>
             
             <div className="space-y-3">
-              <div className="flex items-center space-x-3 text-xs border-b border-slate-50 pb-2">
-                <UserIcon size={16} className="text-slate-400" />
+              <div className="flex items-center space-x-3 border-b border-slate-50 pb-3">
+                <UserIcon size={16} className="text-slate-400 shrink-0" />
                 <div>
                   <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Người báo hỏng</p>
-                  <p className="font-bold text-slate-700">{reporter?.fullName || 'Quản trị viên'}</p>
+                  <p className="text-base font-bold text-slate-700">{reporter?.fullName || 'Quản trị viên'}</p>
                 </div>
               </div>
 
-              <div className="flex items-center space-x-3 text-xs">
-                <UserIcon size={16} className="text-slate-400" />
+              <div className="flex items-center space-x-3">
+                <UserIcon size={16} className="text-slate-400 shrink-0" />
                 <div>
                   <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Kỹ thuật viên thực hiện</p>
-                  <p className="font-bold text-slate-700">
+                  <p className="text-base font-bold text-slate-700">
                     {assignee ? assignee.fullName : <span className="text-slate-400 font-medium">Chưa phân công</span>}
                   </p>
                 </div>
@@ -190,13 +213,59 @@ export default function TicketDetailPage() {
               </Button>
             )}
 
-            {ticket.ticketStatus === 'RESOLVED' && (
-              <Button 
-                onClick={handleCloseTicket}
-                className="w-full bg-slate-900 hover:bg-black text-white rounded-xl py-3 font-semibold text-sm"
-              >
-                Đóng phiếu bảo trì
-              </Button>
+            {ticket.ticketStatus === 'RESOLVED' && !showRejectForm && (
+              <div className="space-y-2">
+                <Button
+                  onClick={handleCloseTicket}
+                  disabled={closeMutation.isPending}
+                  className="w-full bg-slate-900 hover:bg-black text-white rounded-xl py-3 font-semibold text-sm"
+                >
+                  {closeMutation.isPending ? 'Đang xử lý...' : 'Đóng phiếu bảo trì'}
+                </Button>
+                {(ticket.rejectionCount ?? 0) < 3 ? (
+                  <Button
+                    onClick={() => setShowRejectForm(true)}
+                    variant="outline"
+                    className="w-full border-orange-300 text-orange-600 hover:bg-orange-50 rounded-xl py-3 font-semibold text-sm flex items-center justify-center gap-2"
+                  >
+                    <RotateCcw size={15} /> Yêu cầu sửa lại ({ticket.rejectionCount ?? 0}/3)
+                  </Button>
+                ) : (
+                  <p className="text-xs text-center text-slate-400 font-medium py-1">
+                    Đã từ chối tối đa 3 lần — chỉ có thể đóng phiếu.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {ticket.ticketStatus === 'RESOLVED' && showRejectForm && (
+              <div className="space-y-3 p-3 bg-orange-50 border border-orange-200 rounded-xl">
+                <p className="text-xs font-bold text-orange-700 flex items-center gap-1.5">
+                  <RotateCcw size={13} /> Lý do yêu cầu sửa lại
+                </p>
+                <textarea
+                  rows={3}
+                  placeholder="Ví dụ: Ảnh sau chưa rõ, biển vẫn còn nghiêng..."
+                  value={rejectionNote}
+                  onChange={e => setRejectionNote(e.target.value)}
+                  className="w-full border border-orange-200 bg-white text-slate-700 p-2.5 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-orange-400"
+                />
+                {rejectError && (
+                  <p className="text-xs text-rose-600 font-medium">{rejectError}</p>
+                )}
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => { setShowRejectForm(false); setRejectionNote(''); setRejectError(''); }} className="w-1/2 text-sm rounded-lg">
+                    Hủy
+                  </Button>
+                  <Button
+                    onClick={handleReject}
+                    disabled={!rejectionNote.trim() || rejectMutation.isPending}
+                    className="w-1/2 bg-orange-600 hover:bg-orange-700 text-white text-sm rounded-lg font-bold"
+                  >
+                    {rejectMutation.isPending ? 'Đang gửi...' : 'Xác nhận'}
+                  </Button>
+                </div>
+              </div>
             )}
           </div>
 
@@ -208,8 +277,8 @@ export default function TicketDetailPage() {
               <div className="flex items-start space-x-3 relative">
                 <span className="absolute -left-5 w-3.5 h-3.5 rounded-full bg-blue-600 border-2 border-white"></span>
                 <div>
-                  <p className="text-xs font-bold text-slate-700">Đã khởi tạo phiếu</p>
-                  <span className="text-xs text-slate-400">Khởi tạo bởi quản trị viên.</span>
+                  <p className="text-sm font-bold text-slate-700">Đã khởi tạo phiếu</p>
+                  <span className="text-sm text-slate-400">Khởi tạo bởi quản trị viên.</span>
                 </div>
               </div>
 
@@ -218,22 +287,22 @@ export default function TicketDetailPage() {
                   ticket.ticketStatus !== 'OPEN' ? 'bg-blue-600' : 'bg-slate-300'
                 }`}></span>
                 <div>
-                  <p className={`text-xs font-bold ${ticket.ticketStatus !== 'OPEN' ? 'text-slate-700' : 'text-slate-400'}`}>
+                  <p className={`text-sm font-bold ${ticket.ticketStatus !== 'OPEN' ? 'text-slate-700' : 'text-slate-400'}`}>
                     Đã bàn giao công việc
                   </p>
                   {assignee && (
-                    <span className="text-xs text-slate-400">Giao cho: {assignee.fullName}</span>
+                    <span className="text-sm text-slate-400">Giao cho: {assignee.fullName}</span>
                   )}
                 </div>
               </div>
 
               <div className="flex items-start space-x-3 relative">
                 <span className={`absolute -left-5 w-3.5 h-3.5 rounded-full border-2 border-white ${
-                  (ticket.ticketStatus === 'RESOLVED' || ticket.ticketStatus === 'CLOSED') ? 'bg-blue-600' : 
+                  (ticket.ticketStatus === 'RESOLVED' || ticket.ticketStatus === 'CLOSED') ? 'bg-blue-600' :
                   ticket.ticketStatus === 'IN_PROGRESS' ? 'bg-amber-500' : 'bg-slate-300'
                 }`}></span>
                 <div>
-                  <p className={`text-xs font-bold ${
+                  <p className={`text-sm font-bold ${
                     ticket.ticketStatus !== 'OPEN' ? 'text-slate-700' : 'text-slate-400'
                   }`}>
                     Đang triển khai sửa chữa
@@ -243,11 +312,11 @@ export default function TicketDetailPage() {
 
               <div className="flex items-start space-x-3 relative">
                 <span className={`absolute -left-5 w-3.5 h-3.5 rounded-full border-2 border-white ${
-                  ticket.ticketStatus === 'RESOLVED' ? 'bg-emerald-500' : 
+                  ticket.ticketStatus === 'RESOLVED' ? 'bg-emerald-500' :
                   ticket.ticketStatus === 'CLOSED' ? 'bg-slate-700' : 'bg-slate-300'
                 }`}></span>
                 <div>
-                  <p className={`text-xs font-bold ${
+                  <p className={`text-sm font-bold ${
                     (ticket.ticketStatus === 'RESOLVED' || ticket.ticketStatus === 'CLOSED') ? 'text-slate-700' : 'text-slate-400'
                   }`}>
                     Đã hoàn thành sửa chữa
@@ -258,6 +327,27 @@ export default function TicketDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Lightbox */}
+      {lightboxSrc && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setLightboxSrc(null)}
+        >
+          <button
+            className="absolute top-4 right-4 text-white bg-black/40 hover:bg-black/70 rounded-full p-2 transition-colors"
+            onClick={() => setLightboxSrc(null)}
+          >
+            <X size={24} />
+          </button>
+          <img
+            src={lightboxSrc}
+            alt="Phóng to"
+            className="max-w-full max-h-full rounded-xl shadow-2xl object-contain"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

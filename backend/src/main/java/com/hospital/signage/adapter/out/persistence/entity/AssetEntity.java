@@ -4,6 +4,7 @@ import com.hospital.signage.domain.enums.AssetStatus;
 import com.hospital.signage.domain.enums.Material;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.Column;
 import jakarta.persistence.ManyToOne;
@@ -19,11 +20,14 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "assets")
+@Table(name = "assets", indexes = {
+        @Index(name = "idx_assets_location_id",  columnList = "location_id"),
+        @Index(name = "idx_assets_sign_type_id", columnList = "sign_type_id")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -36,6 +40,9 @@ public class AssetEntity {
 
     @Column(name = "asset_code", unique = true, nullable = false)
     private String assetCode;
+
+    @Column(name = "hospital_id", nullable = false)
+    private Long hospitalId;
 
     private String name;
 
@@ -62,7 +69,7 @@ public class AssetEntity {
     private AssetStatus status;
 
     @Column(name = "installed_at")
-    private LocalDateTime installedAt;
+    private Instant installedAt;
 
     @Column(name = "image_url", length = 500)
     private String imageUrl;
@@ -71,11 +78,11 @@ public class AssetEntity {
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @UpdateTimestamp
     @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    private Instant updatedAt;
 
     @Column(name = "created_by")
     private Long createdBy;

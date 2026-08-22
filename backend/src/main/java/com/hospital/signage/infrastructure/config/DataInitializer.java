@@ -13,7 +13,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.UUID;
 
 @Component
@@ -45,10 +46,10 @@ public class DataInitializer implements CommandLineRunner {
                 .username("admin")
                 .password(passwordEncoder.encode(adminInitialPassword))
                 .fullName("Quản trị hệ thống")
-                .role(Role.ADMIN)
+                .roleId(1L)
                 .isActive(true)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
                 .build();
         admin = userDatabasePort.save(admin);
 
@@ -56,10 +57,10 @@ public class DataInitializer implements CommandLineRunner {
                 .username("tech")
                 .password(passwordEncoder.encode(techInitialPassword))
                 .fullName("Nguyễn Văn Kỹ Thuật")
-                .role(Role.TECHNICAL)
+                .roleId(2L)
                 .isActive(true)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
                 .build();
         tech = userDatabasePort.save(tech);
 
@@ -151,7 +152,7 @@ public class DataInitializer implements CommandLineRunner {
                 .material(Material.LED)
                 .size("120x80cm")
                 .status(AssetStatus.ACTIVE)
-                .installedAt(LocalDateTime.now().minusMonths(6))
+                .installedAt(Instant.now().minus(Duration.ofDays(180)))
                 .supplier("Công ty Ánh Sáng Vina")
                 .createdBy(admin.getId())
                 .build();
@@ -165,7 +166,7 @@ public class DataInitializer implements CommandLineRunner {
                 .material(Material.ALU)
                 .size("80x40cm")
                 .status(AssetStatus.DAMAGED)
-                .installedAt(LocalDateTime.now().minusMonths(12))
+                .installedAt(Instant.now().minus(Duration.ofDays(360)))
                 .supplier("Cơ sở cơ khí Thành Phát")
                 .createdBy(admin.getId())
                 .build();
@@ -179,7 +180,7 @@ public class DataInitializer implements CommandLineRunner {
                 .material(Material.MICA)
                 .size("200x50cm")
                 .status(AssetStatus.ACTIVE)
-                .installedAt(LocalDateTime.now().minusMonths(3))
+                .installedAt(Instant.now().minus(Duration.ofDays(90)))
                 .supplier("Công ty Ánh Sáng Vina")
                 .createdBy(admin.getId())
                 .build();
@@ -195,6 +196,6 @@ public class DataInitializer implements CommandLineRunner {
         MaintenanceTicket ticket = ticketUseCase.createTicket(ticketCmd);
         
         // Auto assign this ticket to the technician for simulation
-        ticketUseCase.assignTicket(ticket.getId(), tech.getId());
+        ticketUseCase.assignTicket(ticket.getId(), tech.getId(), null);
     }
 }

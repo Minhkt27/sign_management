@@ -20,7 +20,7 @@ describe('authService', () => {
     const mockData = {
       token: 'jwt-token',
       refreshToken: 'refresh-token',
-      user: { id: 1, username: 'admin', fullName: 'Admin', role: 'ADMIN' as const },
+      user: { id: 1, username: 'admin', fullName: 'Admin', roleId: 1, customPermissions: [] },
     };
     vi.mocked(apiClient.post).mockResolvedValueOnce({ data: mockData });
 
@@ -36,7 +36,7 @@ describe('authService', () => {
     const mockData = {
       token: 'jwt-token',
       refreshToken: 'refresh-token',
-      user: { id: 1, username: 'admin', fullName: 'Admin', role: 'ADMIN' as const },
+      user: { id: 1, username: 'admin', fullName: 'Admin', roleId: 1, customPermissions: [] },
     };
     vi.mocked(apiClient.post).mockResolvedValueOnce({ data: mockData });
 
@@ -57,7 +57,7 @@ describe('authService', () => {
   it('logout clears stored auth data', async () => {
     authStore.setToken('jwt-token');
     authStore.setRefreshToken('refresh-token');
-    authStore.setUser({ id: 1, username: 'admin', fullName: 'Admin', role: 'ADMIN' });
+    authStore.setUser({ id: 1, username: 'admin', fullName: 'Admin', roleId: 1, customPermissions: [] });
     vi.mocked(apiClient.post).mockResolvedValueOnce({ data: {} });
 
     await authService.logout();
@@ -67,7 +67,7 @@ describe('authService', () => {
   });
 
   it('getCurrentUser returns user from store', () => {
-    const user = { id: 1, username: 'admin', fullName: 'Admin', role: 'ADMIN' as const };
+    const user = { id: 1, username: 'admin', fullName: 'Admin', roleId: 1, customPermissions: [] };
     authStore.setUser(user);
 
     expect(authService.getCurrentUser()).toEqual(user);

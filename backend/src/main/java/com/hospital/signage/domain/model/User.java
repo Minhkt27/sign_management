@@ -1,13 +1,14 @@
 package com.hospital.signage.domain.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import com.hospital.signage.domain.enums.Role;
-
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @Builder
@@ -16,11 +17,17 @@ import java.time.LocalDateTime;
 public class User {
     private Long id;
     private String username;
+    @JsonIgnore
     private String password;
     private String fullName;
-    private Role role;
+    private Long roleId;
+    private Long hospitalId;
+    private String phone;
+    @Builder.Default
+    private List<String> customPermissions = new ArrayList<>();
     private Boolean isActive;
+    @JsonIgnore
     private String refreshToken;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private Instant createdAt;
+    private Instant updatedAt;
 }

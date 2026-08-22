@@ -10,6 +10,22 @@ export interface Location {
   updatedAt?: string;
 }
 
+export interface Hospital {
+  id: number;
+  name: string;
+  shortCode: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  gpsRadiusM: number;
+  logoUrl?: string;
+  active: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface LocationTreeNode {
   location: Location;
   children: LocationTreeNode[];
@@ -20,6 +36,7 @@ export interface SignType {
   code: string;
   name: string;
   description?: string;
+  hospitalId?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -38,16 +55,85 @@ export interface Asset {
   installedAt?: string;
   supplier?: string;
   imageUrl?: string;
+  hospitalId?: number;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export type UiMode = 'ADMIN' | 'TECHNICIAN';
+
+export interface Role {
+  id: number;
+  code: string;
+  name: string;
+  description?: string;
+  uiMode: UiMode;
+  permissions: string[];
 }
 
 export interface User {
   id: number;
   username: string;
   fullName: string;
-  role: 'ADMIN' | 'TECHNICAL';
+  roleId: number;
+  phone?: string;
+  customPermissions: string[];
   isActive: boolean;
+  hospitalId?: number;
+}
+
+export type NodeType = 'ROOM' | 'DEPARTMENT' | 'JUNCTION' | 'STAIRS' | 'ELEVATOR' | 'ENTRANCE';
+
+export interface MapFloor {
+  id: number;
+  locationId: number | null;
+  imageUrl: string;
+  imgWidth: number;
+  imgHeight: number;
+  campus: boolean;
+  hospitalId?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface MapNode {
+  id: number;
+  floorId: number;
+  x: number;
+  y: number;
+  type: NodeType;
+  label?: string;
+  locationId?: number;
+  assetId?: string;
+  linkedCampusNodeId?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type SegmentType = 'INDOOR' | 'OUTDOOR';
+
+export interface PathSegment {
+  type: SegmentType;
+  nodes: MapNode[];
+}
+
+export interface WayfindingResult {
+  segments: PathSegment[];
+}
+
+export interface MapEdge {
+  id: number;
+  nodeFromId: number;
+  nodeToId: number;
+  weight: number;
+  bidirectional: boolean;
+  createdAt?: string;
+}
+
+export interface MapFloorData {
+  floor: MapFloor;
+  nodes: MapNode[];
+  edges: MapEdge[];
 }
 
 export interface MaintenanceTicket {
@@ -60,6 +146,11 @@ export interface MaintenanceTicket {
   assignee: User | null;
   createdAt: string;
   updatedAt?: string;
+  completedAt?: string;
+  rejectionNote?: string;
+  rejectionCount?: number;
   imageBefore?: string;
   imageAfter?: string;
+  source?: 'MANUAL' | 'QR_SCAN';
+  hospitalId?: number;
 }

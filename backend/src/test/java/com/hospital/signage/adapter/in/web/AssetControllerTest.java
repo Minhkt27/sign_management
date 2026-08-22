@@ -2,7 +2,7 @@ package com.hospital.signage.adapter.in.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hospital.signage.application.port.in.AssetUseCase;
-import com.hospital.signage.application.port.out.UserDatabasePort;
+import com.hospital.signage.application.service.UserCacheService;
 import com.hospital.signage.domain.enums.Material;
 import com.hospital.signage.domain.enums.AssetStatus;
 import com.hospital.signage.domain.model.Asset;
@@ -25,6 +25,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -34,7 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(AssetController.class)
 @Import({SecurityConfig.class, JwtAuthenticationFilter.class})
-@WithMockUser(username = "admin", roles = {"ADMIN"})
+@WithMockUser(username = "admin", authorities = {"ASSET_MANAGE"})
 public class AssetControllerTest {
 
     @Autowired
@@ -47,7 +48,7 @@ public class AssetControllerTest {
     private AssetUseCase assetUseCase;
 
     @MockBean
-    private UserDatabasePort userDatabasePort;
+    private UserCacheService userCacheService;
 
     @MockBean
     private JwtTokenProvider jwtTokenProvider;
@@ -66,7 +67,7 @@ public class AssetControllerTest {
         asset2.setMaterial(Material.INOX);
         asset2.setStatus(AssetStatus.DAMAGED);
 
-        when(assetUseCase.getAssetsPage(0, 50))
+        when(assetUseCase.getAssetsPage(eq(0), eq(10), eq(""), any()))
                 .thenReturn(new PageImpl<>(Arrays.asList(asset1, asset2)));
 
         mockMvc.perform(get("/api/assets")
@@ -84,7 +85,7 @@ public class AssetControllerTest {
         asset.setAssetCode("ASSET-001");
         asset.setStatus(AssetStatus.ACTIVE);
 
-        when(assetUseCase.getAssetById(id)).thenReturn(Optional.of(asset));
+        when(assetUseCase.getAssetById(eq(id), any())).thenReturn(Optional.of(asset));
 
         mockMvc.perform(get("/api/assets/" + id)
                         .contentType(MediaType.APPLICATION_JSON))
@@ -95,7 +96,7 @@ public class AssetControllerTest {
     @Test
     public void testGetAssetByIdNotFound() throws Exception {
         UUID id = UUID.randomUUID();
-        when(assetUseCase.getAssetById(id)).thenReturn(Optional.empty());
+        when(assetUseCase.getAssetById(eq(id), any())).thenReturn(Optional.empty());
 
         mockMvc.perform(get("/api/assets/" + id)
                         .contentType(MediaType.APPLICATION_JSON))
@@ -128,7 +129,7 @@ public class AssetControllerTest {
     @Test
     public void testDeleteAsset() throws Exception {
         UUID id = UUID.randomUUID();
-        doNothing().when(assetUseCase).deleteAsset(id);
+        doNothing().when(assetUseCase).deleteAsset(any(), any());
 
         mockMvc.perform(delete("/api/assets/" + id)
                         .with(csrf()))

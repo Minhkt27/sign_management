@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { AxiosError } from 'axios';
 import { MemoryRouter } from 'react-router-dom';
 import { vi } from 'vitest';
 import LoginPage from '@/features/auth/pages/LoginPage';
@@ -11,6 +12,15 @@ vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
   return { ...actual, useNavigate: () => mockNavigate };
 });
+
+vi.mock('@/app/store/authStore', () => ({
+  getPermissionsFromToken: vi.fn(),
+  getUiModeFromToken: vi.fn(),
+  authStore: {
+    getToken: vi.fn(),
+    getUser: vi.fn(),
+  }
+}));
 
 vi.mock('@/services/authService', () => ({
   authService: { login: vi.fn() },
@@ -31,10 +41,13 @@ describe('LoginPage', () => {
   });
 
   it('navigates to /admin/assets after ADMIN login', async () => {
+    const { getPermissionsFromToken, getUiModeFromToken } = await import('@/app/store/authStore');
+    vi.mocked(getPermissionsFromToken).mockReturnValue(['ASSET_VIEW']);
+    vi.mocked(getUiModeFromToken).mockReturnValue('ADMIN');
     vi.mocked(authServiceModule.authService.login).mockResolvedValueOnce({
       token: 'tok',
       refreshToken: 'ref',
-      user: { id: 1, username: 'admin', fullName: 'Admin', role: 'ADMIN' },
+      user: { id: 1, username: 'admin', fullName: 'Admin', roleId: 1, customPermissions: [] },
     });
 
     renderPage();
@@ -42,14 +55,17 @@ describe('LoginPage', () => {
     await userEvent.type(screen.getByPlaceholderText('••••••••'), 'password');
     await userEvent.click(screen.getByRole('button', { name: /đăng nhập/i }));
 
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/admin/assets'));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/admin/assets/tree'));
   });
 
   it('navigates to /tech/dashboard after TECHNICAL login', async () => {
+    const { getPermissionsFromToken, getUiModeFromToken } = await import('@/app/store/authStore');
+    vi.mocked(getPermissionsFromToken).mockReturnValue(['TICKET_VIEW']);
+    vi.mocked(getUiModeFromToken).mockReturnValue('TECHNICIAN');
     vi.mocked(authServiceModule.authService.login).mockResolvedValueOnce({
       token: 'tok',
       refreshToken: 'ref',
-      user: { id: 2, username: 'tech', fullName: 'Tech', role: 'TECHNICAL' },
+      user: { id: 2, username: 'tech', fullName: 'Tech', roleId: 2, customPermissions: [] },
     });
 
     renderPage();
@@ -61,9 +77,9 @@ describe('LoginPage', () => {
   });
 
   it('shows error message from API on failed login', async () => {
-    vi.mocked(authServiceModule.authService.login).mockRejectedValueOnce({
-      response: { data: { message: 'Sai mật khẩu' } },
-    });
+    const err = new AxiosError('Sai mật khẩu');
+    err.response = { data: { message: 'Sai mật khẩu' }, status: 401, statusText: '', headers: {}, config: {} as never };
+    vi.mocked(authServiceModule.authService.login).mockRejectedValueOnce(err);
 
     renderPage();
     await userEvent.type(screen.getByPlaceholderText(/nhập tên đăng nhập/i), 'admin');

@@ -2,8 +2,8 @@ package com.hospital.signage.adapter.in.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hospital.signage.application.port.in.AuthUseCase;
-import com.hospital.signage.application.port.out.UserDatabasePort;
-import com.hospital.signage.domain.enums.Role;
+import com.hospital.signage.application.service.UserCacheService;
+
 import com.hospital.signage.domain.model.User;
 import com.hospital.signage.infrastructure.security.JwtAuthenticationFilter;
 import com.hospital.signage.infrastructure.security.JwtTokenProvider;
@@ -37,7 +37,7 @@ public class AuthControllerTest {
     private AuthUseCase authUseCase;
 
     @MockBean
-    private UserDatabasePort userDatabasePort;
+    private UserCacheService userCacheService;
 
     @MockBean
     private JwtTokenProvider jwtTokenProvider;
@@ -48,7 +48,7 @@ public class AuthControllerTest {
         user.setId(1L);
         user.setUsername("admin");
         user.setFullName("System Admin");
-        user.setRole(Role.ADMIN);
+        user.setRoleId(1L);
         user.setIsActive(true);
 
         AuthUseCase.LoginResult mockResult = new AuthUseCase.LoginResult("mock-jwt-token", "mock-refresh-token", user);

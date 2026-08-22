@@ -15,7 +15,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -100,9 +99,10 @@ class AssetServiceTest {
 
     @Test
     void getAssetById_existingId_returnsAsset() {
+        sampleAsset.setHospitalId(1L);
         when(assetDatabasePort.findById(sampleAsset.getId())).thenReturn(Optional.of(sampleAsset));
 
-        Optional<Asset> result = assetService.getAssetById(sampleAsset.getId());
+        Optional<Asset> result = assetService.getAssetById(sampleAsset.getId(), 1L);
 
         assertThat(result).isPresent().contains(sampleAsset);
     }
@@ -112,16 +112,33 @@ class AssetServiceTest {
         UUID missing = UUID.randomUUID();
         when(assetDatabasePort.findById(missing)).thenReturn(Optional.empty());
 
-        assertThat(assetService.getAssetById(missing)).isEmpty();
+        assertThat(assetService.getAssetById(missing, 1L)).isEmpty();
+    }
+
+    @Test
+    void getAssetById_belongsToOtherHospital_returnsEmpty() {
+        sampleAsset.setHospitalId(2L);
+        when(assetDatabasePort.findById(sampleAsset.getId())).thenReturn(Optional.of(sampleAsset));
+
+        assertThat(assetService.getAssetById(sampleAsset.getId(), 1L)).isEmpty();
+    }
+
+    @Test
+    void getAssetById_superAdmin_ignoresHospitalId() {
+        sampleAsset.setHospitalId(2L);
+        when(assetDatabasePort.findById(sampleAsset.getId())).thenReturn(Optional.of(sampleAsset));
+
+        Optional<Asset> result = assetService.getAssetById(sampleAsset.getId(), null);
+
+        assertThat(result).isPresent().contains(sampleAsset);
     }
 
     @Test
     void deleteAsset_withLinkedTickets_throwsIllegalArgument() {
         when(assetDatabasePort.findById(sampleAsset.getId())).thenReturn(Optional.of(sampleAsset));
-        when(ticketDatabasePort.findByAssetId(sampleAsset.getId()))
-                .thenReturn(List.of(new com.hospital.signage.domain.model.MaintenanceTicket()));
+        when(ticketDatabasePort.existsByAssetId(sampleAsset.getId())).thenReturn(true);
 
-        assertThatThrownBy(() -> assetService.deleteAsset(sampleAsset.getId()))
+        assertThatThrownBy(() -> assetService.deleteAsset(sampleAsset.getId(), null))
                 .isInstanceOf(IllegalArgumentException.class);
 
         verify(assetDatabasePort, never()).deleteById(any());
@@ -130,19 +147,19 @@ class AssetServiceTest {
     @Test
     void deleteAsset_withNoTickets_deletesSuccessfully() {
         when(assetDatabasePort.findById(sampleAsset.getId())).thenReturn(Optional.of(sampleAsset));
-        when(ticketDatabasePort.findByAssetId(sampleAsset.getId())).thenReturn(Collections.emptyList());
+        when(ticketDatabasePort.existsByAssetId(sampleAsset.getId())).thenReturn(false);
         doNothing().when(assetDatabasePort).deleteById(sampleAsset.getId());
 
-        assetService.deleteAsset(sampleAsset.getId());
+        assetService.deleteAsset(sampleAsset.getId(), null);
 
         verify(assetDatabasePort).deleteById(sampleAsset.getId());
     }
 
     @Test
     void getAllAssets_returnsList() {
-        when(assetDatabasePort.findAll()).thenReturn(List.of(sampleAsset));
+        when(assetDatabasePort.findAllByHospital(any())).thenReturn(List.of(sampleAsset));
 
-        List<Asset> result = assetService.getAllAssets();
+        List<Asset> result = assetService.getAllAssets(1L);
 
         assertThat(result).hasSize(1).contains(sampleAsset);
     }

@@ -44,6 +44,14 @@ describe('assetService', () => {
     expect(apiClient.get).toHaveBeenCalledWith('/assets?page=2&size=10');
   });
 
+  it('getAssetsPage appends search param when provided', async () => {
+    vi.mocked(apiClient.get).mockResolvedValueOnce({ data: { content: [], totalElements: 0, totalPages: 0, page: 0, size: 10 } });
+
+    await assetService.getAssetsPage(0, 10, 'bien bao');
+
+    expect(apiClient.get).toHaveBeenCalledWith('/assets?page=0&size=10&search=bien+bao');
+  });
+
   it('createAsset wraps locationId as nested location object', async () => {
     const mockAsset = { id: '1', assetCode: 'ASSET-NEW' };
     vi.mocked(apiClient.post).mockResolvedValueOnce({ data: mockAsset });

@@ -6,7 +6,8 @@ import { PagedResponse } from '@/services/assetService';
 import { authStore } from '@/app/store/authStore';
 import { MaintenanceTicket } from '@/shared/types';
 import { Badge } from '@/components/ui/badge';
-import { ClipboardList, AlertTriangle, ArrowRight, CheckCircle2, Clock } from 'lucide-react';
+import { ClipboardList, AlertTriangle, ArrowRight, CheckCircle2, Clock, ShieldCheck } from 'lucide-react';
+import { PRIORITY_LABELS } from '@/shared/helpers/ticketBadges';
 
 export default function TechDashboardPage() {
   const navigate = useNavigate();
@@ -86,9 +87,7 @@ export default function TechDashboardPage() {
                     task.priority === 'HIGH' ? 'bg-orange-50 text-orange-600 hover:bg-orange-50 border border-orange-200 text-xs px-2 py-0.5' :
                     'bg-blue-50 text-blue-600 hover:bg-blue-50 border border-blue-200 text-xs px-2 py-0.5'
                   }>
-                    {task.priority === 'CRITICAL' ? 'Khẩn cấp' :
-                     task.priority === 'HIGH' ? 'Cao' :
-                     task.priority === 'MEDIUM' ? 'Trung bình' : 'Thấp'}
+                    {PRIORITY_LABELS[task.priority] ?? task.priority}
                   </Badge>
                 </div>
                 <div className="text-xs text-slate-400 flex items-center space-x-1">
@@ -121,6 +120,11 @@ export default function TechDashboardPage() {
                     <span className="text-green-600 flex items-center space-x-1">
                       <CheckCircle2 size={13} />
                       <span>Sửa hoàn thành</span>
+                    </span>
+                  ) : task.ticketStatus === 'CLOSED' ? (
+                    <span className="text-slate-600 flex items-center space-x-1">
+                      <ShieldCheck size={13} />
+                      <span>Đã đóng phiếu</span>
                     </span>
                   ) : (
                     <span className="text-slate-500">Chờ tiếp nhận</span>

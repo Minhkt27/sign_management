@@ -6,6 +6,8 @@ import com.hospital.signage.adapter.out.persistence.repository.SignTypeRepositor
 import com.hospital.signage.application.port.out.SignTypeDatabasePort;
 import com.hospital.signage.domain.model.SignType;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -41,6 +43,19 @@ public class SignTypePersistenceAdapter implements SignTypeDatabasePort {
         return repository.findAll().stream()
                 .map(mapper::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<SignType> findAllByHospital(Long hospitalId) {
+        return repository.findAllByHospital(hospitalId).stream()
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<SignType> findPage(String search, Long hospitalId, Pageable pageable) {
+        String s = search == null ? "" : search;
+        return repository.search(s, hospitalId, pageable).map(mapper::toDomain);
     }
 
     @Override

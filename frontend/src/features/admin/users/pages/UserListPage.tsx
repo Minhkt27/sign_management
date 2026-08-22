@@ -1,218 +1,210 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userService } from '@/services/userService';
 import { authStore } from '@/app/store/authStore';
+import { useAdminStore } from '@/app/store/adminStore';
 import { User } from '@/shared/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
-} from '@/components/ui/dialog';
-import { Plus, UserCheck, UserX, KeyRound } from 'lucide-react';
+import { KeyRound, Plus, Search } from 'lucide-react';
+import { Pagination } from '@/shared/components/Pagination';
+import { getApiError } from '@/shared/helpers/apiError';
+import { UserTable } from '../components/UserTable';
+import { CreateUserDialog } from '../components/CreateUserDialog';
+import { EditUserDialog } from '../components/EditUserDialog';
+import { EditUserRoleDialog } from '../components/EditUserRoleDialog';
 import ChangePasswordModal from '@/components/ChangePasswordModal';
+import { roleService } from '../services/roleService';
 
-const PAGE_SIZE = 15;
+const PAGE_SIZE = 10;
 
 export default function UserListPage() {
   const queryClient = useQueryClient();
   const currentUser = authStore.getUser();
 
-  const [page, setPage] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const page = Number(searchParams.get('page') ?? '0');
+  const setPage = (p: number) => setSearchParams(
+    prev => { const n = new URLSearchParams(prev); if (p === 0) n.delete('page'); else n.set('page', String(p)); return n; },
+    { replace: true },
+  );
   const [search, setSearch] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [createError, setCreateError] = useState('');
 
-  const [username, setUsername] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [formError, setFormError] = useState('');
+  const [selectedUserForRole, setSelectedUserForRole] = useState<User | null>(null);
+  const [editRoleError, setEditRoleError] = useState('');
 
-  const { data: users = [], isLoading } = useQuery({
-    queryKey: ['users'],
-    queryFn: userService.getAll,
+  const [selectedUserForEdit, setSelectedUserForEdit] = useState<User | null>(null);
+  const [editUserError, setEditUserError] = useState('');
+
+  const { data: roles = [], isLoading: isLoadingRoles } = useQuery({
+    queryKey: ['roles'],
+    queryFn: roleService.getAllRoles,
   });
 
+  const { selectedHospitalId } = useAdminStore();
+  const hospitalIdParam = selectedHospitalId === 'ALL' ? undefined : selectedHospitalId;
+
+  const { data: pagedUsers, isLoading } = useQuery({
+    queryKey: ['users', page, search, hospitalIdParam],
+    queryFn: () => userService.getPage(page, PAGE_SIZE, search, hospitalIdParam),
+  });
+
+  const users = pagedUsers?.content ?? [];
+  const totalPages = pagedUsers?.totalPages ?? 0;
+  const totalElements = pagedUsers?.totalElements ?? 0;
+
   const createMutation = useMutation({
-    mutationFn: userService.createTechnician,
+    mutationFn: userService.createUser,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       setIsCreateOpen(false);
-      resetForm();
+      setCreateError('');
     },
-    onError: (err: any) => {
-      setFormError(err.response?.data?.message || 'Tạo tài khoản thất bại');
+    onError: (err: unknown) => setCreateError(getApiError(err, 'Tạo tài khoản thất bại')),
+  });
+
+  const editUserMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: { fullName: string; phone?: string } }) =>
+      userService.updateUser(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setSelectedUserForEdit(null);
+      setEditUserError('');
     },
+    onError: (err: unknown) => setEditUserError(getApiError(err, 'Cập nhật tài khoản thất bại')),
+  });
+
+  const editRoleMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: { roleId: number; customPermissions: string[] } }) =>
+      userService.updateRoleAndPermissions(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setSelectedUserForRole(null);
+      setEditRoleError('');
+    },
+    onError: (err: unknown) => setEditRoleError(getApiError(err, 'Cập nhật quyền thất bại')),
   });
 
   const toggleActiveMutation = useMutation({
-    mutationFn: ({ id, active }: { id: number; active: boolean }) =>
-      userService.setActive(id, active),
+    mutationFn: ({ id, active }: { id: number; active: boolean }) => userService.setActive(id, active),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
   });
 
-  const resetForm = () => {
-    setUsername('');
-    setFullName('');
-    setPassword('');
-    setConfirmPassword('');
-    setFormError('');
+  const resetPasswordMutation = useMutation({
+    mutationFn: (id: number) => userService.resetPassword(id),
+    onSuccess: (temporaryPassword) => alert(`Mật khẩu tạm thời: ${temporaryPassword}`),
+    onError: () => alert('Reset mật khẩu thất bại.'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => userService.deleteUser(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+    onError: () => alert('Xóa tài khoản thất bại.'),
+  });
+
+  const handleToggleActive = (user: User) => {
+    const action = user.isActive ? 'khóa' : 'mở khóa';
+    if (window.confirm(`Xác nhận ${action} tài khoản "${user.username}"?`)) {
+      toggleActiveMutation.mutate({ id: user.id, active: !user.isActive });
+    }
   };
 
-  const handleCreate = (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError('');
-    if (password !== confirmPassword) {
-      setFormError('Mật khẩu xác nhận không khớp');
-      return;
+  const handleResetPassword = (user: User) => {
+    if (window.confirm(`Tạo mật khẩu tạm thời mới cho tài khoản "${user.username}"?`)) {
+      resetPasswordMutation.mutate(user.id);
     }
-    if (password.length < 6) {
-      setFormError('Mật khẩu phải có ít nhất 6 ký tự');
-      return;
-    }
-    createMutation.mutate({ username, fullName, password });
   };
 
-  const filtered = users.filter(u =>
-    u.fullName.toLowerCase().includes(search.toLowerCase()) ||
-    u.username.toLowerCase().includes(search.toLowerCase())
-  );
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const handleDeleteUser = (user: User) => {
+    if (window.confirm(`Xóa vĩnh viễn tài khoản "${user.username}"? Hành động này không thể hoàn tác.`)) {
+      deleteMutation.mutate(user.id);
+    }
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800">Quản lý Nhân viên</h2>
-          <p className="text-sm text-slate-500 mt-1">{users.length} tài khoản</p>
-        </div>
+        <p className="text-sm text-slate-500">{totalElements} tài khoản</p>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setIsChangePasswordOpen(true)}>
-            <KeyRound size={16} className="mr-2" />
-            Đổi mật khẩu
+            <KeyRound size={16} className="mr-2" />Đổi mật khẩu
           </Button>
-          <Dialog open={isCreateOpen} onOpenChange={open => { setIsCreateOpen(open); if (!open) resetForm(); }}>
-            <DialogTrigger render={
-              <Button><Plus size={16} className="mr-2" />Thêm kỹ thuật viên</Button>
-            } />
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Thêm kỹ thuật viên mới</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleCreate} className="space-y-4 pt-2">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700">Tên đăng nhập</label>
-                  <Input value={username} onChange={e => setUsername(e.target.value)} required />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700">Họ và tên</label>
-                  <Input value={fullName} onChange={e => setFullName(e.target.value)} required />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700">Mật khẩu</label>
-                  <Input type="password" value={password} onChange={e => setPassword(e.target.value)} required />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700">Xác nhận mật khẩu</label>
-                  <Input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
-                </div>
-                {formError && <p className="text-sm text-red-500">{formError}</p>}
-                <div className="flex justify-end gap-2 pt-2">
-                  <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>Hủy</Button>
-                  <Button type="submit" disabled={createMutation.isPending}>
-                    {createMutation.isPending ? 'Đang tạo...' : 'Tạo tài khoản'}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <Button onClick={() => setIsCreateOpen(true)}>
+            <Plus size={16} className="mr-2" />Thêm tài khoản
+          </Button>
         </div>
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
         <div className="p-4 border-b border-slate-100">
-          <Input
-            placeholder="Tìm theo tên hoặc tên đăng nhập..."
-            value={search}
-            onChange={e => { setSearch(e.target.value); setPage(0); }}
-            className="max-w-sm"
-          />
+          <div className="relative max-w-sm">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
+            <Input
+              placeholder="Tìm theo tên hoặc tên đăng nhập..."
+              value={search}
+              onChange={e => { setSearch(e.target.value); setPage(0); }}
+              className="pl-11 pr-4 py-3 text-base text-slate-800 placeholder:text-slate-400 border-slate-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+            />
+          </div>
         </div>
 
-        {isLoading ? (
-          <div className="p-8 text-center text-slate-400">Đang tải...</div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Họ và tên</TableHead>
-                <TableHead>Tên đăng nhập</TableHead>
-                <TableHead>Vai trò</TableHead>
-                <TableHead>Trạng thái</TableHead>
-                <TableHead className="text-right">Thao tác</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginated.map((user: User) => (
-                <TableRow key={user.id}>
-                  <TableCell className="font-medium">{user.fullName}</TableCell>
-                  <TableCell className="text-slate-500">{user.username}</TableCell>
-                  <TableCell>
-                    <Badge variant={user.role === 'ADMIN' ? 'default' : 'secondary'}>
-                      {user.role === 'ADMIN' ? 'Quản trị' : 'Kỹ thuật viên'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={user.isActive ? 'default' : 'destructive'}
-                      className={user.isActive ? 'bg-green-100 text-green-700 hover:bg-green-100' : ''}>
-                      {user.isActive ? 'Hoạt động' : 'Vô hiệu'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {currentUser?.id !== user.id && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={toggleActiveMutation.isPending}
-                        onClick={() => toggleActiveMutation.mutate({ id: user.id, active: !user.isActive })}
-                        className={user.isActive
-                          ? 'text-red-600 border-red-200 hover:bg-red-50'
-                          : 'text-green-600 border-green-200 hover:bg-green-50'}
-                      >
-                        {user.isActive
-                          ? <><UserX size={14} className="mr-1" />Vô hiệu hóa</>
-                          : <><UserCheck size={14} className="mr-1" />Kích hoạt</>}
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {paginated.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center text-slate-400 py-8">
-                    Không tìm thấy tài khoản nào
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        )}
+        <UserTable
+          users={users}
+          roles={roles}
+          isLoading={isLoading || isLoadingRoles}
+          currentUserId={currentUser?.id}
+          onToggleActive={handleToggleActive}
+          onResetPassword={handleResetPassword}
+          onEditRole={setSelectedUserForRole}
+          onEditUser={setSelectedUserForEdit}
+          onDeleteUser={handleDeleteUser}
+          isTogglePending={toggleActiveMutation.isPending}
+          isResetPending={resetPasswordMutation.isPending}
+          isDeletePending={deleteMutation.isPending}
+        />
 
-        {totalPages > 1 && (
-          <div className="p-4 border-t border-slate-100 flex items-center justify-between text-sm text-slate-500">
-            <span>Trang {page + 1} / {totalPages}</span>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Trước</Button>
-              <Button size="sm" variant="outline" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>Sau</Button>
-            </div>
-          </div>
-        )}
+        <div className="px-4 pb-2">
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            totalCount={totalElements}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPage}
+            itemLabel="tài khoản"
+          />
+        </div>
       </div>
+
+      <CreateUserDialog
+        open={isCreateOpen}
+        onOpenChange={setIsCreateOpen}
+        onSubmit={createMutation.mutate}
+        isPending={createMutation.isPending}
+        error={createError}
+      />
+
+      <EditUserDialog
+        user={selectedUserForEdit}
+        open={selectedUserForEdit !== null}
+        onOpenChange={(open) => !open && setSelectedUserForEdit(null)}
+        onSubmit={(id, data) => editUserMutation.mutate({ id, data })}
+        onClearError={() => setEditUserError('')}
+        isPending={editUserMutation.isPending}
+        error={editUserError}
+      />
+
+      <EditUserRoleDialog
+        user={selectedUserForRole}
+        open={selectedUserForRole !== null}
+        onOpenChange={(open) => !open && setSelectedUserForRole(null)}
+        onSubmit={(id, data) => editRoleMutation.mutate({ id, data })}
+        isPending={editRoleMutation.isPending}
+        error={editRoleError}
+      />
 
       <ChangePasswordModal open={isChangePasswordOpen} onClose={() => setIsChangePasswordOpen(false)} />
     </div>

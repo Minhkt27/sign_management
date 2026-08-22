@@ -10,13 +10,13 @@ describe('authStore', () => {
   });
 
   it('stores and retrieves user', () => {
-    const user = { id: 1, username: 'admin', fullName: 'Admin', role: 'ADMIN' as const };
+    const user = { id: 1, username: 'admin', fullName: 'Admin', roleId: 1, customPermissions: [] };
     authStore.setUser(user);
     expect(authStore.getUser()).toEqual(user);
   });
 
   it('setUser(null) removes user from storage', () => {
-    authStore.setUser({ id: 1, username: 'admin', fullName: 'Admin', role: 'ADMIN' });
+    authStore.setUser({ id: 1, username: 'admin', fullName: 'Admin', roleId: 1, customPermissions: [] });
     authStore.setUser(null);
     expect(authStore.getUser()).toBeNull();
   });
@@ -38,7 +38,7 @@ describe('authStore', () => {
   });
 
   it('logout clears user, token and refresh token', () => {
-    authStore.setUser({ id: 1, username: 'admin', fullName: 'Admin', role: 'ADMIN' });
+    authStore.setUser({ id: 1, username: 'admin', fullName: 'Admin', roleId: 1, customPermissions: [] });
     authStore.setToken('jwt-token');
     authStore.setRefreshToken('refresh-token');
 

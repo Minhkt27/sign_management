@@ -1,9 +1,17 @@
 import { apiClient } from './apiClient';
 import { SignType } from '../shared/types';
+import { PagedResponse } from './assetService';
 
 export const signTypeService = {
   getAllSignTypes: async (): Promise<SignType[]> => {
     const response = await apiClient.get<SignType[]>('/sign-types');
+    return response.data;
+  },
+
+  getPage: async (page = 0, size = 15, search = '', hospitalId?: number): Promise<PagedResponse<SignType>> => {
+    const response = await apiClient.get<PagedResponse<SignType>>(
+      `/sign-types/page?page=${page}&size=${size}&search=${encodeURIComponent(search)}${hospitalId ? '&hospitalId=' + hospitalId : ''}`
+    );
     return response.data;
   },
 

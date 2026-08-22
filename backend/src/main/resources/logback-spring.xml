@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+  <property name="LOG_PATTERN_CONSOLE"
+            value="%d{HH:mm:ss.SSS} %highlight(%-5level) [%cyan(%X{requestId:-       })] [%green(%-10.10X{username:-anonymous})] %-36.36logger{35} : %msg%n"/>
+
+  <property name="LOG_PATTERN_FILE"
+            value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{requestId:-       }] [%-10.10X{username:-anonymous}] %-36.36logger{35} : %msg%n"/>
+
+  <!-- ===== Console appender (all profiles) ===== -->
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>${LOG_PATTERN_CONSOLE}</pattern>
+    </encoder>
+  </appender>
+
+  <!-- ===== Rolling file appender (prod profile only) ===== -->
+  <springProfile name="prod">
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+      <file>logs/signage.log</file>
+      <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+        <fileNamePattern>logs/signage.%d{yyyy-MM-dd}.log</fileNamePattern>
+        <maxHistory>30</maxHistory>
+        <totalSizeCap>500MB</totalSizeCap>
+      </rollingPolicy>
+      <encoder>
+        <pattern>${LOG_PATTERN_FILE}</pattern>
+      </encoder>
+    </appender>
+  </springProfile>
+
+  <!-- ===== Dev profile: verbose, console only ===== -->
+  <springProfile name="dev">
+    <logger name="com.hospital.signage" level="DEBUG"/>
+    <logger name="org.hibernate.SQL" level="DEBUG"/>
+    <logger name="org.hibernate.orm.jdbc.bind" level="TRACE"/>
+    <logger name="org.springframework.security" level="WARN"/>
+    <logger name="org.springframework.web" level="WARN"/>
+    <root level="INFO">
+      <appender-ref ref="CONSOLE"/>
+    </root>
+  </springProfile>
+
+  <!-- ===== Prod profile: INFO only, console + file ===== -->
+  <springProfile name="prod">
+    <logger name="com.hospital.signage" level="INFO"/>
+    <logger name="org.hibernate.SQL" level="WARN"/>
+    <logger name="org.springframework.security" level="WARN"/>
+    <logger name="org.springframework.web" level="WARN"/>
+    <root level="INFO">
+      <appender-ref ref="CONSOLE"/>
+      <appender-ref ref="FILE"/>
+    </root>
+  </springProfile>
+
+  <!-- ===== Default (no profile / test) ===== -->
+  <springProfile name="!dev &amp; !prod">
+    <logger name="com.hospital.signage" level="INFO"/>
+    <logger name="org.hibernate.SQL" level="WARN"/>
+    <root level="INFO">
+      <appender-ref ref="CONSOLE"/>
+    </root>
+  </springProfile>
+
+</configuration>

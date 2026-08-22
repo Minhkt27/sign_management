@@ -1,246 +1,220 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { assetService } from '@/services/assetService';
-import { ticketService } from '@/services/ticketService';
-import { PagedResponse } from '@/services/assetService';
-import { Asset, MaintenanceTicket } from '@/shared/types';
-import { Button } from '@/components/ui/button';
+import { useQuery } from '@tanstack/react-query';
+import { Html5Qrcode } from 'html5-qrcode';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { QrCode, Calendar, Plus, Wrench } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { QrCode, Search, X, ImagePlus } from 'lucide-react';
+import { assetService } from '@/services/assetService';
+import { Asset } from '@/shared/types';
 
 export default function AssetBrowsePage() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const [searchCode, setSearchCode] = useState('');
-  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [manualCode, setManualCode] = useState('');
+  const [scanning, setScanning] = useState(false);
+  const [error, setError] = useState('');
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const containerId = 'qr-reader';
 
-  const [showReportForm, setShowReportForm] = useState(false);
-  const [issueDesc, setIssueDesc] = useState('');
-  const [issuePriority, setIssuePriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM');
-
-  const { data: assets = [], isLoading: isAssetsLoading } = useQuery<Asset[]>({
-    queryKey: ['assets', 'all'],
-    queryFn: () => assetService.getAllAssets(),
+  const { data: assets = [] } = useQuery<Asset[]>({
+    queryKey: ['assets'],
+    queryFn: assetService.getAllAssets,
   });
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
-  const { data: ticketData } = useQuery<PagedResponse<MaintenanceTicket>>({
-    queryKey: ['tickets'],
-    queryFn: () => ticketService.getTickets(),
-  });
-  const tickets = ticketData?.content ?? [];
+  const filteredAssets = manualCode.trim()
+    ? assets
+        .filter(a =>
+          a.assetCode.toLowerCase().includes(manualCode.toLowerCase()) ||
+          (a.name ?? '').toLowerCase().includes(manualCode.toLowerCase())
+        )
+        .slice(0, 10)
+    : [];
 
-  const createTicketMutation = useMutation({
-    mutationFn: (newTicket: { assetId: string; description: string; priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' }) =>
-      ticketService.createTicket(newTicket),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tickets'] });
-      queryClient.invalidateQueries({ queryKey: ['assets', 'all'] });
-      setShowReportForm(false);
-      setIssueDesc('');
-      setIssuePriority('MEDIUM');
-      if (selectedAsset) {
-        queryClient.refetchQueries({ queryKey: ['assets', 'all'] });
+  const handleCodeFound = (code: string) => {
+    // QR codes may contain full URLs like https://domain/scan/BB-001
+    // or https://domain/tech/assets/BB-001, or just a plain asset code
+    const match = code.match(/\/(?:scan|tech\/assets)\/([^/?#]+)/);
+    const assetCode = match ? match[1] : code.trim();
+    navigate(`/tech/assets/${assetCode}`);
+  };
+
+  const stopScanner = (scanner: Html5Qrcode) => {
+    try {
+      return scanner.stop().catch(() => {});
+    } catch {
+      return Promise.resolve();
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError('');
+    // Reset input so the same file can be selected again
+    e.target.value = '';
+    try {
+      const scanner = new Html5Qrcode('qr-file-reader');
+      const result = await scanner.scanFile(file, false);
+      handleCodeFound(result);
+    } catch {
+      setError('Không đọc được mã QR từ ảnh. Thử ảnh khác hoặc quét trực tiếp.');
+    }
+  };
+
+  // Start scanner only after div is in DOM (useEffect runs post-render)
+  useEffect(() => {
+    if (!scanning) return;
+
+    let cancelled = false;
+    let scanner: Html5Qrcode;
+
+    try {
+      scanner = new Html5Qrcode(containerId);
+    } catch {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setError('Không thể khởi tạo camera.');
+       
+      setScanning(false);
+      return;
+    }
+    scannerRef.current = scanner;
+
+    try {
+      scanner.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText) => {
+          if (cancelled) return;
+          stopScanner(scanner).finally(() => {
+            if (cancelled) return;
+            scannerRef.current = null;
+            setScanning(false);
+            handleCodeFound(decodedText);
+          });
+        },
+        undefined
+      ).catch(() => {
+        if (!cancelled) {
+          setError('Không thể truy cập camera. Kiểm tra quyền camera của trình duyệt.');
+          setScanning(false);
+        }
+      });
+    } catch {
+      if (!cancelled) {
+        setError('Không thể truy cập camera. Kiểm tra quyền camera của trình duyệt.');
+        setScanning(false);
       }
-    },
-  });
-
-  const handleScanSimulation = (code: string) => {
-    const a = assets.find((item: Asset) => item.assetCode.toUpperCase() === code.trim().toUpperCase());
-    if (a) {
-      setSelectedAsset(a);
-      setShowReportForm(false);
-    } else {
-      alert('Không tìm thấy biển báo nào với mã này! Hãy thử: LED-R101 hoặc ALU-R102');
     }
-  };
 
-  const handleReportIssue = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedAsset || !issueDesc) return;
-    createTicketMutation.mutate({
-      assetId: selectedAsset.id,
-      description: issueDesc,
-      priority: issuePriority,
-    });
-  };
-
-  const activeTicket = selectedAsset
-    ? tickets.find((t: MaintenanceTicket) => t.asset?.id === selectedAsset.id && (t.ticketStatus === 'OPEN' || t.ticketStatus === 'IN_PROGRESS'))
-    : null;
-
-  const locationName = selectedAsset?.location?.name || 'Chưa xác định';
-
-  const renderStatusBadge = (status: Asset['status']) => {
-    switch (status) {
-      case 'ACTIVE':
-        return <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs px-2 py-0.5">Hoạt động</Badge>;
-      case 'DAMAGED':
-        return <Badge className="bg-rose-50 text-rose-700 border border-rose-200 text-xs px-2 py-0.5">Sự cố</Badge>;
-      case 'REPAIRING':
-        return <Badge className="bg-amber-50 text-amber-700 border border-amber-200 text-xs px-2 py-0.5">Sửa chữa</Badge>;
-      default:
-        return <Badge className="bg-slate-100 text-slate-700 border border-slate-200 text-xs px-2 py-0.5">{status}</Badge>;
-    }
-  };
-
-  if (isAssetsLoading) {
-    return <div className="text-center py-12 text-slate-500 text-base font-medium">Đang tải danh sách thiết bị...</div>;
-  }
+    return () => {
+      cancelled = true;
+      stopScanner(scanner).finally(() => {
+        scannerRef.current = null;
+      });
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scanning]);
 
   return (
-    <div className="space-y-5 pb-12 text-left">
-      {/* QR Scan simulation */}
-      <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm space-y-4">
-        <h2 className="text-sm font-bold text-slate-800 flex items-center space-x-2">
+    <div className="space-y-5 pb-12">
+      {/* Hidden div required by html5-qrcode for file scanning */}
+      <div id="qr-file-reader" className="hidden" />
+
+      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+        <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
           <QrCode className="text-blue-600" size={18} />
-          <span>Giả lập quét mã QR Biển báo</span>
+          Quét mã QR biển báo
         </h2>
 
-        <p className="text-sm text-slate-500 leading-relaxed">
-          Nhập mã biển báo (ví dụ: <strong className="text-blue-600">LED-R101</strong> hoặc <strong className="text-blue-600">ALU-R102</strong>) để giả lập quét mã QR từ camera di động.
-        </p>
-
-        <div className="flex space-x-2">
-          <Input
-            placeholder="Nhập mã biển hiệu..."
-            value={searchCode}
-            onChange={(e) => setSearchCode(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleScanSimulation(searchCode)}
-            className="border-slate-200 focus:border-blue-500 rounded-lg text-sm"
-          />
-          <Button
-            onClick={() => handleScanSimulation(searchCode)}
-            className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm px-5 font-semibold"
-          >
-            Quét mã
-          </Button>
-        </div>
-
-        {/* Quick select */}
-        <div className="flex flex-wrap gap-2 pt-1 border-t border-slate-100">
-          <span className="text-xs font-bold text-slate-400 self-center uppercase">Demo nhanh:</span>
-          {assets.map((a: Asset) => (
-            <button
-              key={a.id}
-              onClick={() => {
-                setSearchCode(a.assetCode);
-                handleScanSimulation(a.assetCode);
-              }}
-              className="text-xs bg-slate-100 hover:bg-blue-50 hover:text-blue-600 text-slate-600 px-3 py-1.5 rounded-lg font-semibold border border-slate-200/60 transition-colors"
+        {/* Camera scanner */}
+        {!scanning ? (
+          <div className="space-y-2">
+            <Button
+              onClick={() => { setError(''); setScanning(true); }}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-4 font-bold flex items-center justify-center gap-2"
             >
-              {a.assetCode}
-            </button>
-          ))}
+              <QrCode size={18} />
+              Mở camera quét mã
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            <Button
+              variant="outline"
+              onClick={() => { setError(''); fileInputRef.current?.click(); }}
+              className="w-full flex items-center justify-center gap-2 text-slate-600 rounded-xl py-4"
+            >
+              <ImagePlus size={18} />
+              Chọn ảnh QR từ thư viện
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div id={containerId} className="rounded-xl overflow-hidden border border-slate-200" />
+            <Button
+              variant="outline"
+              onClick={() => setScanning(false)}
+              className="w-full flex items-center justify-center gap-2 text-slate-600"
+            >
+              <X size={16} /> Hủy quét
+            </Button>
+          </div>
+        )}
+
+        {error && <p className="text-xs text-rose-500 font-medium">{error}</p>}
+
+        {/* Manual fallback */}
+        <div className="border-t border-slate-100 pt-4 space-y-2">
+          <p className="text-xs text-slate-400 font-medium">Hoặc nhập mã biển thủ công:</p>
+          <div className="relative flex gap-2">
+            <div className="flex-1 relative">
+              <Input
+                placeholder="Ví dụ: LED-R101"
+                value={manualCode}
+                onChange={(e) => {
+                  setManualCode(e.target.value);
+                  setDropdownOpen(true);
+                }}
+                onFocus={() => setDropdownOpen(true)}
+                onBlur={() => setTimeout(() => setDropdownOpen(false), 200)}
+                onKeyDown={(e) => e.key === 'Enter' && manualCode.trim() && navigate(`/tech/assets/${manualCode.trim()}`)}
+                className="rounded-lg text-sm w-full"
+              />
+              {dropdownOpen && filteredAssets.length > 0 && (
+                <div className="absolute z-10 w-full bg-white border border-slate-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
+                  {filteredAssets.map(asset => (
+                    <button
+                      key={asset.id}
+                      type="button"
+                      onMouseDown={() => {
+                        setManualCode(asset.assetCode);
+                        setDropdownOpen(false);
+                        navigate(`/tech/assets/${asset.assetCode}`);
+                      }}
+                      className="w-full text-left px-3 py-2.5 hover:bg-blue-50 text-xs font-semibold text-slate-700 border-b border-slate-100 last:border-0 flex justify-between items-center"
+                    >
+                      <span className="font-bold text-blue-600">{asset.assetCode}</span>
+                      {asset.name && <span className="text-slate-400 font-normal truncate max-w-[60%]">{asset.name}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <Button
+              onClick={() => manualCode.trim() && navigate(`/tech/assets/${manualCode.trim()}`)}
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4"
+            >
+              <Search size={16} />
+            </Button>
+          </div>
         </div>
       </div>
-
-      {/* Selected Asset Details */}
-      {selectedAsset && (
-        <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm space-y-5">
-          <div className="flex items-start justify-between border-b border-slate-100 pb-4">
-            <div>
-              <h3 className="text-base font-bold text-slate-800">{selectedAsset.assetCode}</h3>
-              <p className="text-sm text-slate-500 mt-0.5">{locationName}</p>
-            </div>
-            <div>{renderStatusBadge(selectedAsset.status)}</div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-y-4 gap-x-4">
-            <div className="space-y-0.5">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Chất liệu</span>
-              <p className="text-sm font-semibold text-slate-700">{selectedAsset.material}</p>
-            </div>
-            <div className="space-y-0.5">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Kích thước</span>
-              <p className="text-sm font-semibold text-slate-700">{selectedAsset.size}</p>
-            </div>
-            <div className="space-y-0.5 col-span-2">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center space-x-1">
-                <Calendar size={11} /> <span>Ngày lắp đặt</span>
-              </span>
-              <p className="text-sm font-semibold text-slate-700">
-                {selectedAsset.installedAt ? new Date(selectedAsset.installedAt).toLocaleDateString('vi-VN') : '—'}
-              </p>
-            </div>
-          </div>
-
-          {/* Active ticket or report button */}
-          {activeTicket ? (
-            <div
-              onClick={() => navigate(`/tech/tasks/${activeTicket.id}`)}
-              className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-center justify-between cursor-pointer active:bg-amber-100/50"
-            >
-              <div className="flex items-center space-x-3 text-amber-800">
-                <Wrench size={18} className="text-amber-600 shrink-0" />
-                <div>
-                  <p className="font-bold text-sm">Đang có yêu cầu sửa chữa</p>
-                  <p className="text-xs text-amber-600 mt-0.5">Mã phiếu: #{activeTicket.id} ({activeTicket.ticketStatus})</p>
-                </div>
-              </div>
-              <Badge className="bg-amber-600 text-white text-xs px-2.5 py-1">Xem</Badge>
-            </div>
-          ) : (
-            !showReportForm && (
-              <Button
-                onClick={() => setShowReportForm(true)}
-                className="w-full bg-rose-600 hover:bg-rose-700 text-white rounded-xl py-3.5 font-bold text-sm flex items-center justify-center space-x-2"
-              >
-                <Plus size={18} />
-                <span>Báo hỏng biển báo này</span>
-              </Button>
-            )
-          )}
-
-          {/* Report Form */}
-          {showReportForm && (
-            <form onSubmit={handleReportIssue} className="border-t border-slate-100 pt-4 space-y-4">
-              <h4 className="text-sm font-bold text-rose-600">Báo cáo sự cố biển hiệu</h4>
-              <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Mô tả hỏng hóc</label>
-                <textarea
-                  required
-                  rows={3}
-                  placeholder="Mô tả cụ thể: Bảng LED không phát sáng, biển hiệu lỏng ốc vít,..."
-                  value={issueDesc}
-                  onChange={(e) => setIssueDesc(e.target.value)}
-                  className="w-full border border-slate-200 bg-white text-slate-700 p-3 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Độ ưu tiên</label>
-                <select
-                  value={issuePriority}
-                  onChange={(e) => setIssuePriority(e.target.value as any)}
-                  className="w-full border border-slate-200 bg-white text-slate-700 p-3 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
-                >
-                  <option value="LOW">Thấp (Low)</option>
-                  <option value="MEDIUM">Trung bình (Medium)</option>
-                  <option value="HIGH">Cao (High)</option>
-                  <option value="CRITICAL">Khẩn cấp (Critical)</option>
-                </select>
-              </div>
-              <div className="flex gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowReportForm(false)}
-                  className="w-1/2 rounded-lg text-sm py-3"
-                >
-                  Hủy
-                </Button>
-                <Button
-                  type="submit"
-                  className="w-1/2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-sm py-3 font-bold"
-                >
-                  Gửi báo cáo
-                </Button>
-              </div>
-            </form>
-          )}
-        </div>
-      )}
     </div>
   );
 }

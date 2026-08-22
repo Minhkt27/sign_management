@@ -1,15 +1,18 @@
 import axios, { InternalAxiosRequestConfig } from 'axios';
-import { authStore } from '../app/store/authStore';
+import { authStore, resolveHospitalId } from '../app/store/authStore';
 
 interface RetryableRequest extends InternalAxiosRequestConfig {
   _retry?: boolean;
 }
 
+const baseHeaders: Record<string, string> = {
+  'Content-Type': 'application/json',
+  'ngrok-skip-browser-warning': 'true',
+};
+
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080/api',
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL: import.meta.env.VITE_API_URL || '/api',
+  headers: baseHeaders,
 });
 
 apiClient.interceptors.request.use(
@@ -18,6 +21,12 @@ apiClient.interceptors.request.use(
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    const hospitalId = resolveHospitalId();
+    if (hospitalId != null) {
+      config.params = { ...config.params, hospitalId };
+    }
+
     return config;
   },
   (error) => Promise.reject(error)
@@ -45,9 +54,12 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       const refreshToken = authStore.getRefreshToken();
 
+      const isPublicRoute = /^\/(map|scan)(\/|$)/.test(window.location.pathname);
       if (!refreshToken) {
-        authStore.logout();
-        window.location.href = '/login';
+        if (!isPublicRoute) {
+          authStore.logout();
+          window.location.href = '/login';
+        }
         return Promise.reject(error);
       }
 
@@ -78,8 +90,11 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (refreshError) {
         processPendingQueue(refreshError, null);
-        authStore.logout();
-        window.location.href = '/login';
+        const isPublicRoute = /^\/(map|scan)(\/|$)/.test(window.location.pathname);
+        if (!isPublicRoute) {
+          authStore.logout();
+          window.location.href = '/login';
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

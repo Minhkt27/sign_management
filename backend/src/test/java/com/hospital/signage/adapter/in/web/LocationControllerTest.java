@@ -2,7 +2,7 @@ package com.hospital.signage.adapter.in.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hospital.signage.application.port.in.LocationUseCase;
-import com.hospital.signage.application.port.out.UserDatabasePort;
+import com.hospital.signage.application.service.UserCacheService;
 import com.hospital.signage.domain.model.Location;
 import com.hospital.signage.infrastructure.security.JwtAuthenticationFilter;
 import com.hospital.signage.infrastructure.security.JwtTokenProvider;
@@ -28,7 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(LocationController.class)
 @Import({ SecurityConfig.class, JwtAuthenticationFilter.class })
-@WithMockUser(username = "admin", roles = { "ADMIN" })
+@WithMockUser(username = "admin", authorities = {"MAP_MANAGE"})
 public class LocationControllerTest {
 
     @Autowired
@@ -41,7 +41,7 @@ public class LocationControllerTest {
     private LocationUseCase locationUseCase;
 
     @MockBean
-    private UserDatabasePort userDatabasePort;
+    private UserCacheService userCacheService;
 
     @MockBean
     private JwtTokenProvider jwtTokenProvider;
@@ -56,7 +56,7 @@ public class LocationControllerTest {
         loc2.setId(2L);
         loc2.setName("Building B");
 
-        when(locationUseCase.getAllLocations()).thenReturn(Arrays.asList(loc1, loc2));
+        when(locationUseCase.getAllLocations(any())).thenReturn(Arrays.asList(loc1, loc2));
 
         mockMvc.perform(get("/api/locations")
                 .contentType(MediaType.APPLICATION_JSON))
@@ -71,7 +71,7 @@ public class LocationControllerTest {
         loc.setId(1L);
         loc.setName("Building A");
 
-        when(locationUseCase.getLocationById(1L)).thenReturn(Optional.of(loc));
+        when(locationUseCase.getLocationById(any(Long.class), any())).thenReturn(Optional.of(loc));
 
         mockMvc.perform(get("/api/locations/1")
                 .contentType(MediaType.APPLICATION_JSON))
@@ -81,8 +81,7 @@ public class LocationControllerTest {
 
     @Test
     public void testCreateLocation() throws Exception {
-        Location loc = new Location();
-        loc.setName("New Department");
+        var req = new LocationController.LocationRequest("B1-P01", "New Department", null, null, null);
 
         Location savedLoc = new Location();
         savedLoc.setId(3L);
@@ -93,7 +92,7 @@ public class LocationControllerTest {
         mockMvc.perform(post("/api/locations")
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(loc)))
+                .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(3))
                 .andExpect(jsonPath("$.name").value("New Department"));
@@ -101,19 +100,18 @@ public class LocationControllerTest {
 
     @Test
     public void testUpdateLocation() throws Exception {
-        Location loc = new Location();
-        loc.setName("Updated Department");
+        var req = new LocationController.LocationRequest("B1-P01", "Updated Department", null, null, null);
 
         Location updatedLoc = new Location();
         updatedLoc.setId(1L);
         updatedLoc.setName("Updated Department");
 
-        when(locationUseCase.updateLocation(any(Long.class), any(Location.class))).thenReturn(updatedLoc);
+        when(locationUseCase.updateLocation(any(Long.class), any(Location.class), any())).thenReturn(updatedLoc);
 
         mockMvc.perform(put("/api/locations/1")
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(loc)))
+                .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("Updated Department"));

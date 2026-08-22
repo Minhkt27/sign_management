@@ -1,0 +1,641 @@
+package com.hospital.signage.application.service;
+
+import com.hospital.signage.application.port.in.MapUseCase;
+import com.hospital.signage.application.port.out.LocationDatabasePort;
+import com.hospital.signage.application.port.out.MapDatabasePort;
+import com.hospital.signage.domain.enums.NodeType;
+import com.hospital.signage.domain.model.Location;
+import com.hospital.signage.domain.model.MapEdge;
+import com.hospital.signage.domain.model.MapFloor;
+import com.hospital.signage.domain.model.MapNode;
+import com.hospital.signage.infrastructure.security.SecurityUtils;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class MapService implements MapUseCase {
+
+    private final MapDatabasePort mapDatabasePort;
+    private final LocationDatabasePort locationDatabasePort;
+    private final MapGraphCache mapGraphCache;
+
+    // ── Floor ──────────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public MapFloor createFloor(MapFloor floor) {
+        mapDatabasePort.findFloorByLocationId(floor.getLocationId()).ifPresent(existing -> {
+            throw new IllegalArgumentException("Tầng này đã có sơ đồ (id=" + existing.getId() + ")");
+        });
+        Location location = locationDatabasePort.findById(floor.getLocationId())
+                .orElseThrow(() -> new IllegalArgumentException("Vị trí không tồn tại: " + floor.getLocationId()));
+        floor.setHospitalId(location.getHospitalId());
+        MapFloor saved = mapDatabasePort.saveFloor(floor);
+        log.info("MapFloor created: id={}, locationId={}", saved.getId(), saved.getLocationId());
+        return saved;
+    }
+
+    @Override
+    @Transactional
+    public MapFloor updateFloor(Long id, MapFloor floor, Long callerHospitalId) {
+        MapFloor existing = mapDatabasePort.findFloorById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Sơ đồ không tồn tại: " + id));
+        assertFloorInHospital(existing, callerHospitalId);
+        existing.setImageUrl(floor.getImageUrl());
+        existing.setImgWidth(floor.getImgWidth());
+        existing.setImgHeight(floor.getImgHeight());
+        return mapDatabasePort.saveFloor(existing);
+    }
+
+    @Override
+    public Optional<MapFloor> getFloorById(Long id) {
+        return mapDatabasePort.findFloorById(id);
+    }
+
+    @Override
+    public Optional<MapFloor> getFloorByLocationId(Long locationId) {
+        return mapDatabasePort.findFloorByLocationId(locationId);
+    }
+
+    @Override
+    public List<MapFloor> getAllFloors(Long hospitalId) {
+        return mapDatabasePort.findAllIndoorFloors(hospitalId);
+    }
+
+    @Override
+    @Transactional
+    public MapFloor createCampusFloor(MapFloor floor) {
+        Long hospitalId = SecurityUtils.getCurrentHospitalId();
+        mapDatabasePort.findCampusFloor(hospitalId).ifPresent(existing -> {
+            throw new IllegalArgumentException("Sơ đồ tổng thể đã tồn tại (id=" + existing.getId() + ")");
+        });
+        floor.setCampus(true);
+        floor.setLocationId(null);
+        floor.setHospitalId(hospitalId != null ? hospitalId : SecurityUtils.DEFAULT_HOSPITAL_ID);
+        MapFloor saved = mapDatabasePort.saveFloor(floor);
+        mapGraphCache.invalidateAll();
+        log.info("Campus map created: id={}", saved.getId());
+        return saved;
+    }
+
+    @Override
+    @Transactional
+    public MapFloor updateCampusFloor(MapFloor floor) {
+        MapFloor existing = mapDatabasePort.findCampusFloor(SecurityUtils.getCurrentHospitalId())
+                .orElseThrow(() -> new IllegalArgumentException("Chưa có sơ đồ tổng thể"));
+        existing.setImageUrl(floor.getImageUrl());
+        existing.setImgWidth(floor.getImgWidth());
+        existing.setImgHeight(floor.getImgHeight());
+        MapFloor saved = mapDatabasePort.saveFloor(existing);
+        mapGraphCache.invalidateAll();
+        return saved;
+    }
+
+    @Override
+    public Optional<MapFloorData> getCampusMap(Long hospitalId) {
+        return mapDatabasePort.findCampusFloor(hospitalId).map(campus -> {
+            List<MapNode> nodes = mapDatabasePort.findNodesByFloorId(campus.getId());
+            List<MapEdge> edges = mapDatabasePort.findEdgesByFloorId(campus.getId());
+            return new MapFloorData(campus, nodes, edges);
+        });
+    }
+
+    @Override
+    @Transactional
+    public void deleteCampusFloor() {
+        MapFloor campus = mapDatabasePort.findCampusFloor(SecurityUtils.getCurrentHospitalId())
+                .orElseThrow(() -> new IllegalArgumentException("Chưa có sơ đồ tổng thể"));
+        mapDatabasePort.deleteFloorById(campus.getId());
+        mapGraphCache.invalidateAll();
+        log.info("Campus map deleted: id={}", campus.getId());
+    }
+
+    @Override
+    @Transactional
+    public void deleteFloor(Long id, Long callerHospitalId) {
+        MapFloor existing = mapDatabasePort.findFloorById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Sơ đồ không tồn tại: " + id));
+        assertFloorInHospital(existing, callerHospitalId);
+        mapDatabasePort.deleteFloorById(id);
+        log.info("MapFloor deleted: id={}", id);
+    }
+
+    @Override
+    public MapFloorData getFloorData(Long floorId, Long callerHospitalId) {
+        MapFloor floor = mapDatabasePort.findFloorById(floorId)
+                .orElseThrow(() -> new IllegalArgumentException("Sơ đồ không tồn tại: " + floorId));
+        assertFloorInHospital(floor, callerHospitalId);
+        List<MapNode> nodes = mapDatabasePort.findNodesByFloorId(floorId);
+        List<MapEdge> edges = mapDatabasePort.findEdgesByFloorId(floorId);
+        return new MapFloorData(floor, nodes, edges);
+    }
+
+    @Override
+    public List<MapFloorData> getFloorDataBatch(List<Long> floorIds, Long callerHospitalId) {
+        if (floorIds == null || floorIds.isEmpty()) return Collections.emptyList();
+        List<MapFloor> floors = mapDatabasePort.findFloorsByIds(floorIds).stream()
+                .filter(f -> callerHospitalId == null || callerHospitalId.equals(f.getHospitalId()))
+                .toList();
+        List<MapNode> allNodes = mapDatabasePort.findNodesByFloorIds(floorIds);
+        List<MapEdge> allEdges = mapDatabasePort.findEdgesByFloorIds(floorIds);
+
+        Map<Long, List<MapNode>> nodesByFloor = allNodes.stream()
+                .collect(Collectors.groupingBy(n -> n.getFloorId()));
+
+        // nodeId → floorId lookup for efficient edge grouping
+        Map<Long, Long> nodeFloorMap = allNodes.stream()
+                .collect(Collectors.toMap(n -> n.getId(), n -> n.getFloorId()));
+
+        // Edge belongs to a floor if either endpoint is on that floor (same logic as findByFloorId)
+        Map<Long, List<MapEdge>> edgesByFloor = new HashMap<>();
+        for (MapEdge edge : allEdges) {
+            Long fromFloor = nodeFloorMap.get(edge.getNodeFromId());
+            Long toFloor   = nodeFloorMap.get(edge.getNodeToId());
+            if (fromFloor != null) edgesByFloor.computeIfAbsent(fromFloor, k -> new ArrayList<>()).add(edge);
+            if (toFloor != null && !toFloor.equals(fromFloor)) {
+                edgesByFloor.computeIfAbsent(toFloor, k -> new ArrayList<>()).add(edge);
+            }
+        }
+
+        return floors.stream()
+                .map(f -> new MapFloorData(
+                        f,
+                        nodesByFloor.getOrDefault(f.getId(), Collections.emptyList()),
+                        edgesByFloor.getOrDefault(f.getId(), Collections.emptyList())
+                ))
+                .collect(Collectors.toList());
+    }
+
+    // ── Node ───────────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public MapNode createNode(MapNode node, Long callerHospitalId) {
+        MapFloor floor = mapDatabasePort.findFloorById(node.getFloorId())
+                .orElseThrow(() -> new IllegalArgumentException("Sơ đồ không tồn tại: " + node.getFloorId()));
+        assertFloorInHospital(floor, callerHospitalId);
+        MapNode saved = mapDatabasePort.saveNode(node);
+        mapGraphCache.invalidateAll();
+        log.info("MapNode created: id={}, floorId={}, type={}", saved.getId(), saved.getFloorId(), saved.getType());
+        return saved;
+    }
+
+    @Override
+    @Transactional
+    public MapNode updateNode(Long id, MapNode node, Long callerHospitalId) {
+        MapNode existing = mapDatabasePort.findNodeById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Node không tồn tại: " + id));
+        assertNodeInHospital(existing, callerHospitalId);
+        boolean positionChanged = (node.getX() != null && !node.getX().equals(existing.getX()))
+                || (node.getY() != null && !node.getY().equals(existing.getY()));
+        if (node.getX() != null) existing.setX(node.getX());
+        if (node.getY() != null) existing.setY(node.getY());
+        existing.setType(node.getType());
+        existing.setLabel(node.getLabel());
+        existing.setLocationId(node.getLocationId());
+        existing.setAssetId(node.getAssetId());
+        existing.setLinkedCampusNodeId(node.getLinkedCampusNodeId());
+        MapNode saved = mapDatabasePort.saveNode(existing);
+        if (positionChanged) {
+            recalculateConnectedEdgeWeights(saved);
+        }
+        mapGraphCache.invalidateAll();
+        return saved;
+    }
+
+    private void recalculateConnectedEdgeWeights(MapNode movedNode) {
+        List<MapEdge> edges = mapDatabasePort.findEdgesByNodeId(movedNode.getId());
+        for (MapEdge edge : edges) {
+            Long otherId = edge.getNodeFromId().equals(movedNode.getId()) ? edge.getNodeToId() : edge.getNodeFromId();
+            mapDatabasePort.findNodeById(otherId).ifPresent(other -> {
+                double dx = other.getX() - movedNode.getX();
+                double dy = other.getY() - movedNode.getY();
+                edge.setWeight(Math.sqrt(dx * dx + dy * dy));
+                mapDatabasePort.saveEdge(edge);
+            });
+        }
+    }
+
+    @Override
+    @Transactional
+    public void deleteNode(Long id, Long callerHospitalId) {
+        MapNode existing = mapDatabasePort.findNodeById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Node không tồn tại: " + id));
+        assertNodeInHospital(existing, callerHospitalId);
+        mapDatabasePort.deleteNodeById(id);
+        mapGraphCache.invalidateAll();
+        log.info("MapNode deleted: id={}", id);
+    }
+
+    @Override
+    public Optional<MapNode> getNodeByAssetId(UUID assetId) {
+        return mapDatabasePort.findNodeByAssetId(assetId);
+    }
+
+    @Override
+    public Optional<MapNode> getNodeByLocationId(Long locationId) {
+        return mapDatabasePort.findNodeByLocationId(locationId);
+    }
+
+    // ── Edge ───────────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public MapEdge createEdge(Long nodeFromId, Long nodeToId) {
+        MapNode from = mapDatabasePort.findNodeById(nodeFromId)
+                .orElseThrow(() -> new IllegalArgumentException("Node không tồn tại: " + nodeFromId));
+        MapNode to = mapDatabasePort.findNodeById(nodeToId)
+                .orElseThrow(() -> new IllegalArgumentException("Node không tồn tại: " + nodeToId));
+
+        MapFloor fromFloor = mapDatabasePort.findFloorById(from.getFloorId())
+                .orElseThrow(() -> new IllegalArgumentException("Sơ đồ không tồn tại: " + from.getFloorId()));
+        MapFloor toFloor = mapDatabasePort.findFloorById(to.getFloorId())
+                .orElseThrow(() -> new IllegalArgumentException("Sơ đồ không tồn tại: " + to.getFloorId()));
+        if (!java.util.Objects.equals(fromFloor.getHospitalId(), toFloor.getHospitalId())) {
+            throw new IllegalArgumentException("Không thể nối 2 điểm thuộc bệnh viện khác nhau.");
+        }
+
+        if (mapDatabasePort.existsEdgeBetween(nodeFromId, nodeToId)) {
+            throw new IllegalStateException("Kết nối giữa 2 điểm này đã tồn tại (kể cả chiều ngược lại).");
+        }
+
+        double dx = to.getX() - from.getX();
+        double dy = to.getY() - from.getY();
+        double weight = Math.sqrt(dx * dx + dy * dy);
+
+        MapEdge edge = MapEdge.builder()
+                .nodeFromId(nodeFromId)
+                .nodeToId(nodeToId)
+                .weight(weight)
+                .bidirectional(true)
+                .build();
+
+        MapEdge saved = mapDatabasePort.saveEdge(edge);
+        mapGraphCache.invalidateAll();
+        log.info("MapEdge created: id={}, from={}, to={}, weight={}", saved.getId(), nodeFromId, nodeToId, String.format("%.4f", weight));
+        return saved;
+    }
+
+    @Override
+    @Transactional
+    public void deleteEdge(Long id, Long callerHospitalId) {
+        MapEdge edge = mapDatabasePort.findEdgeById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Edge không tồn tại: " + id));
+        if (callerHospitalId != null) {
+            MapNode fromNode = mapDatabasePort.findNodeById(edge.getNodeFromId())
+                    .orElseThrow(() -> new NoSuchElementException("Edge không tồn tại: " + id));
+            assertNodeInHospital(fromNode, callerHospitalId);
+        }
+        mapDatabasePort.deleteEdgeById(id);
+        mapGraphCache.invalidateAll();
+        log.info("MapEdge deleted: id={}", id);
+    }
+
+    // ── Wayfinding (Dijkstra's) ────────────────────────────────────────────
+
+    @Override
+    public List<MapNode> findPath(Long fromNodeId, Long toNodeId, boolean avoidStairs, Long hospitalId) {
+        if (fromNodeId.equals(toNodeId)) {
+            MapNode single = mapDatabasePort.findNodeById(fromNodeId)
+                    .orElseThrow(() -> new NoSuchElementException("Node không tồn tại: " + fromNodeId));
+            assertNodeInHospital(single, hospitalId);
+            return Collections.singletonList(single);
+        }
+
+        MapNode fromNode = mapDatabasePort.findNodeById(fromNodeId)
+                .orElseThrow(() -> new NoSuchElementException("Node không tồn tại: " + fromNodeId));
+        MapNode toNode = mapDatabasePort.findNodeById(toNodeId)
+                .orElseThrow(() -> new NoSuchElementException("Node không tồn tại: " + toNodeId));
+        assertNodeInHospital(fromNode, hospitalId);
+        assertNodeInHospital(toNode, hospitalId);
+
+        List<MapNode> allNodes;
+        List<MapEdge> allEdges;
+        if (java.util.Objects.equals(fromNode.getFloorId(), toNode.getFloorId())) {
+            MapGraphCache.GraphData floorData = mapGraphCache.loadFloorGraph(fromNode.getFloorId());
+            allNodes = floorData.nodes();
+            allEdges = floorData.edges();
+            if (!isReachable(fromNodeId, toNodeId, buildAdjacency(allNodes, allEdges))) {
+                MapGraphCache.GraphData fullData = mapGraphCache.loadFullGraph(hospitalId);
+                allNodes = fullData.nodes();
+                allEdges = fullData.edges();
+            }
+        } else {
+            MapGraphCache.GraphData fullData = mapGraphCache.loadFullGraph(hospitalId);
+            allNodes = fullData.nodes();
+            allEdges = fullData.edges();
+        }
+
+        if (avoidStairs) {
+            allEdges = filterStairEdges(allNodes, allEdges);
+        }
+
+        List<MapNode> path = dijkstra(fromNodeId, toNodeId, allNodes, allEdges).path();
+        if (path.isEmpty()) {
+            throw new NoSuchElementException("Không tìm được đường đi giữa 2 điểm này.");
+        }
+        return path;
+    }
+
+    @Override
+    public WayfindingResult findPathWithSegments(Long fromNodeId, Long toNodeId, boolean avoidStairs, Long hospitalId) {
+        if (fromNodeId.equals(toNodeId)) {
+            MapNode single = mapDatabasePort.findNodeById(fromNodeId)
+                    .orElseThrow(() -> new NoSuchElementException("Node không tồn tại: " + fromNodeId));
+            assertNodeInHospital(single, hospitalId);
+            return new WayfindingResult(List.of(new PathSegment(SegmentType.INDOOR, List.of(single))));
+        }
+
+        MapNode fromNode = mapDatabasePort.findNodeById(fromNodeId)
+                .orElseThrow(() -> new NoSuchElementException("Node không tồn tại: " + fromNodeId));
+        MapNode toNode = mapDatabasePort.findNodeById(toNodeId)
+                .orElseThrow(() -> new NoSuchElementException("Node không tồn tại: " + toNodeId));
+        assertNodeInHospital(fromNode, hospitalId);
+        assertNodeInHospital(toNode, hospitalId);
+
+        Map<Long, Long> floorLocMap = mapGraphCache.loadFloorLocationMap(hospitalId);
+        Long fromLoc = floorLocMap.get(fromNode.getFloorId());
+        Long toLoc   = floorLocMap.get(toNode.getFloorId());
+
+        // Same building or no campus map → single indoor segment
+        boolean differentBuildings = fromLoc != null && toLoc != null && !fromLoc.equals(toLoc);
+        if (!differentBuildings || mapDatabasePort.findCampusFloor(hospitalId).isEmpty()) {
+            List<MapNode> path = findPath(fromNodeId, toNodeId, avoidStairs, hospitalId);
+            return path.isEmpty() ? new WayfindingResult(List.of())
+                    : new WayfindingResult(List.of(new PathSegment(SegmentType.INDOOR, path)));
+        }
+
+        // Find nodes linked to campus in each building (any type with linkedCampusNodeId set)
+        List<MapNode> srcExits = mapDatabasePort.findNodesByFloorId(fromNode.getFloorId()).stream()
+                .filter(n -> n.getLinkedCampusNodeId() != null)
+                .collect(Collectors.toList());
+        List<MapNode> dstExits = mapDatabasePort.findNodesByFloorId(toNode.getFloorId()).stream()
+                .filter(n -> n.getLinkedCampusNodeId() != null)
+                .collect(Collectors.toList());
+
+        if (srcExits.isEmpty() || dstExits.isEmpty()) {
+            // No campus-linked nodes configured yet — fallback to flat indoor path
+            List<MapNode> path = findPath(fromNodeId, toNodeId, avoidStairs, hospitalId);
+            return path.isEmpty() ? new WayfindingResult(List.of())
+                    : new WayfindingResult(List.of(new PathSegment(SegmentType.INDOOR, path)));
+        }
+
+        MapGraphCache.GraphData seg1Graph = applyAvoidStairs(mapGraphCache.loadFloorGraph(fromNode.getFloorId()), avoidStairs);
+        MapGraphCache.GraphData seg3Graph = applyAvoidStairs(mapGraphCache.loadFloorGraph(toNode.getFloorId()), avoidStairs);
+        MapGraphCache.GraphData campusGraph = mapGraphCache.loadCampusGraph(hospitalId);
+
+        double bestCost = Double.MAX_VALUE;
+        DijkstraResult bestSeg1 = null, bestSeg2 = null, bestSeg3 = null;
+
+        for (MapNode srcExit : srcExits) {
+            DijkstraResult r1 = dijkstra(fromNodeId, srcExit.getId(), seg1Graph.nodes(), seg1Graph.edges());
+            if (r1.path().isEmpty() && !fromNodeId.equals(srcExit.getId())) continue;
+
+            for (MapNode dstExit : dstExits) {
+                DijkstraResult r2 = dijkstra(
+                        srcExit.getLinkedCampusNodeId(), dstExit.getLinkedCampusNodeId(),
+                        campusGraph.nodes(), campusGraph.edges());
+                if (r2.path().isEmpty()) continue;
+
+                DijkstraResult r3 = dijkstra(dstExit.getId(), toNodeId, seg3Graph.nodes(), seg3Graph.edges());
+                if (r3.path().isEmpty() && !dstExit.getId().equals(toNodeId)) continue;
+
+                double total = r1.cost() + r2.cost() + r3.cost();
+                if (total < bestCost) {
+                    bestCost = total;
+                    bestSeg1 = r1;
+                    bestSeg2 = r2;
+                    bestSeg3 = r3;
+                }
+            }
+        }
+
+        if (bestSeg1 == null) {
+            throw new NoSuchElementException("Không tìm được đường đi giữa 2 điểm này.");
+        }
+
+        List<PathSegment> segments = expandTransitBuildings(
+                bestSeg1, bestSeg2, bestSeg3, srcExits, dstExits, avoidStairs, hospitalId);
+        return new WayfindingResult(segments);
+    }
+
+    /**
+     * Expand the outdoor (campus) segment by detecting transit buildings:
+     * when two consecutive campus-path nodes are both linked to indoor ENTRANCE nodes
+     * (and neither belongs to the source/dest building), insert an INDOOR segment
+     * between them using the indoor graph of that transit building.
+     *
+     * Example: A_indoor → outdoor(A→B) → B_indoor(transit) → outdoor(B→C) → C_indoor
+     */
+    private List<PathSegment> expandTransitBuildings(
+            DijkstraResult seg1, DijkstraResult seg2, DijkstraResult seg3,
+            List<MapNode> srcExits, List<MapNode> dstExits, boolean avoidStairs, Long hospitalId) {
+
+        // Build reverse map: campusNodeId → indoor ENTRANCE node
+        MapGraphCache.GraphData fullIndoor = applyAvoidStairs(mapGraphCache.loadFullIndoorGraph(hospitalId), avoidStairs);
+        Map<Long, MapNode> campusToIndoor = new HashMap<>();
+        for (MapNode n : fullIndoor.nodes()) {
+            if (n.getLinkedCampusNodeId() != null) {
+                campusToIndoor.put(n.getLinkedCampusNodeId(), n);
+            }
+        }
+
+        // Campus node IDs that belong to source or destination buildings — never treated as transit
+        Set<Long> srcCampusIds = srcExits.stream()
+                .map(n -> n.getLinkedCampusNodeId()).collect(Collectors.toSet());
+        Set<Long> dstCampusIds = dstExits.stream()
+                .map(n -> n.getLinkedCampusNodeId()).collect(Collectors.toSet());
+
+        List<PathSegment> result = new ArrayList<>();
+        if (!seg1.path().isEmpty()) result.add(new PathSegment(SegmentType.INDOOR, seg1.path()));
+
+        List<MapNode> campusPath = seg2.path();
+        List<MapNode> currentOutdoor = new ArrayList<>();
+
+        int i = 0;
+        while (i < campusPath.size()) {
+            MapNode campusNode = campusPath.get(i);
+            currentOutdoor.add(campusNode);
+
+            // Is this a transit-building entrance? (has indoor link, not src/dst)
+            MapNode enterIndoor = campusToIndoor.get(campusNode.getId());
+            boolean isTransitEntry = enterIndoor != null
+                    && !srcCampusIds.contains(campusNode.getId())
+                    && !dstCampusIds.contains(campusNode.getId());
+
+            if (isTransitEntry && enterIndoor != null) {
+                // Search ahead (up to 5 nodes) for a transit exit of the same building
+                int foundAt = -1;
+
+                for (int j = i + 1; j < Math.min(i + 6, campusPath.size()); j++) {
+                    MapNode candidate = campusToIndoor.get(campusPath.get(j).getId());
+                    if (candidate == null) continue;
+                    if (srcCampusIds.contains(campusPath.get(j).getId())) continue;
+                    if (dstCampusIds.contains(campusPath.get(j).getId())) continue;
+                    // Try indoor Dijkstra — success means same connected building
+                    DijkstraResult transitPath = dijkstra(
+                            enterIndoor.getId(), candidate.getId(),
+                            fullIndoor.nodes(), fullIndoor.edges());
+                    if (transitPath.path().size() > 2 && hasSignificantTurn(transitPath.path())) {
+                        // Only create indoor segment when navigation is truly needed (has turns).
+                        // Straight pass-through (even 3+ nodes) is better shown as outdoor "Đi qua X".
+                        foundAt = j;
+
+                        // Add intermediate campus waypoints to currentOutdoor before flushing
+                        for (int k = i + 1; k <= j; k++) currentOutdoor.add(campusPath.get(k));
+                        // Flush current outdoor segment
+                        result.add(new PathSegment(SegmentType.OUTDOOR, new ArrayList<>(currentOutdoor)));
+                        currentOutdoor.clear();
+                        // Insert indoor transit
+                        result.add(new PathSegment(SegmentType.INDOOR, transitPath.path()));
+                        // Restart outdoor from the exit campus node
+                        currentOutdoor.add(campusPath.get(j));
+                        i = j + 1;
+                        break;
+                    }
+                }
+                if (foundAt < 0) i++;
+            } else {
+                i++;
+            }
+        }
+
+        if (!currentOutdoor.isEmpty()) result.add(new PathSegment(SegmentType.OUTDOOR, currentOutdoor));
+        if (!seg3.path().isEmpty()) result.add(new PathSegment(SegmentType.INDOOR, seg3.path()));
+        return result;
+    }
+
+    private boolean hasSignificantTurn(List<MapNode> path) {
+        for (int k = 1; k < path.size() - 1; k++) {
+            MapNode p = path.get(k - 1), c = path.get(k), n = path.get(k + 1);
+            double dx1 = c.getX() - p.getX(), dy1 = c.getY() - p.getY();
+            double dx2 = n.getX() - c.getX(), dy2 = n.getY() - c.getY();
+            double cross = dx1 * dy2 - dy1 * dx2;
+            double dot   = dx1 * dx2 + dy1 * dy2;
+            if (Math.atan2(Math.abs(cross), dot) * 180 / Math.PI >= 45) return true;
+        }
+        return false;
+    }
+
+    // ── Private helpers ────────────────────────────────────────────────────
+
+    private record DijkstraResult(List<MapNode> path, double cost) {}
+
+    private DijkstraResult dijkstra(Long fromId, Long toId, List<MapNode> nodes, List<MapEdge> edges) {
+        if (fromId.equals(toId)) {
+            Map<Long, MapNode> nm = nodes.stream().collect(Collectors.toMap(n -> n.getId(), n -> n));
+            MapNode n = nm.get(fromId);
+            return n == null ? new DijkstraResult(Collections.emptyList(), 0.0)
+                             : new DijkstraResult(List.of(n), 0.0);
+        }
+
+        Map<Long, List<long[]>> adj = buildAdjacency(nodes, edges);
+        Map<Long, Double> dist = new HashMap<>();
+        Map<Long, Long> prev = new HashMap<>();
+
+        for (MapNode node : nodes) dist.put(node.getId(), Double.MAX_VALUE);
+        dist.put(fromId, 0.0);
+
+        PriorityQueue<long[]> pq = new PriorityQueue<>(Comparator.comparingDouble(a -> Double.longBitsToDouble(a[1])));
+        pq.offer(new long[]{fromId, Double.doubleToLongBits(0.0)});
+
+        while (!pq.isEmpty()) {
+            long[] curr = pq.poll();
+            long currId = curr[0];
+            double currDist = Double.longBitsToDouble(curr[1]);
+            if (currDist > dist.getOrDefault(currId, Double.MAX_VALUE)) continue;
+            if (currId == toId) break;
+            for (long[] nb : adj.getOrDefault(currId, Collections.emptyList())) {
+                double nd = currDist + Double.longBitsToDouble(nb[1]);
+                if (nd < dist.getOrDefault(nb[0], Double.MAX_VALUE)) {
+                    dist.put(nb[0], nd);
+                    prev.put(nb[0], currId);
+                    pq.offer(new long[]{nb[0], Double.doubleToLongBits(nd)});
+                }
+            }
+        }
+
+        double cost = dist.getOrDefault(toId, Double.MAX_VALUE);
+        if (cost >= Double.MAX_VALUE) return new DijkstraResult(Collections.emptyList(), Double.MAX_VALUE);
+
+        Map<Long, MapNode> nodeMap = nodes.stream().collect(Collectors.toMap(n -> n.getId(), n -> n));
+        List<MapNode> path = new ArrayList<>();
+        Long cur = toId;
+        while (cur != null) {
+            MapNode node = nodeMap.get(cur);
+            if (node == null) break;
+            path.add(0, node);
+            cur = prev.get(cur);
+        }
+        return new DijkstraResult(path, cost);
+    }
+
+    // hospitalId == null nghĩa là SUPER_ADMIN, không giới hạn viện nào.
+    // Bắt buộc kiểm tra ở đây vì loadFloorGraph(floorId) không tự lọc theo viện —
+    // nếu thiếu bước này, người dùng viện khác vẫn tìm được đường nếu biết node ID của viện khác.
+    private void assertNodeInHospital(MapNode node, Long hospitalId) {
+        if (hospitalId == null) return;
+        MapFloor floor = mapDatabasePort.findFloorById(node.getFloorId()).orElse(null);
+        if (floor == null || !hospitalId.equals(floor.getHospitalId())) {
+            throw new NoSuchElementException("Node không tồn tại: " + node.getId());
+        }
+    }
+
+    // hospitalId == null nghĩa là SUPER_ADMIN, không giới hạn viện nào.
+    private void assertFloorInHospital(MapFloor floor, Long hospitalId) {
+        if (hospitalId != null && !hospitalId.equals(floor.getHospitalId())) {
+            throw new IllegalArgumentException("Sơ đồ không tồn tại: " + floor.getId());
+        }
+    }
+
+    private MapGraphCache.GraphData applyAvoidStairs(MapGraphCache.GraphData graph, boolean avoidStairs) {
+        if (!avoidStairs) return graph;
+        return new MapGraphCache.GraphData(graph.nodes(), filterStairEdges(graph.nodes(), graph.edges()));
+    }
+
+    private List<MapEdge> filterStairEdges(List<MapNode> nodes, List<MapEdge> edges) {
+        Set<Long> stairIds = nodes.stream()
+                .filter(n -> n.getType() == NodeType.STAIRS)
+                .map(n -> n.getId())
+                .collect(Collectors.toSet());
+        return edges.stream()
+                .filter(e -> !stairIds.contains(e.getNodeFromId()) && !stairIds.contains(e.getNodeToId()))
+                .collect(Collectors.toList());
+    }
+
+    private boolean isReachable(Long from, Long to, Map<Long, List<long[]>> adj) {
+        Set<Long> visited = new HashSet<>();
+        Queue<Long> queue = new java.util.ArrayDeque<>();
+        queue.add(from);
+        visited.add(from);
+        while (!queue.isEmpty()) {
+            Long cur = queue.poll();
+            if (cur.equals(to)) return true;
+            for (long[] nb : adj.getOrDefault(cur, Collections.emptyList())) {
+                if (visited.add(nb[0])) queue.add(nb[0]);
+            }
+        }
+        return false;
+    }
+
+    private Map<Long, List<long[]>> buildAdjacency(List<MapNode> nodes, List<MapEdge> edges) {
+        Map<Long, List<long[]>> adj = new HashMap<>();
+        for (MapNode node : nodes) adj.put(node.getId(), new ArrayList<>());
+        for (MapEdge edge : edges) {
+            long wb = Double.doubleToLongBits(edge.getWeight());
+            adj.computeIfAbsent(edge.getNodeFromId(), k -> new ArrayList<>()).add(new long[]{edge.getNodeToId(), wb});
+            if (edge.isBidirectional()) {
+                adj.computeIfAbsent(edge.getNodeToId(), k -> new ArrayList<>()).add(new long[]{edge.getNodeFromId(), wb});
+            }
+        }
+        return adj;
+    }
+}

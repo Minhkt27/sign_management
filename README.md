@@ -9,7 +9,7 @@ Hệ thống số hóa, quản lý và điều phối bảo trì toàn bộ bi�
 | Phase | Trạng thái | Mô tả |
 |-------|-----------|-------|
 | **Phase 1** | ✅ Hoàn thành | Lõi quản trị dữ liệu nền tảng. Quản lý biển báo, vị trí phân cấp, phiếu bảo trì, phân công kỹ thuật viên. |
-| **Phase 2** | Tương lai gần | Số hóa điểm chạm: tích hợp QR Code / NFC gắn tại mỗi biển để báo hỏng nhanh từ điện thoại. |
+| **Phase 2** | ✅ Hoàn thành | Số hóa điểm chạm: QR Code gắn tại mỗi biển, báo hỏng và tự nhận việc từ điện thoại, luồng duyệt/từ chối phiếu. |
 | **Phase 3** | Trung hạn | Sơ đồ số và công cụ tìm đường trong nhà (Wayfinding) cho bệnh nhân và nhân viên. |
 | **Phase 4** | Dài hạn | AI dự báo hư hỏng dựa trên lịch sử bảo trì, tần suất báo hỏng và điều kiện môi trường. |
 
@@ -34,6 +34,23 @@ Hệ thống số hóa, quản lý và điều phối bảo trì toàn bộ bi�
 - Rate limiting đăng nhập: 5 lần thất bại / 15 phút per username
 - Validate file upload: kiểm tra cả extension lẫn magic bytes (chống polyglot attack)
 - Không hardcode credentials; mật khẩu khởi tạo đọc từ biến môi trường
+
+---
+
+## 2b. Tính năng Phase 2
+
+### Quản trị viên (Desktop)
+- **Duyệt/Từ chối phiếu**: Xem ảnh trước/sau, đóng phiếu hoặc yêu cầu sửa lại (tối đa 3 lần) kèm ghi chú lý do
+- **Biển báo thanh lý**: Chặn tạo phiếu báo hỏng cho biển đã thanh lý (cả UI lẫn backend)
+
+### Kỹ thuật viên (Mobile Web)
+- **Quét QR tại hiện trường**: Quét bằng camera hoặc chọn ảnh QR từ thư viện ảnh/file
+- **Trang thông tin biển (Scan Landing)**: Xem đầy đủ thông tin biển sau khi quét; báo hỏng ngay tại chỗ hoặc tự nhận phiếu đang OPEN chưa có người nhận
+- **Luồng xử lý phiếu**: Upload ảnh hiện trường trước khi bắt đầu và sau khi hoàn thành; xem ghi chú từ chối của admin; validate file ảnh (type + kích thước tối đa 10MB)
+
+### Tích hợp QR Code
+- Mỗi biển báo có mã QR riêng (sinh từ `assetCode`), tải được dạng PNG từ trang chi tiết
+- QR trỏ tới `/tech/assets/:assetCode` — hoạt động trên cả desktop lẫn mobile
 
 ---
 
@@ -70,7 +87,7 @@ frontend/src/
 │   │   ├── sign-types/  # SignTypeListPage
 │   │   └── users/       # UserListPage
 │   └── technician/
-│       └── workflow/    # TechDashboardPage, TaskDetailPage, AssetBrowsePage
+│       └── workflow/    # TechDashboardPage, TaskDetailPage, AssetBrowsePage, ScanLandingPage
 ├── layouts/             # AdminLayout (sidebar desktop), MobileLayout (bottom nav)
 ├── components/ui/       # Base UI components (@base-ui/react)
 ├── services/            # apiClient (Axios), authService, assetService, userService...
@@ -93,41 +110,60 @@ frontend/src/
 | `locations` | Cây vị trí phân cấp (Tòa nhà/Tầng/Khoa/Phòng); có cột `path` kiểu `ltree` cho Phase 3 |
 | `assets` | Biển báo vật lý: mã, chất liệu, kích thước, trạng thái (ACTIVE/DAMAGED/REPAIRING/SCRAPPED) |
 | `sign_types` | Danh mục loại biển báo |
-| `maintenance_tickets` | Phiếu bảo trì: mô tả, độ ưu tiên, trạng thái, kỹ thuật viên được giao |
+| `maintenance_tickets` | Phiếu bảo trì: mô tả, độ ưu tiên, trạng thái, nguồn (MANUAL/QR_SCAN), số lần từ chối, ghi chú từ chối, timestamp hoàn thành |
 | `ticket_images` | Ảnh đính kèm phiếu (BEFORE/AFTER) |
 
 ---
 
-## 5. Chạy dự án
+## 5. Chạy dự án bằng Docker
 
 ### Yêu cầu
 - Docker & Docker Compose
 
-### 1 lệnh duy nhất
+### Bước 1 — Tạo file `.env`
 
-```bash
-docker compose up --build
-```
-
-Tất cả service sẽ tự khởi động. Lần đầu chạy mất vài phút để build image. Các lần sau bỏ `--build`.
-
-> Truy cập tại **`http://localhost`**
-
-### Tuỳ chỉnh (không bắt buộc)
-
-Để đổi mật khẩu, JWT secret hoặc các giá trị khác, tạo file `.env` từ mẫu:
+Sao chép file mẫu:
 
 ```bash
 cp .env.example .env
 ```
 
-Rồi chỉnh các biến cần thiết trước khi chạy `docker compose up --build`.
+Điền các giá trị bắt buộc:
 
-### Dừng và reset
+```env
+# Bắt buộc — đổi thành chuỗi ngẫu nhiên đủ mạnh (>= 32 ký tự)
+JWT_SECRET=your-strong-random-secret-key-here
+
+# Bắt buộc — đổi thành mật khẩu thực
+POSTGRES_PASSWORD=your_db_password
+MINIO_SECRET_KEY=your_minio_password
+
+# Tuỳ chọn — nếu muốn truy cập qua URL công khai (xem mục ngrok bên dưới)
+NGROK_AUTHTOKEN=your_ngrok_token
+```
+
+### Bước 2 — Build và khởi động
 
 ```bash
-docker compose down        # dừng, giữ data
-docker compose down -v     # dừng và xoá toàn bộ data
+docker compose up --build
+```
+
+> Lần đầu chạy sẽ mất vài phút để build image. Các lần sau chạy `docker compose up` là đủ.
+
+### Bước 3 — Truy cập
+
+| Địa chỉ | Mô tả |
+|---------|-------|
+| `http://localhost` | Ứng dụng chính (React) |
+| `http://localhost:8080` | Backend API |
+| `http://localhost:9001` | MinIO Console |
+| `http://localhost:4040` | Ngrok dashboard (xem URL public) |
+
+### Dừng và xoá
+
+```bash
+docker compose down          # dừng, giữ lại data
+docker compose down -v       # dừng và xoá toàn bộ volume (reset DB)
 ```
 
 ---
@@ -139,9 +175,11 @@ docker compose down -v     # dừng và xoá toàn bộ data
 | `admin` | `Admin@Docker#2024` | Quản trị viên |
 | `tech` | `Tech@Docker#2024` | Kỹ thuật viên |
 
+> Thay đổi bằng cách đặt `ADMIN_INITIAL_PASSWORD` / `TECH_INITIAL_PASSWORD` trong `.env` trước lần chạy đầu tiên.
+
 ---
 
-## 7. Các service
+## 7. Các service trong Docker Compose
 
 | Service | Port | Mô tả |
 |---------|------|-------|
@@ -149,7 +187,16 @@ docker compose down -v     # dừng và xoá toàn bộ data
 | `minio` | 9000 / 9001 | Object storage / MinIO Console |
 | `backend` | 8080 | Spring Boot API |
 | `frontend` | 80 | React app (Nginx) |
+| `ngrok` | 4040 | Tunnel public URL (cần `NGROK_AUTHTOKEN`) |
 | `backup` | — | Cronjob backup DB mỗi Chủ nhật 02:00 |
+
+### Truy cập từ điện thoại qua ngrok
+
+1. Đăng ký miễn phí tại [ngrok.com](https://ngrok.com) và lấy auth token
+2. Đặt `NGROK_AUTHTOKEN=<token>` trong `.env`
+3. Chạy `docker compose up --build`
+4. Vào `http://localhost:4040` → lấy URL dạng `https://xxxx.ngrok-free.app`
+5. Mở URL đó trên điện thoại để test QR scan
 
 ---
 

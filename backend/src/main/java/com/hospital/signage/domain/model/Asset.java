@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import com.hospital.signage.domain.enums.AssetStatus;
 import com.hospital.signage.domain.enums.Material;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Data
@@ -18,6 +18,7 @@ import java.util.UUID;
 public class Asset {
     private UUID id;
     private String assetCode;
+    private Long hospitalId;
     private String name;
     private String description;
     private String locationDescription;
@@ -26,10 +27,10 @@ public class Asset {
     private Material material;
     private String size;
     private AssetStatus status;
-    private LocalDateTime installedAt;
+    private Instant installedAt;
     private String supplier;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private Instant createdAt;
+    private Instant updatedAt;
     private String imageUrl;
     private Long createdBy;
 }

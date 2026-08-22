@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.InputStream;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -58,8 +59,9 @@ public class MinioStorageAdapter implements FileStoragePort {
                     .object(filename)
                     .stream(content, size, -1)
                     .contentType(contentType)
+                    .headers(Map.of("Cache-Control", "public, max-age=31536000, immutable"))
                     .build());
-            return publicUrl + "/" + bucketName + "/" + filename;
+            return publicUrl + "/" + filename;
         } catch (Exception e) {
             throw new RuntimeException("File upload failed: " + e.getMessage(), e);
         }

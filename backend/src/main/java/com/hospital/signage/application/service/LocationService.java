@@ -3,103 +3,106 @@ package com.hospital.signage.application.service;
 import com.hospital.signage.application.port.in.LocationUseCase;
 import com.hospital.signage.application.port.out.AssetDatabasePort;
 import com.hospital.signage.application.port.out.LocationDatabasePort;
+import com.hospital.signage.domain.enums.LocationType;
 import com.hospital.signage.domain.model.Location;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.text.Normalizer;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class LocationService implements LocationUseCase {
 
     private final LocationDatabasePort locationDatabasePort;
     private final AssetDatabasePort assetDatabasePort;
 
     @Override
+    @Transactional
     public Location createLocation(Location location) {
-        location.setCreatedAt(LocalDateTime.now());
-        location.setUpdatedAt(LocalDateTime.now());
+        Location parent = location.getParentId() != null
+                ? locationDatabasePort.findById(location.getParentId())
+                        .orElseThrow(() -> new IllegalArgumentException("Parent location not found"))
+                : null;
 
-        if (location.getLocationCode() == null || location.getLocationCode().trim().isEmpty()) {
-            String base = "LOC_" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-            location.setLocationCode(base);
+        if (parent != null && !java.util.Objects.equals(parent.getHospitalId(), location.getHospitalId())) {
+            throw new IllegalArgumentException("Vị trí cha thuộc bệnh viện khác.");
         }
 
-        // Auto-resolve or validate LocationType hierarchy
+        if (location.getLocationCode() == null || location.getLocationCode().trim().isEmpty()) {
+            location.setLocationCode(generateLocationCode(location.getName(), parent));
+        }
+
         if (location.getType() == null) {
-            if (location.getParentId() == null) {
-                location.setType(com.hospital.signage.domain.enums.LocationType.BUILDING);
+            if (parent == null) {
+                location.setType(LocationType.BUILDING);
+            } else if (parent.getType() == LocationType.BUILDING) {
+                location.setType(LocationType.FLOOR);
+            } else if (parent.getType() == LocationType.FLOOR) {
+                location.setType(LocationType.DEPARTMENT);
             } else {
-                Location parent = locationDatabasePort.findById(location.getParentId())
-                        .orElseThrow(() -> new IllegalArgumentException("Parent location not found"));
-                if (parent.getType() == com.hospital.signage.domain.enums.LocationType.BUILDING) {
-                    location.setType(com.hospital.signage.domain.enums.LocationType.FLOOR);
-                } else if (parent.getType() == com.hospital.signage.domain.enums.LocationType.FLOOR) {
-                    location.setType(com.hospital.signage.domain.enums.LocationType.DEPARTMENT);
-                } else {
-                    location.setType(com.hospital.signage.domain.enums.LocationType.ROOM);
-                }
+                location.setType(LocationType.ROOM);
             }
         }
 
-        // Format code for postgres ltree (only A-Za-z0-9_ allowed per label)
         String label = cleanForLtree(location.getLocationCode());
+        location.setPath(parent != null ? parent.getPath() + "." + label : label);
 
-        if (location.getParentId() != null) {
-            Location parent = locationDatabasePort.findById(location.getParentId())
-                    .orElseThrow(() -> new IllegalArgumentException("Parent location not found"));
-            location.setPath(parent.getPath() + "." + label);
-        } else {
-            location.setPath(label);
-        }
-
-        return locationDatabasePort.save(location);
-    }
-
-    private String cleanForLtree(String input) {
-        if (input == null) return "";
-        // Replace non-alphanumeric/non-underscore characters with underscore
-        return input.replaceAll("[^a-zA-Z0-9_]", "_");
+        Location saved = locationDatabasePort.save(location);
+        log.info("Location '{}' (id={}, code={}) created under parent {}",
+                saved.getName(), saved.getId(), saved.getLocationCode(), saved.getParentId());
+        return saved;
     }
 
     @Override
-    public Optional<Location> getLocationById(Long id) {
-        return locationDatabasePort.findById(id);
+    public Optional<Location> getLocationById(Long id, Long callerHospitalId) {
+        return locationDatabasePort.findById(id)
+                .filter(loc -> callerHospitalId == null || callerHospitalId.equals(loc.getHospitalId()));
     }
 
     @Override
-    public List<Location> getAllLocations() {
-        return locationDatabasePort.findAll();
+    public List<Location> getAllLocations(Long hospitalId) {
+        return locationDatabasePort.findAllByHospital(hospitalId);
     }
 
     @Override
-    public List<Location> getChildrenLocations(Long parentId) {
-        return locationDatabasePort.findByParentId(parentId);
+    public List<Location> getChildrenLocations(Long parentId, Long hospitalId) {
+        return locationDatabasePort.findByParentIdAndHospital(parentId, hospitalId);
     }
 
     @Override
-    public void deleteLocation(Long id) {
-        if (!locationDatabasePort.findByParentId(id).isEmpty()) {
+    @Transactional
+    public void deleteLocation(Long id, Long callerHospitalId) {
+        Location existing = locationDatabasePort.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Location not found"));
+        assertSameHospital(existing, callerHospitalId);
+
+        if (locationDatabasePort.existsByParentId(id)) {
             throw new IllegalArgumentException("Không thể xóa vị trí này vì vẫn còn vị trí con trực thuộc.");
         }
-        if (!assetDatabasePort.findByLocationId(id).isEmpty()) {
+        if (assetDatabasePort.existsByLocationId(id)) {
             throw new IllegalArgumentException("Không thể xóa vị trí này vì đang có biển báo liên kết.");
         }
         locationDatabasePort.deleteById(id);
+        log.info("Location {} deleted", id);
     }
 
     @Override
-    public Location updateLocation(Long id, Location locationDetails) {
+    @Transactional
+    public Location updateLocation(Long id, Location locationDetails, Long callerHospitalId) {
         Location existing = locationDatabasePort.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Location not found"));
+        assertSameHospital(existing, callerHospitalId);
 
         String oldPath = existing.getPath();
         existing.setName(locationDetails.getName());
         existing.setDescription(locationDetails.getDescription());
-        existing.setUpdatedAt(LocalDateTime.now());
 
         if (locationDetails.getLocationCode() != null && !locationDetails.getLocationCode().equals(existing.getLocationCode())) {
             existing.setLocationCode(locationDetails.getLocationCode());
@@ -116,32 +119,21 @@ public class LocationService implements LocationUseCase {
         Location updated = locationDatabasePort.save(existing);
 
         if (!updated.getPath().equals(oldPath)) {
-            updateDescendantsPaths(updated.getId(), updated.getPath());
+            locationDatabasePort.bulkUpdatePathPrefix(oldPath, updated.getPath());
+            log.info("Location {} path updated: {} → {}", id, oldPath, updated.getPath());
         }
 
         return updated;
     }
 
-    private void updateDescendantsPaths(Long parentId, String parentPath) {
-        List<Location> children = locationDatabasePort.findByParentId(parentId);
-        for (Location child : children) {
-            String label = cleanForLtree(child.getLocationCode());
-            child.setPath(parentPath + "." + label);
-            locationDatabasePort.save(child);
-            updateDescendantsPaths(child.getId(), child.getPath());
-        }
-    }
-
     @Override
-    public List<LocationTreeNode> getLocationTree() {
-        List<Location> allLocations = locationDatabasePort.findAll();
-        
-        // Group by parentId
+    public List<LocationTreeNode> getLocationTree(Long hospitalId) {
+        List<Location> allLocations = locationDatabasePort.findAllByHospital(hospitalId);
+
         Map<Long, List<Location>> parentGroup = allLocations.stream()
                 .filter(l -> l.getParentId() != null)
-                .collect(Collectors.groupingBy(Location::getParentId));
+                .collect(Collectors.groupingBy(l -> l.getParentId()));
 
-        // Find root nodes
         List<Location> roots = allLocations.stream()
                 .filter(l -> l.getParentId() == null)
                 .collect(Collectors.toList());
@@ -157,14 +149,45 @@ public class LocationService implements LocationUseCase {
     private LocationTreeNode buildTreeNode(Location node, Map<Long, List<Location>> parentGroup) {
         List<Location> children = parentGroup.getOrDefault(node.getId(), Collections.emptyList());
         List<LocationTreeNode> childNodes = new ArrayList<>();
-        
         for (Location child : children) {
             childNodes.add(buildTreeNode(child, parentGroup));
         }
-
-        // Sort children by code or name
-        childNodes.sort(Comparator.comparing(LocationTreeNode::getLocationCode));
-
+        childNodes.sort(Comparator.comparing(n -> n.getLocationCode()));
         return new LocationTreeNode(node, childNodes);
+    }
+
+    // Generates a readable code like "TANG_1" or "B_A_TANG_1" based on parent code + name.
+    // Appends a numeric suffix (_2, _3 ...) if the base code already exists.
+    private String generateLocationCode(String name, Location parent) {
+        String segment = normalizeToSegment(name);
+        String base = parent != null ? parent.getLocationCode() + "_" + segment : segment;
+        if (!locationDatabasePort.existsByLocationCode(base)) return base;
+        int counter = 2;
+        while (locationDatabasePort.existsByLocationCode(base + "_" + counter)) counter++;
+        return base + "_" + counter;
+    }
+
+    // Removes Vietnamese diacritics, keeps alphanumeric + underscore, uppercases.
+    private String normalizeToSegment(String name) {
+        if (name == null || name.isBlank()) return "LOC";
+        String nfd = Normalizer.normalize(name, Normalizer.Form.NFD);
+        String ascii = nfd.replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
+                          .replaceAll("đ", "d").replaceAll("Đ", "D");
+        return ascii.trim().toUpperCase()
+                    .replaceAll("[^A-Z0-9]+", "_")
+                    .replaceAll("^_+|_+$", "");
+    }
+
+    private String cleanForLtree(String input) {
+        if (input == null) return "";
+        return input.replaceAll("[^a-zA-Z0-9_]", "_");
+    }
+
+    // callerHospitalId == null nghĩa là SUPER_ADMIN, không giới hạn viện nào.
+    private void assertSameHospital(Location location, Long callerHospitalId) {
+        if (callerHospitalId != null && !callerHospitalId.equals(location.getHospitalId())) {
+            throw new com.hospital.signage.domain.exception.HospitalScopeException(
+                    "Không có quyền truy cập vị trí thuộc bệnh viện khác.");
+        }
     }
 }
