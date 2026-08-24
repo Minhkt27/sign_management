@@ -75,8 +75,8 @@ describe('Scenario 1 — bắt đầu tại Thang máy số 3, đến Phòng 120
     expect(last.sub).toBe('Phòng 120');
   });
 
-  it('số lượng bước đã được tối ưu (merged)', () => {
-    expect(steps).toHaveLength(4);
+  it('số lượng bước — đủ cả đoạn đường trước ngã rẽ cuối (không bị bỏ sót)', () => {
+    expect(steps).toHaveLength(5);
   });
 });
 
@@ -229,15 +229,21 @@ describe('Scenario 5 — Phòng 120 → Phòng 130 (dữ liệu thật, có đo�
   const j214 = mkNode({ id: 214, type: 'JUNCTION', floorId: 7, x: 0.10444444444444445, y: 0.7806662292281138 });
   const j199 = mkNode({ id: 199, type: 'JUNCTION', floorId: 7, x: 0.2437037037037037, y: 0.7789671218337495 });
   const room130 = mkNode({ id: 197, type: 'ROOM', floorId: 7, x: 0.2437037037037037, y: 0.7571521861190348, label: '130', locationId: 19 });
+  // Thang máy kề 2 ngã rẽ giữa lộ trình — dữ liệu thật (node 209/212 trong DB), dùng để
+  // kiểm tra landmark thang máy có hiện ra thay vì "Sau đó rẽ sang trái" trơn không.
+  const elevator1 = mkNode({ id: 209, type: 'ELEVATOR', floorId: 7, x: 0.05, y: 0.2, label: 'Thang máy 1' });
+  const elevator2 = mkNode({ id: 212, type: 'ELEVATOR', floorId: 7, x: 0.05, y: 0.78, label: 'Thang máy 2' });
 
   const path = [room120, j198, j213, j214, j199, room130];
-  const nodes = path;
+  const nodes = [...path, elevator1, elevator2];
   const edges = [
     { id: 1, nodeFromId: 195, nodeToId: 198, weight: 0.02, bidirectional: true },
     { id: 2, nodeFromId: 198, nodeToId: 213, weight: 0.14, bidirectional: true },
     { id: 3, nodeFromId: 213, nodeToId: 214, weight: 0.56, bidirectional: true },
     { id: 4, nodeFromId: 214, nodeToId: 199, weight: 0.14, bidirectional: true },
     { id: 5, nodeFromId: 199, nodeToId: 197, weight: 0.02, bidirectional: true },
+    { id: 6, nodeFromId: 213, nodeToId: 209, weight: 0.06, bidirectional: true },
+    { id: 7, nodeFromId: 214, nodeToId: 212, weight: 0.06, bidirectional: true },
   ];
   const allFloorData: MapFloorData[] = [{ floor: FLOOR_7, nodes, edges }];
   const locations: Location[] = [
@@ -248,14 +254,30 @@ describe('Scenario 5 — Phòng 120 → Phòng 130 (dữ liệu thật, có đo�
 
   const steps = buildSteps(path, allFloorData, locations, [FLOOR_7]);
 
+  it('dùng thang máy gần đó làm landmark thay vì "rẽ" trơn không rõ ở đâu', () => {
+    const atElev1 = steps.find(s => s.text.includes('Thang máy 1'));
+    const atElev2 = steps.find(s => s.text.includes('Thang máy 2'));
+    expect(atElev1?.text).toBe('Đến Thang máy 1, rẽ trái');
+    expect(atElev2?.text).toContain('Thang máy 2');
+  });
+
   it('có đúng 1 bước gắn "một đoạn dài" — ứng với đoạn 213→214 dài nhất', () => {
     const longSteps = steps.filter(s => s.text.includes('một đoạn dài'));
     expect(longSteps.length).toBe(1);
   });
 
-  it('có bước gắn "một đoạn ngắn" cho đoạn ra khỏi phòng 120 (ngắn nhất)', () => {
+  it('không gắn "một đoạn ngắn" ở đâu cả — ngắn là mặc định, không cần nêu ra', () => {
     const shortSteps = steps.filter(s => s.text.includes('một đoạn ngắn'));
-    expect(shortSteps.length).toBeGreaterThan(0);
+    expect(shortSteps.length).toBe(0);
+  });
+
+  it('bước "Ra khỏi phòng" KHÔNG chêm qualifier độ dài — rẽ ngay, không gây rối', () => {
+    expect(steps[1].text).toBe('Ra khỏi Phòng bệnh 120, rẽ phải');
+  });
+
+  it('không có bước riêng "Đi thẳng đến cửa Phòng 130" — gộp thẳng vào câu đến nơi vì không có gì bất thường', () => {
+    const finalStraight = steps.find(s => s.text.includes('cửa Phòng 130'));
+    expect(finalStraight).toBeUndefined();
   });
 
   it('3 lượt rẽ đầu: phải, trái, trái (khớp tính tay bằng công thức bearing)', () => {
@@ -269,5 +291,14 @@ describe('Scenario 5 — Phòng 120 → Phòng 130 (dữ liệu thật, có đo�
     const dest = steps[steps.length - 1];
     expect(dest.icon).toBe('🎯');
     expect(dest.text).toContain('bên tay trái');
+  });
+
+  it('không bỏ sót đoạn đường ngay trước ngã rẽ cuối (214→199, có landmark) — đủ 7 bước', () => {
+    // Trước khi sửa entryIsJunction, đoạn 214→199 (và landmark "thấy Phòng 130" đi kèm)
+    // bị mất tích hoàn toàn khỏi mô tả. Đoạn cuối 199→197 thì không cần bước riêng
+    // (không có gì bất thường, gộp vào câu đến nơi).
+    expect(steps).toHaveLength(7);
+    const straightSteps = steps.filter(s => s.icon === '⬆️');
+    expect(straightSteps.length).toBe(2); // đoạn dài (213→214) + đoạn có landmark (214→199)
   });
 });
