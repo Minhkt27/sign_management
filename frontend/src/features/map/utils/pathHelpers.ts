@@ -53,6 +53,28 @@ const sideOf = (from: MapNode, to: MapNode, target: MapNode): 'trái' | 'phải'
   return cross > 0 ? 'phải' : 'trái';
 };
 
+// Độ dài từng "đoạn thẳng" trong lộ trình — gộp các bước đi thẳng liên tiếp
+// (kể cả qua các junction không rẽ) thành 1 đoạn, khoá bằng id node kết thúc đoạn đó.
+// Chỉ dùng để so sánh tương đối "dài hơn/ngắn hơn các đoạn khác trong lộ trình này" —
+// toạ độ node không phải hệ mét thật nên không suy ra khoảng cách tuyệt đối được.
+const computeStraightRunLengths = (path: MapNode[]): Map<number, number> => {
+  const runs = new Map<number, number>();
+  let accum = 0;
+  for (let i = 1; i < path.length; i++) {
+    const prev = path[i - 1], curr = path[i];
+    accum += Math.hypot(curr.x - prev.x, curr.y - prev.y);
+    const isLast = i === path.length - 1;
+    const floorChanged = prev.floorId !== curr.floorId;
+    const isBoundaryType = curr.type === 'STAIRS' || curr.type === 'ELEVATOR' || curr.type === 'ENTRANCE';
+    const isTurn = !isLast && turnDir(prev, curr, path[i + 1]) !== 'straight';
+    if (isLast || floorChanged || isBoundaryType || isTurn) {
+      runs.set(curr.id, accum);
+      accum = 0;
+    }
+  }
+  return runs;
+};
+
 export const buildSteps = (
   path: MapNode[],
   allFloorData: MapFloorData[],
@@ -63,6 +85,20 @@ export const buildSteps = (
   const steps: PathStep[] = [];
   const nm = (n: MapNode) => displayName(n, locations);
   const fn = (fid: number) => floorName(fid, floors, locations);
+
+  const runLengths = computeStraightRunLengths(path);
+  const runValues = [...runLengths.values()];
+  const maxRun = runValues.length ? Math.max(...runValues) : 0;
+  const avgRun = runValues.length ? runValues.reduce((a, b) => a + b, 0) / runValues.length : 0;
+  // Chỉ nêu "đoạn dài" cho đúng đoạn dài nhất (khi nó thực sự nổi bật hơn mức trung bình),
+  // và "đoạn ngắn" cho các đoạn rõ ràng ngắn hơn hẳn — tránh gắn nhãn tràn lan khi các đoạn xêm xêm nhau.
+  const lengthQualifier = (toNodeId: number): string => {
+    const len = runLengths.get(toNodeId);
+    if (len === undefined || avgRun <= 0) return '';
+    if (len === maxRun && len >= avgRun * 1.5) return ' một đoạn dài';
+    if (len <= avgRun * 0.5) return ' một đoạn ngắn';
+    return '';
+  };
 
   // Lookup nhanh: nodeId → node object và type
   const nodeMap = new Map<number, MapNode>();
@@ -163,14 +199,15 @@ export const buildSteps = (
   // ⬆️ là icon duy nhất cho "đi thẳng" — dùng để nhận biết khi merge
   const addStraight = (fromNode: MapNode, toNode: MapNode) => {
     if (!needStraight) return;
+    const qualifier = lengthQualifier(toNode.id);
     const lm = landmarkOf(toNode, fromNode.id);
     let text: string;
     if (lm) {
       const side = lm.node.id !== toNode.id ? sideOf(fromNode, toNode, lm.node) : null;
-      text = side ? `Đi thẳng, thấy ${lm.name} bên tay ${side}` : `Đi thẳng đến ${lm.name}`;
+      text = side ? `Đi thẳng${qualifier}, thấy ${lm.name} bên tay ${side}` : `Đi thẳng${qualifier} đến ${lm.name}`;
     } else {
       const topo = topoLabel(toNode);
-      text = topo ? `Đi thẳng đến ${topo}` : 'Đi thẳng';
+      text = topo ? `Đi thẳng${qualifier} đến ${topo}` : `Đi thẳng${qualifier}`;
     }
     steps.push({ node: toNode, icon: '⬆️', text });
     needStraight = false;
@@ -180,6 +217,9 @@ export const buildSteps = (
   const mergeWithPrevStraight = (newText: string, newIcon: string, refNode: MapNode): boolean => {
     const lastStep = steps[steps.length - 1];
     if (!lastStep || lastStep.icon !== '⬆️') return false;
+    // Đoạn "một đoạn dài/ngắn" cần giữ nguyên thành câu riêng — gộp thẳng vào bước rẽ
+    // sẽ mất luôn thông tin độ dài vừa tính (nhánh ghi đè text bên dưới).
+    if (lastStep.text.includes('một đoạn dài') || lastStep.text.includes('một đoạn ngắn')) return false;
 
     if (lastStep.text.startsWith('Ra khỏi') || lastStep.text.includes('bên tay')) {
       const baseText = lastStep.text.replace(', đi thẳng', '');
@@ -280,17 +320,18 @@ export const buildSteps = (
 
   if (needStraight && last && path.length > 1) {
     const fromNode = secondLast ?? path[0];
+    const qualifier = lengthQualifier(last.id);
     let text: string;
     if (entryIsJunction) {
       const finalName = nm(last);
-      text = finalName ? `Đi thẳng đến cửa ${finalName}` : 'Đi thẳng';
+      text = finalName ? `Đi thẳng${qualifier} đến cửa ${finalName}` : `Đi thẳng${qualifier}`;
     } else {
       const lm = connectedRoom(fromNode) ?? landmarkOf(last);
       if (lm) {
         const side = lm.node.id !== last.id ? sideOf(fromNode, last, lm.node) : null;
-        text = side ? `Đi thẳng, thấy ${lm.name} bên tay ${side}` : `Đi thẳng đến ${lm.name}`;
+        text = side ? `Đi thẳng${qualifier}, thấy ${lm.name} bên tay ${side}` : `Đi thẳng${qualifier} đến ${lm.name}`;
       } else {
-        text = 'Đi thẳng';
+        text = `Đi thẳng${qualifier}`;
       }
     }
     steps.push({ node: last, icon: '⬆️', text });

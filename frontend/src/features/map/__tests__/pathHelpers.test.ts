@@ -215,3 +215,59 @@ describe('Scenario 4 — thang máy ở giữa lộ trình, sinh đủ bước l
     expect(exitIdx).toBeGreaterThan(elevIdx);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 5: dữ liệu thật Phòng 120 → Phòng 130 (cùng tầng, 4 ngã rẽ, đi vòng
+// 3 cạnh 1 hình chữ nhật) — kiểm tra qualifier "một đoạn dài"/"một đoạn ngắn"
+// gắn đúng chỗ khi các đoạn thẳng trong lộ trình chênh lệch rõ rệt về độ dài.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Scenario 5 — Phòng 120 → Phòng 130 (dữ liệu thật, có đoạn dài rõ rệt)', () => {
+  const FLOOR_7 = mkFloor(7, 40);
+  const room120 = mkNode({ id: 195, type: 'ROOM', floorId: 7, x: 0.24296296296296296, y: 0.1964728855603976, label: '120', locationId: 9 });
+  const j198 = mkNode({ id: 198, type: 'JUNCTION', floorId: 7, x: 0.2437037037037037, y: 0.21606792148463014 });
+  const j213 = mkNode({ id: 213, type: 'JUNCTION', floorId: 7, x: 0.10148148148148148, y: 0.21737425721291231 });
+  const j214 = mkNode({ id: 214, type: 'JUNCTION', floorId: 7, x: 0.10444444444444445, y: 0.7806662292281138 });
+  const j199 = mkNode({ id: 199, type: 'JUNCTION', floorId: 7, x: 0.2437037037037037, y: 0.7789671218337495 });
+  const room130 = mkNode({ id: 197, type: 'ROOM', floorId: 7, x: 0.2437037037037037, y: 0.7571521861190348, label: '130', locationId: 19 });
+
+  const path = [room120, j198, j213, j214, j199, room130];
+  const nodes = path;
+  const edges = [
+    { id: 1, nodeFromId: 195, nodeToId: 198, weight: 0.02, bidirectional: true },
+    { id: 2, nodeFromId: 198, nodeToId: 213, weight: 0.14, bidirectional: true },
+    { id: 3, nodeFromId: 213, nodeToId: 214, weight: 0.56, bidirectional: true },
+    { id: 4, nodeFromId: 214, nodeToId: 199, weight: 0.14, bidirectional: true },
+    { id: 5, nodeFromId: 199, nodeToId: 197, weight: 0.02, bidirectional: true },
+  ];
+  const allFloorData: MapFloorData[] = [{ floor: FLOOR_7, nodes, edges }];
+  const locations: Location[] = [
+    { id: 40, name: 'Tầng 1', parentId: null },
+    { id: 9, name: 'Phòng bệnh 120', parentId: 40 },
+    { id: 19, name: 'Phòng 130', parentId: 40 },
+  ];
+
+  const steps = buildSteps(path, allFloorData, locations, [FLOOR_7]);
+
+  it('có đúng 1 bước gắn "một đoạn dài" — ứng với đoạn 213→214 dài nhất', () => {
+    const longSteps = steps.filter(s => s.text.includes('một đoạn dài'));
+    expect(longSteps.length).toBe(1);
+  });
+
+  it('có bước gắn "một đoạn ngắn" cho đoạn ra khỏi phòng 120 (ngắn nhất)', () => {
+    const shortSteps = steps.filter(s => s.text.includes('một đoạn ngắn'));
+    expect(shortSteps.length).toBeGreaterThan(0);
+  });
+
+  it('3 lượt rẽ đầu: phải, trái, trái (khớp tính tay bằng công thức bearing)', () => {
+    const turns = steps
+      .filter(s => s.icon === '↪️' || s.icon === '↩️')
+      .map(s => (s.icon === '↪️' ? 'right' : 'left'));
+    expect(turns).toEqual(['right', 'left', 'left']);
+  });
+
+  it('lượt rẽ cuối (trái) được gộp vào câu "đã đến nơi — bên tay trái"', () => {
+    const dest = steps[steps.length - 1];
+    expect(dest.icon).toBe('🎯');
+    expect(dest.text).toContain('bên tay trái');
+  });
+});
