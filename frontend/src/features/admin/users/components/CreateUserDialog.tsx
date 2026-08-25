@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -113,11 +114,11 @@ export function CreateUserDialog({ open, onOpenChange, onSubmit, isPending, erro
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700">Mật khẩu</label>
-              <Input type="password" value={password} onChange={e => setPassword(e.target.value)} required />
+              <PasswordInput value={password} onChange={e => setPassword(e.target.value)} required />
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700">Xác nhận mật khẩu</label>
-              <Input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
+              <PasswordInput value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
             </div>
           </div>
 
