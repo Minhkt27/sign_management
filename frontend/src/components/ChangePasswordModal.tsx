@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { userService } from '@/services/userService';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import {
   Dialog,
   DialogContent,
@@ -75,8 +75,7 @@ export default function ChangePasswordModal({ open, onClose }: Props) {
           <form onSubmit={handleSubmit} className="space-y-4 pt-2">
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700">Mật khẩu hiện tại</label>
-              <Input
-                type="password"
+              <PasswordInput
                 value={currentPassword}
                 onChange={e => setCurrentPassword(e.target.value)}
                 required
@@ -84,8 +83,7 @@ export default function ChangePasswordModal({ open, onClose }: Props) {
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700">Mật khẩu mới</label>
-              <Input
-                type="password"
+              <PasswordInput
                 value={newPassword}
                 onChange={e => setNewPassword(e.target.value)}
                 required
@@ -93,8 +91,7 @@ export default function ChangePasswordModal({ open, onClose }: Props) {
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700">Xác nhận mật khẩu mới</label>
-              <Input
-                type="password"
+              <PasswordInput
                 value={confirm}
                 onChange={e => setConfirm(e.target.value)}
                 required
