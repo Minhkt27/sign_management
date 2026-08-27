@@ -61,7 +61,7 @@ Chỉnh sửa `.env` với các giá trị phù hợp:
 
 ```env
 # ===== DATABASE =====
-POSTGRES_DB=signage_db
+POSTGRES_DB=srt_db
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=your_secure_db_password_here
 
@@ -79,7 +79,7 @@ MINIO_PUBLIC_URL=http://localhost:9000
 
 # ===== BACKEND =====
 SPRING_PROFILES_ACTIVE=prod
-DB_URL=jdbc:postgresql://postgres:5432/signage_db
+DB_URL=jdbc:postgresql://postgres:5432/srt_db
 DB_USERNAME=postgres
 DB_PASSWORD=your_secure_db_password_here
 
@@ -180,7 +180,7 @@ cd backend
 # Chạy trực tiếp
 java -jar target/signage-management-*.jar \
   --spring.profiles.active=prod \
-  --spring.datasource.url=jdbc:postgresql://localhost:5432/signage_db \
+  --spring.datasource.url=jdbc:postgresql://localhost:5432/srt_db \
   --spring.datasource.username=postgres \
   --spring.datasource.password=password \
   --jwt.secret=your-secret
@@ -195,8 +195,8 @@ java -jar target/signage-management-*.jar \
 psql -h localhost -U postgres
 
 # Tạo database
-CREATE DATABASE signage_db;
-\c signage_db
+CREATE DATABASE srt_db;
+\c srt_db
 
 # Cài extensions
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
@@ -273,7 +273,7 @@ docker compose up --build -d frontend
 
 ```bash
 # Tạo backup
-docker compose exec postgres pg_dump -U postgres signage_db | gzip > backup_$(date +%Y%m%d).sql.gz
+docker compose exec postgres pg_dump -U postgres srt_db | gzip > backup_$(date +%Y%m%d).sql.gz
 
 # Backup tự động: xem cấu hình container 'backup' trong docker-compose.yml
 # Lịch: Chủ nhật 02:00 AM
@@ -284,7 +284,7 @@ docker compose exec postgres pg_dump -U postgres signage_db | gzip > backup_$(da
 
 ```bash
 # Restore từ file
-gunzip -c backup_20260610.sql.gz | docker compose exec -T postgres psql -U postgres signage_db
+gunzip -c backup_20260610.sql.gz | docker compose exec -T postgres psql -U postgres srt_db
 ```
 
 ### Backup MinIO Files
@@ -317,7 +317,7 @@ docker compose down -v
 
 # Vào shell container
 docker compose exec backend sh
-docker compose exec postgres psql -U postgres signage_db
+docker compose exec postgres psql -U postgres srt_db
 
 # Xem resource usage
 docker stats
@@ -391,5 +391,5 @@ docker compose exec frontend cat /etc/nginx/conf.d/default.conf
 docker compose logs backend | grep -i flyway
 
 # Reset migration (DEV ONLY - mất data!)
-docker compose exec postgres psql -U postgres signage_db -c "DROP TABLE flyway_schema_history;"
+docker compose exec postgres psql -U postgres srt_db -c "DROP TABLE flyway_schema_history;"
 ```

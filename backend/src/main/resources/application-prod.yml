@@ -31,3 +31,4 @@ jwt:
 app:
   admin-initial-password: ${ADMIN_INITIAL_PASSWORD}
   tech-initial-password: ${TECH_INITIAL_PASSWORD}
+  superadmin-initial-password: ${SUPERADMIN_INITIAL_PASSWORD}
