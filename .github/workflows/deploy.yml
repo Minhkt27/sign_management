@@ -1,0 +1,30 @@
+name: Deploy to VPS
+
+# Chỉ chạy SAU KHI workflow "CI" hoàn tất (không tự trigger độc lập trên push) —
+# và chỉ khi CI đó chạy vì một cú push thật (không phải PR check), để không deploy
+# nhầm khi ai đó chỉ mới mở PR vào main.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy qua SSH vào VPS
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          # TODO: đổi đường dẫn dưới đây cho khớp nơi thực sự clone repo trên VPS.
+          # vps-shared (Postgres + MinIO + Caddy) phải đã "docker compose up -d" từ trước,
+          # workflow này KHÔNG đụng tới vps-shared, chỉ rebuild/restart sign_management.
+          script: |
+            cd /opt/sign_management
+            git pull origin main
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml build backend frontend
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d

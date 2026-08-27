@@ -7,7 +7,7 @@ spring:
       max-request-size: 25MB
 
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/signage_db}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/srt_db?currentSchema=sign_management}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:password}
     driver-class-name: org.postgresql.Driver
@@ -19,7 +19,7 @@ spring:
       max-lifetime: 1800000
 
   flyway:
-    default-schema: public
+    default-schema: ${FLYWAY_DEFAULT_SCHEMA:public}
     baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:false}
     baseline-version: ${FLYWAY_BASELINE_VERSION:1}
 

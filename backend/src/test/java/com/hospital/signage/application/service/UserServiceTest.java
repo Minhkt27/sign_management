@@ -60,7 +60,7 @@ class UserServiceTest {
         when(userDatabasePort.save(any())).thenReturn(existingUser);
 
         User result = userService.createUser(
-                new UserUseCase.CreateUserCommand("tech1", "Nguyễn Văn A", "pass", 2L, null, java.util.List.of()));
+                new UserUseCase.CreateUserCommand("tech1", "Nguyễn Văn A", "pass", 2L, null, java.util.List.of(), null));
 
         assertThat(result.getRoleId()).isEqualTo(2L);
         verify(userDatabasePort).save(any());
@@ -71,7 +71,7 @@ class UserServiceTest {
         when(userDatabasePort.findByUsername("tech1")).thenReturn(Optional.of(existingUser));
 
         assertThatThrownBy(() -> userService.createUser(
-                new UserUseCase.CreateUserCommand("tech1", "Tên", "pass", 2L, null, java.util.List.of())))
+                new UserUseCase.CreateUserCommand("tech1", "Tên", "pass", 2L, null, java.util.List.of(), null)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Tên đăng nhập đã tồn tại");
     }

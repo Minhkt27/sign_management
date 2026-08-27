@@ -1,18 +1,22 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Plus, ChevronDown, ChevronRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { roleService } from '../services/roleService';
+import { hospitalService } from '@/services/hospitalService';
 import { PermissionMatrix } from './PermissionMatrix';
+import { authStore, isSuperAdmin } from '@/app/store/authStore';
+import { useAdminStore } from '@/app/store/adminStore';
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: { username: string; fullName: string; password: string; roleId: number; phone?: string; customPermissions: string[] }) => void;
+  onSubmit: (data: { username: string; fullName: string; password: string; roleId: number; phone?: string; customPermissions: string[]; hospitalId?: number }) => void;
   isPending: boolean;
   error: string;
 }
@@ -41,11 +45,24 @@ export function CreateUserDialog({ open, onOpenChange, onSubmit, isPending, erro
   const [customPermissions, setCustomPermissions] = useState<string[]>([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [localError, setLocalError] = useState('');
+  const [hospitalId, setHospitalId] = useState<string>('');
+
+  const isSuper = isSuperAdmin(authStore.getToken());
+  const { selectedHospitalId } = useAdminStore();
+  // SUPER_ADMIN đang xem 1 viện cụ thể (không phải "Tất cả") → mặc định tạo tài khoản cho đúng viện đó,
+  // không cần chọn lại. Chỉ khi đang ở chế độ "Tất cả" mới cần chọn tường minh.
+  const needsHospitalPicker = isSuper && selectedHospitalId === 'ALL';
 
   const { data: roles = [], isLoading: isLoadingRoles } = useQuery({
     queryKey: ['roles'],
     queryFn: roleService.getAllRoles,
     enabled: open,
+  });
+
+  const { data: hospitals = [], isLoading: isLoadingHospitals } = useQuery({
+    queryKey: ['hospitals'],
+    queryFn: hospitalService.getAllHospitals,
+    enabled: open && needsHospitalPicker,
   });
 
   // Auto-select first role if available
@@ -59,7 +76,7 @@ export function CreateUserDialog({ open, onOpenChange, onSubmit, isPending, erro
   const reset = () => {
     setUsername(''); setFullName(''); setPhone(''); setPassword(''); setConfirmPassword('');
     setRoleId(roles.length > 0 ? roles[0].id.toString() : '');
-    setCustomPermissions([]); setShowAdvanced(false); setLocalError('');
+    setCustomPermissions([]); setShowAdvanced(false); setLocalError(''); setHospitalId('');
   };
 
   const handleOpenChange = (v: boolean) => {
@@ -76,7 +93,11 @@ export function CreateUserDialog({ open, onOpenChange, onSubmit, isPending, erro
     const rawPhone = phone.replace(/\D/g, '');
     const phoneErr = validatePhone(rawPhone);
     if (phoneErr) { setLocalError(phoneErr); return; }
-    onSubmit({ username, fullName, password, roleId: Number(roleId), phone: rawPhone || undefined, customPermissions });
+    if (needsHospitalPicker && !hospitalId) { setLocalError('Vui lòng chọn bệnh viện cho tài khoản này'); return; }
+    const effectiveHospitalId = isSuper
+      ? Number(needsHospitalPicker ? hospitalId : selectedHospitalId)
+      : undefined;
+    onSubmit({ username, fullName, password, roleId: Number(roleId), phone: rawPhone || undefined, customPermissions, hospitalId: effectiveHospitalId });
   };
 
   const displayError = localError || error;
@@ -113,11 +134,11 @@ export function CreateUserDialog({ open, onOpenChange, onSubmit, isPending, erro
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700">Mật khẩu</label>
-              <Input type="password" value={password} onChange={e => setPassword(e.target.value)} required />
+              <PasswordInput value={password} onChange={e => setPassword(e.target.value)} required />
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700">Xác nhận mật khẩu</label>
-              <Input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
+              <PasswordInput value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
             </div>
           </div>
 
@@ -136,6 +157,24 @@ export function CreateUserDialog({ open, onOpenChange, onSubmit, isPending, erro
               </SelectContent>
             </Select>
           </div>
+
+          {needsHospitalPicker && (
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-700">Bệnh viện</label>
+              <Select value={hospitalId} onValueChange={(v) => setHospitalId(v || '')} disabled={isLoadingHospitals}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Chọn bệnh viện...">
+                    {hospitalId ? hospitals.find(h => h.id.toString() === hospitalId)?.name : "Chọn bệnh viện..."}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {hospitals.map(h => (
+                    <SelectItem key={h.id} value={h.id.toString()}>{h.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced} className="border rounded-md border-slate-200">
             <CollapsibleTrigger className="flex items-center justify-between w-full p-3 bg-slate-50 hover:bg-slate-100 rounded-md transition-colors">

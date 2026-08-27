@@ -90,13 +90,13 @@ export const buildSteps = (
   const runValues = [...runLengths.values()];
   const maxRun = runValues.length ? Math.max(...runValues) : 0;
   const avgRun = runValues.length ? runValues.reduce((a, b) => a + b, 0) / runValues.length : 0;
-  // Chỉ nêu "đoạn dài" cho đúng đoạn dài nhất (khi nó thực sự nổi bật hơn mức trung bình),
-  // và "đoạn ngắn" cho các đoạn rõ ràng ngắn hơn hẳn — tránh gắn nhãn tràn lan khi các đoạn xêm xêm nhau.
+  // Chỉ nêu "đoạn dài" cho đúng đoạn dài nhất, khi nó thực sự nổi bật hơn mức trung bình —
+  // đoạn ngắn thì không nêu (phản hồi thực tế: "ngắn" không giúp hành động gì, chỉ đoạn dài
+  // bất thường mới đáng cảnh báo trước để người dùng khỏi tưởng đi lạc).
   const lengthQualifier = (toNodeId: number): string => {
     const len = runLengths.get(toNodeId);
     if (len === undefined || avgRun <= 0) return '';
     if (len === maxRun && len >= avgRun * 1.5) return ' một đoạn dài';
-    if (len <= avgRun * 0.5) return ' một đoạn ngắn';
     return '';
   };
 
@@ -132,12 +132,14 @@ export const buildSteps = (
     }
   }
 
-  // Phòng/khoa nối trực tiếp qua cạnh đồ thị
-  const connectedRoom = (node: MapNode, excludeId?: number): NearbyNode => {
+  // Phòng/khoa/thang máy/thang bộ nối trực tiếp qua cạnh đồ thị — đều là mốc dễ nhận ra
+  // khi đứng tại ngã rẽ, khác với JUNCTION khác (không có gì để mô tả bằng lời).
+  const LANDMARK_TYPES = new Set(['ROOM', 'DEPARTMENT', 'STAIRS', 'ELEVATOR']);
+  const connectedLandmark = (node: MapNode, excludeId?: number): NearbyNode => {
     for (const nid of adjacencyMap.get(node.id) ?? []) {
       if (excludeId !== undefined && nid === excludeId) continue;
       const t = nodeTypeMap.get(nid);
-      if (t !== 'ROOM' && t !== 'DEPARTMENT') continue;
+      if (!LANDMARK_TYPES.has(t ?? '')) continue;
       const n = nodeMap.get(nid);
       if (!n) continue;
       const lbl = nm(n);
@@ -146,11 +148,11 @@ export const buildSteps = (
     return null;
   };
 
-  // Landmark: tên chính của node → phòng nối trực tiếp → null
+  // Landmark: tên chính của node → phòng/thang máy/thang bộ nối trực tiếp → null
   const landmarkOf = (node: MapNode, excludeId?: number): NearbyNode => {
     const selfName = nm(node);
     if (selfName) return { name: selfName, node };
-    return connectedRoom(node, excludeId);
+    return connectedLandmark(node, excludeId);
   };
 
   const junctionMark = (node: MapNode, prevId?: number): string | null => landmarkOf(node, prevId)?.name ?? null;
@@ -183,6 +185,8 @@ export const buildSteps = (
       startType === 'ELEVATOR' ? 'Ra khỏi thang máy' :
         startType === 'STAIRS' ? 'Ra khỏi cầu thang' : 'Ra hành lang'
     );
+    // Không gắn qualifier độ dài ở đây — "ra khỏi phòng rồi rẽ" vốn là 1 hành động liền mạch,
+    // chêm thêm "đi một đoạn ngắn" vào giữa gây rối chứ không giúp ích (phản hồi thực tế từ người dùng).
     steps.push({ node: path[1], icon, text: `${exitText}, ${dirText}` });
     startIdx = 2;
     needStraight = true;
@@ -192,7 +196,12 @@ export const buildSteps = (
   const secondLast = path[path.length - 2];
   const endIsRoom = last?.type === 'ROOM' || last?.type === 'DEPARTMENT';
   const entryIsJunction = path.length > 2 && secondLast?.type === 'JUNCTION' && endIsRoom;
-  const loopEnd = entryIsJunction ? path.length - 2 : path.length - 1;
+  // Trước đây entryIsJunction làm loopEnd lùi thêm 1, bỏ qua hẳn việc xử lý secondLast —
+  // khiến đoạn đường + lượt rẽ TRƯỚC ngã rẽ cuối cùng (secondLast) bị mất tích trong mô tả,
+  // dù lượt rẽ cuối (tại secondLast, hướng vào phòng) vẫn đúng ý là nên gộp vào "bên tay X"
+  // ở bước đến nơi chứ không cần câu "rẽ" riêng. Xử lý việc gộp đó ngay trong vòng lặp
+  // (xem điều kiện entryIsJunction && curr.id === secondLast.id bên dưới) thay vì né cả bước.
+  const loopEnd = path.length - 1;
 
   let skipNextJunction = false;
 
@@ -217,9 +226,9 @@ export const buildSteps = (
   const mergeWithPrevStraight = (newText: string, newIcon: string, refNode: MapNode): boolean => {
     const lastStep = steps[steps.length - 1];
     if (!lastStep || lastStep.icon !== '⬆️') return false;
-    // Đoạn "một đoạn dài/ngắn" cần giữ nguyên thành câu riêng — gộp thẳng vào bước rẽ
+    // Đoạn "một đoạn dài" cần giữ nguyên thành câu riêng — gộp thẳng vào bước rẽ
     // sẽ mất luôn thông tin độ dài vừa tính (nhánh ghi đè text bên dưới).
-    if (lastStep.text.includes('một đoạn dài') || lastStep.text.includes('một đoạn ngắn')) return false;
+    if (lastStep.text.includes('một đoạn dài')) return false;
 
     if (lastStep.text.startsWith('Ra khỏi') || lastStep.text.includes('bên tay')) {
       const baseText = lastStep.text.replace(', đi thẳng', '');
@@ -288,6 +297,15 @@ export const buildSteps = (
       needStraight = true; continue;
     }
 
+    // Ngã rẽ ngay trước phòng đích: vẫn ghi nhận đoạn đường tới đây (addStraight),
+    // nhưng không đẩy thêm bước "rẽ" riêng — hướng rẽ đã được thể hiện qua "bên tay X"
+    // ở bước "Bạn đã đến nơi" cuối cùng.
+    if (entryIsJunction && curr.id === secondLast!.id) {
+      addStraight(prev, curr);
+      needStraight = true;
+      continue;
+    }
+
     const turn = turnDir(prev, curr, next);
     if (turn === 'straight') { needStraight = true; continue; }
 
@@ -318,7 +336,12 @@ export const buildSteps = (
     needStraight = true;
   }
 
-  if (needStraight && last && path.length > 1) {
+  // Đoạn cuối cùng trước khi "Bạn đã đến nơi" — chỉ đáng có bước riêng khi nó thực sự dài
+  // bất thường (đáng báo trước). Ngắn/bình thường thì gộp thẳng vào câu đến nơi cho gọn,
+  // vì "đã đến nơi" ngay sau đó đã tự nói lên là gần tới rồi (cùng nguyên tắc đã áp dụng
+  // cho bước "Ra khỏi phòng").
+  const skipTrivialFinalStraight = entryIsJunction && !lengthQualifier(last.id);
+  if (needStraight && last && path.length > 1 && !skipTrivialFinalStraight) {
     const fromNode = secondLast ?? path[0];
     const qualifier = lengthQualifier(last.id);
     let text: string;
@@ -326,7 +349,7 @@ export const buildSteps = (
       const finalName = nm(last);
       text = finalName ? `Đi thẳng${qualifier} đến cửa ${finalName}` : `Đi thẳng${qualifier}`;
     } else {
-      const lm = connectedRoom(fromNode) ?? landmarkOf(last);
+      const lm = connectedLandmark(fromNode) ?? landmarkOf(last);
       if (lm) {
         const side = lm.node.id !== last.id ? sideOf(fromNode, last, lm.node) : null;
         text = side ? `Đi thẳng${qualifier}, thấy ${lm.name} bên tay ${side}` : `Đi thẳng${qualifier} đến ${lm.name}`;

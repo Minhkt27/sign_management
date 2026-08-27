@@ -1,9 +1,12 @@
 services:
+  # Chỉ dùng cho dev cục bộ — bật bằng: docker compose --profile dev up -d
+  # Trên production (docker-compose.prod.yml), Postgres dùng chung do repo vps-shared quản lý,
+  # không chạy Postgres riêng ở đây nữa (tránh chạy dư + lộ cổng 5432 ra ngoài không cần thiết).
   postgres:
     image: postgres:15-alpine
     container_name: signage_postgres
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-signage_db}
+      POSTGRES_DB: ${POSTGRES_DB:-srt_db}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     volumes:
@@ -15,7 +18,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    profiles: ["dev"]
 
+  # Chỉ dùng cho dev cục bộ — bật bằng: docker compose --profile dev up -d
+  # Trên production (docker-compose.prod.yml), MinIO dùng chung do repo vps-shared quản lý,
+  # không chạy MinIO riêng ở đây nữa (tránh chạy dư + lộ cổng 9000/9001 ra ngoài không cần thiết).
   minio:
     image: minio/minio:latest
     container_name: signage_minio
@@ -33,6 +40,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    profiles: ["dev"]
 
   backend:
     build:
@@ -46,7 +54,7 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
-      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-signage_db}
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-srt_db}?currentSchema=sign_management
       DB_USERNAME: ${POSTGRES_USER:-postgres}
       DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
@@ -62,6 +70,7 @@ services:
       MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-http://localhost:9000/signage-assets}
       ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD:?ADMIN_INITIAL_PASSWORD is required}
       TECH_INITIAL_PASSWORD: ${TECH_INITIAL_PASSWORD:?TECH_INITIAL_PASSWORD is required}
+      SUPERADMIN_INITIAL_PASSWORD: ${SUPERADMIN_INITIAL_PASSWORD:?SUPERADMIN_INITIAL_PASSWORD is required}
     ports:
       - "8080:8080"
 
@@ -75,6 +84,8 @@ services:
     ports:
       - "3000:80"
 
+  # Chỉ dùng cho dev cục bộ (sao lưu Postgres cục bộ ở trên) — bật cùng profile "dev".
+  # Trên production, backup cho Postgres dùng chung là việc của repo vps-shared, không phải ở đây.
   backup:
     image: postgres:15-alpine
     container_name: signage_backup
@@ -87,10 +98,11 @@ services:
       - ./backups:/backups
     entrypoint: >
       sh -c "
-        echo '0 2 * * 0 pg_dump -h postgres -U $${POSTGRES_USER:-postgres} $${POSTGRES_DB:-signage_db} | gzip > /backups/backup_$$(date +\\%Y\\%m\\%d).sql.gz && ls -t /backups/*.sql.gz | tail -n +5 | xargs rm -f' > /etc/crontabs/root &&
+        echo '0 2 * * 0 pg_dump -h postgres -U $${POSTGRES_USER:-postgres} $${POSTGRES_DB:-srt_db} | gzip > /backups/backup_$$(date +\\%Y\\%m\\%d).sql.gz && ls -t /backups/*.sql.gz | tail -n +5 | xargs rm -f' > /etc/crontabs/root &&
         crond -f
       "
     restart: unless-stopped
+    profiles: ["dev"]
 
 volumes:
   postgres_data:

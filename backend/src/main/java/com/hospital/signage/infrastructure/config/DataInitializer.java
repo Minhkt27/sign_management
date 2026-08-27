@@ -3,6 +3,7 @@ package com.hospital.signage.infrastructure.config;
 import com.hospital.signage.application.port.in.AssetUseCase;
 import com.hospital.signage.application.port.in.LocationUseCase;
 import com.hospital.signage.application.port.in.TicketUseCase;
+import com.hospital.signage.application.port.out.RoleDatabasePort;
 import com.hospital.signage.application.port.out.UserDatabasePort;
 import com.hospital.signage.domain.enums.*;
 import com.hospital.signage.domain.model.*;
@@ -22,6 +23,7 @@ import java.util.UUID;
 public class DataInitializer implements CommandLineRunner {
 
     private final UserDatabasePort userDatabasePort;
+    private final RoleDatabasePort roleDatabasePort;
     private final LocationUseCase locationUseCase;
     private final AssetUseCase assetUseCase;
     private final TicketUseCase ticketUseCase;
@@ -32,6 +34,9 @@ public class DataInitializer implements CommandLineRunner {
 
     @Value("${app.tech-initial-password}")
     private String techInitialPassword;
+
+    @Value("${app.superadmin-initial-password}")
+    private String superadminInitialPassword;
 
     @Override
     @Transactional
@@ -64,9 +69,24 @@ public class DataInitializer implements CommandLineRunner {
                 .build();
         tech = userDatabasePort.save(tech);
 
+        Role superAdminRole = roleDatabasePort.findByCode("SUPER_ADMIN")
+                .orElseThrow(() -> new IllegalStateException("Role SUPER_ADMIN không tồn tại — kiểm tra lại migration V13"));
+        User superadmin = User.builder()
+                .username("superadmin")
+                .password(passwordEncoder.encode(superadminInitialPassword))
+                .fullName("Quản trị tổng")
+                .roleId(superAdminRole.getId())
+                .hospitalId(null) // null = SUPER_ADMIN, không giới hạn theo bệnh viện nào
+                .isActive(true)
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
+                .build();
+        userDatabasePort.save(superadmin);
+
         // 2. Seed Locations
         // Building A
         Location buildingA = Location.builder()
+                .hospitalId(1L)
                 .locationCode("B_A")
                 .name("Tòa nhà A")
                 .description("Khu khám bệnh ngoại trú và cấp cứu")
@@ -76,6 +96,7 @@ public class DataInitializer implements CommandLineRunner {
 
         // Building B
         Location buildingB = Location.builder()
+                .hospitalId(1L)
                 .locationCode("B_B")
                 .name("Tòa nhà B")
                 .description("Khu điều trị nội trú")
@@ -85,6 +106,7 @@ public class DataInitializer implements CommandLineRunner {
 
         // Floor 1 (Building A)
         Location floor1A = Location.builder()
+                .hospitalId(1L)
                 .locationCode("B_A_F1")
                 .name("Tầng 1")
                 .parentId(buildingA.getId())
@@ -95,6 +117,7 @@ public class DataInitializer implements CommandLineRunner {
 
         // Floor 2 (Building A)
         Location floor2A = Location.builder()
+                .hospitalId(1L)
                 .locationCode("B_A_F2")
                 .name("Tầng 2")
                 .parentId(buildingA.getId())
@@ -105,6 +128,7 @@ public class DataInitializer implements CommandLineRunner {
 
         // Department 1 (Floor 1, Building A)
         Location deptEmergency = Location.builder()
+                .hospitalId(1L)
                 .locationCode("B_A_F1_D1")
                 .name("Khoa Cấp cứu")
                 .parentId(floor1A.getId())
@@ -115,6 +139,7 @@ public class DataInitializer implements CommandLineRunner {
 
         // Department 2 (Floor 2, Building A)
         Location deptOutpatient = Location.builder()
+                .hospitalId(1L)
                 .locationCode("B_A_F2_D2")
                 .name("Khoa Khám bệnh")
                 .parentId(floor2A.getId())
@@ -125,6 +150,7 @@ public class DataInitializer implements CommandLineRunner {
 
         // Room 101 - Emergency Room (Department 1, Floor 1, Building A)
         Location room101 = Location.builder()
+                .hospitalId(1L)
                 .locationCode("B_A_F1_D1_R101")
                 .name("Phòng Cấp cứu số 1")
                 .parentId(deptEmergency.getId())
@@ -135,6 +161,7 @@ public class DataInitializer implements CommandLineRunner {
 
         // Room 102 - X-Ray Room (Department 1, Floor 1, Building A)
         Location room102 = Location.builder()
+                .hospitalId(1L)
                 .locationCode("B_A_F1_D1_R102")
                 .name("Phòng Chụp X-Quang")
                 .parentId(deptEmergency.getId())
@@ -147,6 +174,7 @@ public class DataInitializer implements CommandLineRunner {
         // LED sign at Emergency room
         Asset emergencyLed = Asset.builder()
                 .id(UUID.randomUUID())
+                .hospitalId(1L)
                 .assetCode("LED-R101")
                 .location(room101)
                 .material(Material.LED)
@@ -161,6 +189,7 @@ public class DataInitializer implements CommandLineRunner {
         // ALU sign at X-Ray room (damaged)
         Asset xrayAlu = Asset.builder()
                 .id(UUID.randomUUID())
+                .hospitalId(1L)
                 .assetCode("ALU-R102")
                 .location(room102)
                 .material(Material.ALU)
@@ -175,6 +204,7 @@ public class DataInitializer implements CommandLineRunner {
         // MICA sign at Corridor Floor 1
         Asset corridorMica = Asset.builder()
                 .id(UUID.randomUUID())
+                .hospitalId(1L)
                 .assetCode("MICA-F1")
                 .location(floor1A)
                 .material(Material.MICA)
