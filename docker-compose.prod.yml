@@ -2,39 +2,46 @@
 #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 #
 # Việc này làm gì:
-#   - Thêm Caddy làm cổng vào duy nhất từ Internet, tự lo HTTPS (xem Caddyfile)
-#   - Bỏ public trực tiếp cổng 3000 (frontend) và 8080 (backend) ra ngoài —
-#     chỉ Caddy được expose ra Internet, frontend/backend chỉ nói chuyện nội bộ qua docker network
+#   - Bỏ public trực tiếp cổng 3000 (frontend), 8080 (backend), 5432 (postgres), 9000/9001 (minio)
+#     ra ngoài — chỉ Caddy (repo vps-shared, dùng chung nhiều dự án) mới được expose ra Internet.
+#   - Nối frontend/backend vào network "vps_shared" — do repo vps-shared làm chủ (Postgres + MinIO),
+#     tạo 1 lần trước bằng: cd ../vps-shared && docker compose up -d
 #   - ngrok không tự chạy (đã gắn profile "dev" ở file gốc, không cần override thêm ở đây)
+#
+# Postgres và MinIO của dự án này giờ do repo vps-shared quản lý (dùng chung, kể cả với
+# DocuSync) — không còn định nghĩa service "postgres"/"minio" ở đây nữa, chỉ nối service
+# backend vào network chung để nó gọi tới được (hostname vẫn là "postgres"/"minio" như cũ).
+
+networks:
+  vps_shared:
+    external: true
 
 services:
-  caddy:
-    image: caddy:2-alpine
-    container_name: signage_caddy
-    restart: unless-stopped
-    depends_on:
-      - frontend
-      - backend
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-
   # ports: []  không xoá được cổng publish của file gốc — Compose mặc định GỘP THÊM, không thay thế,
   # nên phải dùng tag !override để ép ghi đè hẳn danh sách cổng.
   # Sau khi ghi đè, cổng chỉ bind về 127.0.0.1 (chỉ truy cập được từ chính VPS), không lộ ra Internet.
-  # Caddy vẫn gọi được vào frontend/backend qua tên service nội bộ (docker network), không qua các cổng này.
+  # Caddy (repo vps-shared) vẫn gọi được vào frontend qua network vps_shared, không qua cổng này.
+
   frontend:
     ports: !override
       - "127.0.0.1:3000:80"
+    networks:
+      - default
+      - vps_shared
 
   backend:
     ports: !override
       - "127.0.0.1:8080:8080"
-
-volumes:
-  caddy_data:
-  caddy_config:
+    networks:
+      - default
+      - vps_shared
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-srt_db}?currentSchema=sign_management
+      # Mặc định của app là schema "public" (khớp Render/Neon) — trên VPS dùng chung hạ tầng,
+      # schema đã đổi tên thành "sign_management" (xem V16 migration), nên phải chỉ định rõ ở đây.
+      FLYWAY_DEFAULT_SCHEMA: sign_management
+    # File gốc yêu cầu postgres/minio healthy trước khi chạy backend — nhưng cả 2 đều chạy
+    # profile "dev" và không có mặt trong project này ở chế độ prod nữa (dùng chung, thuộc
+    # repo vps-shared), nên phải ghi đè về rỗng, nếu không compose sẽ báo lỗi "service không tồn tại".
+    # Đảm bảo vps-shared đã "up -d" xong (postgres + minio healthy) trước khi chạy stack này.
+    depends_on: !override {}

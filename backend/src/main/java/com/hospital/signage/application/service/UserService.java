@@ -1,6 +1,7 @@
 package com.hospital.signage.application.service;
 
 import com.hospital.signage.application.port.in.UserUseCase;
+import com.hospital.signage.application.port.out.HospitalDatabasePort;
 import com.hospital.signage.application.port.out.RoleDatabasePort;
 import com.hospital.signage.application.port.out.TicketDatabasePort;
 import com.hospital.signage.application.port.out.UserDatabasePort;
@@ -35,6 +36,7 @@ public class UserService implements UserUseCase {
     private final UserDatabasePort userDatabasePort;
     private final RoleDatabasePort roleDatabasePort;
     private final TicketDatabasePort ticketDatabasePort;
+    private final HospitalDatabasePort hospitalDatabasePort;
     private final PasswordEncoder passwordEncoder;
     private final UserCacheService userCacheService;
 
@@ -63,13 +65,12 @@ public class UserService implements UserUseCase {
         }
         validatePermissions(command.customPermissions());
         validateRoleAssignmentAllowed(command.roleId());
-        Long callerHospitalId = SecurityUtils.getCurrentHospitalId();
         User user = User.builder()
                 .username(command.username())
                 .fullName(command.fullName())
                 .password(passwordEncoder.encode(command.password()))
                 .roleId(command.roleId())
-                .hospitalId(callerHospitalId != null ? callerHospitalId : SecurityUtils.DEFAULT_HOSPITAL_ID)
+                .hospitalId(resolveNewUserHospitalId(command.hospitalId()))
                 .phone(command.phone())
                 .customPermissions(command.customPermissions() != null ? command.customPermissions() : List.of())
                 .isActive(true)
@@ -95,6 +96,24 @@ public class UserService implements UserUseCase {
         User saved = userDatabasePort.save(user);
         userCacheService.evict(user.getUsername());
         return saved;
+    }
+
+    /**
+     * SUPER_ADMIN được chỉ định hospitalId tùy ý cho tài khoản mới (có validate viện tồn tại).
+     * Admin thường luôn bị ép về đúng viện của chính mình, bất kể client gửi gì lên —
+     * tránh trường hợp 1 viện tự tạo tài khoản cho viện khác.
+     */
+    private Long resolveNewUserHospitalId(Long requestedHospitalId) {
+        if (!SecurityUtils.isSuperAdmin()) {
+            Long callerHospitalId = SecurityUtils.getCurrentHospitalId();
+            return callerHospitalId != null ? callerHospitalId : SecurityUtils.DEFAULT_HOSPITAL_ID;
+        }
+        if (requestedHospitalId == null) {
+            throw new IllegalArgumentException("Vui lòng chọn bệnh viện cho tài khoản mới");
+        }
+        hospitalDatabasePort.findById(requestedHospitalId)
+                .orElseThrow(() -> new IllegalArgumentException("Bệnh viện không tồn tại"));
+        return requestedHospitalId;
     }
 
     private void validatePermissions(List<String> permissions) {

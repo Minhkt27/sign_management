@@ -291,7 +291,7 @@ export default function AssetDetailPage() {
                 <input
                   value={qrBaseUrl}
                   onChange={e => handleQrBaseUrlChange(e.target.value)}
-                  placeholder="https://xxxx.ngrok-free.app"
+                  placeholder="https://ten-mien-production.vn"
                   className="flex-1 border border-slate-350 rounded-lg px-2.5 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-blue-500 bg-slate-50"
                 />
                 <button
