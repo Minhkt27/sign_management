@@ -11,7 +11,7 @@ export const userService = {
       `/users?page=${page}&size=${size}&search=${encodeURIComponent(search)}${hospitalId ? '&hospitalId=' + hospitalId : ''}`
     ).then(r => r.data),
 
-  createUser: (data: { username: string; fullName: string; password: string; roleId: number; phone?: string; customPermissions: string[] }): Promise<User> =>
+  createUser: (data: { username: string; fullName: string; password: string; roleId: number; phone?: string; customPermissions: string[]; hospitalId?: number }): Promise<User> =>
     apiClient.post<User>('/users', data).then(r => r.data),
 
   updateUser: (id: number, data: { fullName: string; phone?: string }): Promise<User> =>

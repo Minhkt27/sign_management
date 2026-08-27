@@ -27,7 +27,7 @@ public interface UserUseCase {
 
     void deleteUser(Long id);
 
-    record CreateUserCommand(String username, String fullName, String password, Long roleId, String phone, List<String> customPermissions) {}
+    record CreateUserCommand(String username, String fullName, String password, Long roleId, String phone, List<String> customPermissions, Long hospitalId) {}
 
     record UpdateUserCommand(Long id, String fullName, String phone) {}
 

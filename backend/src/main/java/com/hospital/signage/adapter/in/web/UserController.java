@@ -51,7 +51,7 @@ public class UserController {
     @PreAuthorize("hasAuthority('USER_MANAGE')")
     public ResponseEntity<UserResponse> createUser(@Valid @RequestBody CreateUserRequest req) {
         User user = userUseCase.createUser(
-                new UserUseCase.CreateUserCommand(req.username(), req.fullName(), req.password(), req.roleId(), req.phone(), req.customPermissions())
+                new UserUseCase.CreateUserCommand(req.username(), req.fullName(), req.password(), req.roleId(), req.phone(), req.customPermissions(), req.hospitalId())
         );
         return ResponseEntity.ok(UserResponse.from(user));
     }
@@ -123,7 +123,8 @@ public class UserController {
             @NotBlank @Size(min = 6, max = 200) String password,
             Long roleId,
             @jakarta.validation.constraints.Pattern(regexp = "^(0(3[2-9]|5[25689]|7[06-9]|8[1-9]|9[0-46-9])\\d{7})?$", message = "Số điện thoại không hợp lệ") String phone,
-            java.util.List<String> customPermissions
+            java.util.List<String> customPermissions,
+            Long hospitalId
     ) {}
     public record UpdateUserRequest(
             @NotBlank @Size(max = 200) String fullName,
@@ -137,12 +138,13 @@ public class UserController {
     ) {}
     public record ResetPasswordResponse(String temporaryPassword) {}
 
-    public record UserResponse(Long id, String username, String fullName, Long roleId, boolean isActive, String phone, java.util.List<String> customPermissions) {
+    public record UserResponse(Long id, String username, String fullName, Long roleId, boolean isActive, String phone, java.util.List<String> customPermissions, Long hospitalId) {
         static UserResponse from(User u) {
             return new UserResponse(u.getId(), u.getUsername(), u.getFullName(), u.getRoleId(),
                     Boolean.TRUE.equals(u.getIsActive()),
                     u.getPhone(),
-                    u.getCustomPermissions() != null ? u.getCustomPermissions() : java.util.List.of());
+                    u.getCustomPermissions() != null ? u.getCustomPermissions() : java.util.List.of(),
+                    u.getHospitalId());
         }
     }
 }
