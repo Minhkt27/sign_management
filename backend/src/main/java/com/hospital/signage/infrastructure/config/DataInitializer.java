@@ -7,7 +7,6 @@ import com.hospital.signage.application.port.out.RoleDatabasePort;
 import com.hospital.signage.application.port.out.UserDatabasePort;
 import com.hospital.signage.domain.enums.*;
 import com.hospital.signage.domain.model.*;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -19,7 +18,6 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Component
-@RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
 
     private final UserDatabasePort userDatabasePort;
@@ -28,20 +26,40 @@ public class DataInitializer implements CommandLineRunner {
     private final AssetUseCase assetUseCase;
     private final TicketUseCase ticketUseCase;
     private final PasswordEncoder passwordEncoder;
+    private final String adminInitialPassword;
+    private final String techInitialPassword;
+    private final String superadminInitialPassword;
 
-    @Value("${app.admin-initial-password}")
-    private String adminInitialPassword;
-
-    @Value("${app.tech-initial-password}")
-    private String techInitialPassword;
-
-    @Value("${app.superadmin-initial-password}")
-    private String superadminInitialPassword;
+    public DataInitializer(
+            UserDatabasePort userDatabasePort,
+            RoleDatabasePort roleDatabasePort,
+            LocationUseCase locationUseCase,
+            AssetUseCase assetUseCase,
+            TicketUseCase ticketUseCase,
+            PasswordEncoder passwordEncoder,
+            @Value("${app.admin-initial-password}") String adminInitialPassword,
+            @Value("${app.tech-initial-password}") String techInitialPassword,
+            @Value("${app.superadmin-initial-password}") String superadminInitialPassword) {
+        this.userDatabasePort = userDatabasePort;
+        this.roleDatabasePort = roleDatabasePort;
+        this.locationUseCase = locationUseCase;
+        this.assetUseCase = assetUseCase;
+        this.ticketUseCase = ticketUseCase;
+        this.passwordEncoder = passwordEncoder;
+        this.adminInitialPassword = adminInitialPassword;
+        this.techInitialPassword = techInitialPassword;
+        this.superadminInitialPassword = superadminInitialPassword;
+    }
 
     @Override
     @Transactional
     public void run(String... args) throws Exception {
-        // Only seed if there are no users in the database
+        // Seeded on its own, not under the guard below: SUPER_ADMIN cannot be created
+        // through the UI (UserService rejects the role), so an existing database that
+        // predates the role would otherwise have no way to ever get the account.
+        seedSuperAdmin();
+
+        // The demo data below only makes sense on a brand-new database.
         if (userDatabasePort.findByUsername("admin").isPresent()) {
             return;
         }
@@ -70,20 +88,6 @@ public class DataInitializer implements CommandLineRunner {
                 .updatedAt(Instant.now())
                 .build();
         tech = userDatabasePort.save(tech);
-
-        Role superAdminRole = roleDatabasePort.findByCode("SUPER_ADMIN")
-                .orElseThrow(() -> new IllegalStateException("Role SUPER_ADMIN không tồn tại — kiểm tra lại migration V13"));
-        User superadmin = User.builder()
-                .username("superadmin")
-                .password(passwordEncoder.encode(superadminInitialPassword))
-                .fullName("Quản trị tổng")
-                .roleId(superAdminRole.getId())
-                .hospitalId(null) // null = SUPER_ADMIN, không giới hạn theo bệnh viện nào
-                .isActive(true)
-                .createdAt(Instant.now())
-                .updatedAt(Instant.now())
-                .build();
-        userDatabasePort.save(superadmin);
 
         // 2. Seed Locations
         // Building A
@@ -229,5 +233,25 @@ public class DataInitializer implements CommandLineRunner {
         
         // Auto assign this ticket to the technician for simulation
         ticketUseCase.assignTicket(ticket.getId(), tech.getId(), null);
+    }
+
+    private void seedSuperAdmin() {
+        if (userDatabasePort.findByUsername("superadmin").isPresent()) {
+            return;
+        }
+
+        Role superAdminRole = roleDatabasePort.findByCode("SUPER_ADMIN")
+                .orElseThrow(() -> new IllegalStateException("Role SUPER_ADMIN không tồn tại — kiểm tra lại migration V13"));
+
+        userDatabasePort.save(User.builder()
+                .username("superadmin")
+                .password(passwordEncoder.encode(superadminInitialPassword))
+                .fullName("Quản trị tổng")
+                .roleId(superAdminRole.getId())
+                .hospitalId(null) // null = SUPER_ADMIN, không giới hạn theo bệnh viện nào
+                .isActive(true)
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
+                .build());
     }
 }
