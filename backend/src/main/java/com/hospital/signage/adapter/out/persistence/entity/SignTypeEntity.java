@@ -6,6 +6,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Column;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -17,7 +18,9 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.Instant;
 
 @Entity
-@Table(name = "sign_types")
+@Table(name = "sign_types", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_sign_types_hospital_code", columnNames = {"hospital_id", "code"})
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -29,7 +32,7 @@ public class SignTypeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
+    @Column(nullable = false)
     private String code;
 
     @Column(nullable = false)

@@ -32,7 +32,7 @@ export default function AssetListPage() {
   );
 
   const { selectedHospitalId } = useAdminStore();
-  const hospitalIdParam = selectedHospitalId === 'ALL' ? undefined : selectedHospitalId;
+  const hospitalIdParam = selectedHospitalId ?? undefined;
 
   const { data: assetData, isLoading } = useQuery<PagedResponse<Asset>>({
     queryKey: ['assets', page, search, hospitalIdParam],
@@ -41,13 +41,13 @@ export default function AssetListPage() {
   const assets = assetData?.content ?? [];
 
   const { data: locations = [] } = useQuery<Location[]>({
-    queryKey: ['locations'],
-    queryFn: locationService.getAllLocations,
+    queryKey: ['locations', hospitalIdParam],
+    queryFn: () => locationService.getAllLocations(hospitalIdParam),
   });
 
   const { data: signTypes = [] } = useQuery<SignType[]>({
-    queryKey: ['signTypes'],
-    queryFn: signTypeService.getAllSignTypes,
+    queryKey: ['signTypes', hospitalIdParam],
+    queryFn: () => signTypeService.getAllSignTypes(hospitalIdParam),
   });
 
   const deleteMutation = useMutation({

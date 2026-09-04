@@ -7,7 +7,7 @@ import { Hospital } from '@/shared/types';
 
 export interface HospitalFormValues {
   name: string;
-  shortCode: string;
+  shortCode: string | null;
   address: string;
   phone: string;
   email: string;
@@ -53,12 +53,15 @@ export function HospitalFormDialog({ open, onOpenChange, editingItem, onSubmit, 
     }
   }, [open, editingItem]);
 
+  const isEdit = !!editingItem;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !shortCode) return;
+    if (!name) return;
+    if (isEdit && !shortCode) return;
     onSubmit({
       name,
-      shortCode,
+      shortCode: isEdit ? shortCode : null,
       address,
       phone,
       email,
@@ -68,8 +71,6 @@ export function HospitalFormDialog({ open, onOpenChange, editingItem, onSubmit, 
       active,
     });
   };
-
-  const isEdit = !!editingItem;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -82,7 +83,7 @@ export function HospitalFormDialog({ open, onOpenChange, editingItem, onSubmit, 
                 <span>{isEdit ? 'Sửa bệnh viện' : 'Thêm bệnh viện mới'}</span>
               </DialogTitle>
               <DialogDescription className="text-slate-500 text-sm mt-1">
-                {isEdit ? 'Cập nhật thông tin bệnh viện.' : 'Điền thông tin để thêm bệnh viện vào hệ thống.'}
+                {isEdit ? 'Cập nhật thông tin bệnh viện.' : 'Điền tên bệnh viện — mã viện sẽ được tự động sinh ra.'}
               </DialogDescription>
             </DialogHeader>
           </div>
@@ -92,11 +93,13 @@ export function HospitalFormDialog({ open, onOpenChange, editingItem, onSubmit, 
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Tên bệnh viện *</label>
                 <Input required placeholder="Ví dụ: Bệnh viện Đa khoa..." value={name} onChange={(e) => setName(e.target.value)} className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg" />
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Mã viện *</label>
-                <Input required placeholder="Ví dụ: bvdk-a" value={shortCode} onChange={(e) => setShortCode(e.target.value)} className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg" />
-              </div>
-              <div>
+              {isEdit && (
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Mã viện *</label>
+                  <Input required placeholder="Ví dụ: bvdk-a" value={shortCode} onChange={(e) => setShortCode(e.target.value)} className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg" />
+                </div>
+              )}
+              <div className={isEdit ? '' : 'col-span-2'}>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Số điện thoại</label>
                 <Input placeholder="0xxxxxxxxx" value={phone} onChange={(e) => setPhone(e.target.value)} className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg" />
               </div>

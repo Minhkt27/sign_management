@@ -23,8 +23,8 @@ public interface AssetRepository extends JpaRepository<AssetEntity, UUID> {
     @EntityGraph(attributePaths = {"location"})
     Page<AssetEntity> findAll(Pageable pageable);
 
-    @EntityGraph(attributePaths = {"location"})
-    Optional<AssetEntity> findByAssetCode(String assetCode);
+    @Query("SELECT a FROM AssetEntity a LEFT JOIN FETCH a.location WHERE a.assetCode = :assetCode AND (:hospitalId IS NULL OR a.hospitalId = :hospitalId)")
+    java.util.List<AssetEntity> findByAssetCodeWithHospital(@Param("assetCode") String assetCode, @Param("hospitalId") Long hospitalId);
 
     @EntityGraph(attributePaths = {"location"})
     Page<AssetEntity> findByLocationId(Long locationId, Pageable pageable);

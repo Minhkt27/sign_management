@@ -8,6 +8,7 @@ import { ticketService } from '@/services/ticketService';
 import { signTypeService } from '@/services/signTypeService';
 import { fileService } from '@/services/fileService';
 import { mapService } from '@/services/mapService';
+import { useAdminStore } from '@/app/store/adminStore';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
 import { PRIORITY_LABELS, TICKET_STATUS_LABELS } from '@/shared/helpers/ticketBadges';
 import { getFullLocationPath, resolveLocationLevels } from '@/shared/helpers/locationHelper';
@@ -30,6 +31,8 @@ export default function AssetDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { selectedHospitalId } = useAdminStore();
+  const hospitalIdParam = selectedHospitalId ?? undefined;
   const [qrBaseUrl, setQrBaseUrl] = useState(() => {
     return localStorage.getItem('qrBaseUrl') || window.location.origin;
   });
@@ -72,8 +75,8 @@ export default function AssetDetailPage() {
 
   // Fetch Locations
   const { data: locations = [] } = useQuery<Location[]>({
-    queryKey: ['locations'],
-    queryFn: locationService.getAllLocations,
+    queryKey: ['locations', hospitalIdParam],
+    queryFn: () => locationService.getAllLocations(hospitalIdParam),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -87,8 +90,8 @@ export default function AssetDetailPage() {
 
   // Fetch Sign Types
   const { data: signTypes = [] } = useQuery<SignType[]>({
-    queryKey: ['signTypes'],
-    queryFn: signTypeService.getAllSignTypes,
+    queryKey: ['signTypes', hospitalIdParam],
+    queryFn: () => signTypeService.getAllSignTypes(hospitalIdParam),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -101,8 +104,8 @@ export default function AssetDetailPage() {
   });
 
   const { data: allFloors = [] } = useQuery({
-    queryKey: ['mapFloors'],
-    queryFn: mapService.getAllFloors,
+    queryKey: ['mapFloors', hospitalIdParam],
+    queryFn: () => mapService.getAllFloors(hospitalIdParam),
     enabled: !!id,
     staleTime: 5 * 60 * 1000,
   });

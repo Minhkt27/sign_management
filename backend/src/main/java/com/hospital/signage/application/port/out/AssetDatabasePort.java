@@ -12,7 +12,7 @@ import java.util.UUID;
 public interface AssetDatabasePort {
     Asset save(Asset asset);
     Optional<Asset> findById(UUID id);
-    Optional<Asset> findByAssetCode(String assetCode);
+    List<Asset> findByAssetCode(String assetCode, Long hospitalId);
     List<Asset> findAll();
     List<Asset> findAllByHospital(Long hospitalId);
     Page<Asset> findAll(Pageable pageable);

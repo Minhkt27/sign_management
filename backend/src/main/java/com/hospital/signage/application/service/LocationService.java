@@ -10,7 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.text.Normalizer;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -36,7 +35,7 @@ public class LocationService implements LocationUseCase {
         }
 
         if (location.getLocationCode() == null || location.getLocationCode().trim().isEmpty()) {
-            location.setLocationCode(generateLocationCode(location.getName(), parent));
+            location.setLocationCode(generateLocationCode(location.getName(), parent, location.getHospitalId()));
         }
 
         if (location.getType() == null) {
@@ -158,24 +157,10 @@ public class LocationService implements LocationUseCase {
 
     // Generates a readable code like "TANG_1" or "B_A_TANG_1" based on parent code + name.
     // Appends a numeric suffix (_2, _3 ...) if the base code already exists.
-    private String generateLocationCode(String name, Location parent) {
-        String segment = normalizeToSegment(name);
+    private String generateLocationCode(String name, Location parent, Long hospitalId) {
+        String segment = CodeGenerator.normalizeToSegment(name, "LOC");
         String base = parent != null ? parent.getLocationCode() + "_" + segment : segment;
-        if (!locationDatabasePort.existsByLocationCode(base)) return base;
-        int counter = 2;
-        while (locationDatabasePort.existsByLocationCode(base + "_" + counter)) counter++;
-        return base + "_" + counter;
-    }
-
-    // Removes Vietnamese diacritics, keeps alphanumeric + underscore, uppercases.
-    private String normalizeToSegment(String name) {
-        if (name == null || name.isBlank()) return "LOC";
-        String nfd = Normalizer.normalize(name, Normalizer.Form.NFD);
-        String ascii = nfd.replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
-                          .replaceAll("đ", "d").replaceAll("Đ", "D");
-        return ascii.trim().toUpperCase()
-                    .replaceAll("[^A-Z0-9]+", "_")
-                    .replaceAll("^_+|_+$", "");
+        return CodeGenerator.generateUnique(base, code -> locationDatabasePort.existsByLocationCode(code, hospitalId));
     }
 
     private String cleanForLtree(String input) {

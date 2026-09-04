@@ -43,7 +43,7 @@ export default function HospitalListPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<Hospital> }) => hospitalService.updateHospital(id, data),
+    mutationFn: ({ id, data }: { id: number; data: HospitalFormValues }) => hospitalService.updateHospital(id, { ...data, shortCode: data.shortCode ?? undefined }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['hospitals'] }); setIsDialogOpen(false); },
     onError: (e: unknown) => alert(getApiError(e, 'Có lỗi xảy ra khi cập nhật bệnh viện.')),
   });

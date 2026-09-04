@@ -1,9 +1,11 @@
 package com.hospital.signage.application.service;
 
 import com.hospital.signage.application.port.in.MapUseCase;
+import com.hospital.signage.application.port.out.AssetDatabasePort;
 import com.hospital.signage.application.port.out.LocationDatabasePort;
 import com.hospital.signage.application.port.out.MapDatabasePort;
 import com.hospital.signage.domain.enums.NodeType;
+import com.hospital.signage.domain.model.Asset;
 import com.hospital.signage.domain.model.Location;
 import com.hospital.signage.domain.model.MapEdge;
 import com.hospital.signage.domain.model.MapFloor;
@@ -25,6 +27,7 @@ public class MapService implements MapUseCase {
 
     private final MapDatabasePort mapDatabasePort;
     private final LocationDatabasePort locationDatabasePort;
+    private final AssetDatabasePort assetDatabasePort;
     private final MapGraphCache mapGraphCache;
 
     // ── Floor ──────────────────────────────────────────────────────────────
@@ -72,24 +75,24 @@ public class MapService implements MapUseCase {
 
     @Override
     @Transactional
-    public MapFloor createCampusFloor(MapFloor floor) {
-        Long hospitalId = SecurityUtils.getCurrentHospitalId();
+    public MapFloor createCampusFloor(MapFloor floor, Long callerHospitalId) {
+        Long hospitalId = resolveCampusHospitalId(callerHospitalId);
         mapDatabasePort.findCampusFloor(hospitalId).ifPresent(existing -> {
             throw new IllegalArgumentException("Sơ đồ tổng thể đã tồn tại (id=" + existing.getId() + ")");
         });
         floor.setCampus(true);
         floor.setLocationId(null);
-        floor.setHospitalId(hospitalId != null ? hospitalId : SecurityUtils.DEFAULT_HOSPITAL_ID);
+        floor.setHospitalId(hospitalId);
         MapFloor saved = mapDatabasePort.saveFloor(floor);
         mapGraphCache.invalidateAll();
-        log.info("Campus map created: id={}", saved.getId());
+        log.info("Campus map created: id={}, hospitalId={}", saved.getId(), hospitalId);
         return saved;
     }
 
     @Override
     @Transactional
-    public MapFloor updateCampusFloor(MapFloor floor) {
-        MapFloor existing = mapDatabasePort.findCampusFloor(SecurityUtils.getCurrentHospitalId())
+    public MapFloor updateCampusFloor(MapFloor floor, Long callerHospitalId) {
+        MapFloor existing = mapDatabasePort.findCampusFloor(resolveCampusHospitalId(callerHospitalId))
                 .orElseThrow(() -> new IllegalArgumentException("Chưa có sơ đồ tổng thể"));
         existing.setImageUrl(floor.getImageUrl());
         existing.setImgWidth(floor.getImgWidth());
@@ -110,12 +113,28 @@ public class MapService implements MapUseCase {
 
     @Override
     @Transactional
-    public void deleteCampusFloor() {
-        MapFloor campus = mapDatabasePort.findCampusFloor(SecurityUtils.getCurrentHospitalId())
+    public void deleteCampusFloor(Long callerHospitalId) {
+        MapFloor campus = mapDatabasePort.findCampusFloor(resolveCampusHospitalId(callerHospitalId))
                 .orElseThrow(() -> new IllegalArgumentException("Chưa có sơ đồ tổng thể"));
         mapDatabasePort.deleteFloorById(campus.getId());
         mapGraphCache.invalidateAll();
         log.info("Campus map deleted: id={}", campus.getId());
+    }
+
+    /**
+     * Sơ đồ tổng thể là 1-per-hospital — admin thường luôn thao tác trên đúng viện của mình.
+     * SUPER_ADMIN không có viện cố định nên bắt buộc phải chỉ định rõ đang thao tác cho viện nào
+     * (qua hospitalId truyền lên), tránh lặp lại lỗi "getCurrentHospitalId() trả về null" khiến
+     * thao tác bị gán nhầm/khớp nhầm sang viện khác khi hệ thống có từ 2 viện trở lên.
+     */
+    private Long resolveCampusHospitalId(Long callerHospitalId) {
+        if (!SecurityUtils.isSuperAdmin()) {
+            return callerHospitalId != null ? callerHospitalId : SecurityUtils.DEFAULT_HOSPITAL_ID;
+        }
+        if (callerHospitalId == null) {
+            throw new IllegalArgumentException("Vui lòng chọn bệnh viện trước khi thao tác với sơ đồ tổng thể.");
+        }
+        return callerHospitalId;
     }
 
     @Override
@@ -237,7 +256,16 @@ public class MapService implements MapUseCase {
 
     @Override
     public Optional<MapNode> getNodeByAssetId(UUID assetId) {
-        return mapDatabasePort.findNodeByAssetId(assetId);
+        Optional<MapNode> dedicatedNode = mapDatabasePort.findNodeByAssetId(assetId);
+        if (dedicatedNode.isPresent()) {
+            return dedicatedNode;
+        }
+        // Biển chưa được gắn node riêng (VD 1 trong nhiều biển cùng phòng) — dẫn tạm về node
+        // của Location chứa nó, còn hơn không dẫn được gì cả.
+        return assetDatabasePort.findById(assetId)
+                .map(Asset::getLocation)
+                .map(Location::getId)
+                .flatMap(mapDatabasePort::findNodeByLocationId);
     }
 
     @Override

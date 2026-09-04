@@ -8,12 +8,15 @@ import { MapFloor } from '@/shared/types';
 import { Map, Plus, Pencil, Trash2, Upload, Loader2, Globe } from 'lucide-react';
 import { getApiError } from '@/shared/helpers/apiError';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
+import { useAdminStore } from '@/app/store/adminStore';
 
 export default function MapListPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const campusFileInputRef = useRef<HTMLInputElement>(null);
+  const { selectedHospitalId } = useAdminStore();
+  const hospitalIdParam = selectedHospitalId ?? undefined;
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [buildingId, setBuildingId] = useState('');
@@ -23,28 +26,29 @@ export default function MapListPage() {
   const [campusUploading, setCampusUploading] = useState(false);
 
   const { data: floors = [], isLoading } = useQuery({
-    queryKey: ['mapFloors'],
-    queryFn: mapService.getAllFloors,
+    queryKey: ['mapFloors', hospitalIdParam],
+    queryFn: () => mapService.getAllFloors(hospitalIdParam),
   });
 
   const { data: locations = [] } = useQuery({
-    queryKey: ['locations'],
-    queryFn: locationService.getAllLocations,
+    queryKey: ['locations', hospitalIdParam],
+    queryFn: () => locationService.getAllLocations(hospitalIdParam),
   });
 
   const { data: campusMap } = useQuery({
-    queryKey: ['campusMap'],
-    queryFn: mapService.getCampusMap,
+    queryKey: ['campusMap', hospitalIdParam],
+    queryFn: () => mapService.getCampusMap(hospitalIdParam),
   });
 
   const createCampusMutation = useMutation({
-    mutationFn: mapService.createCampusFloor,
+    mutationFn: (data: { imageUrl: string; imgWidth: number; imgHeight: number }) =>
+      mapService.createCampusFloor(data, hospitalIdParam),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campusMap'] }),
     onError: (e: unknown) => alert(getApiError(e, 'Không thể tạo sơ đồ tổng thể')),
   });
 
   const deleteCampusMutation = useMutation({
-    mutationFn: mapService.deleteCampusFloor,
+    mutationFn: () => mapService.deleteCampusFloor(hospitalIdParam),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campusMap'] }),
     onError: (e: unknown) => alert(getApiError(e, 'Không thể xóa sơ đồ tổng thể')),
   });
@@ -153,25 +157,14 @@ export default function MapListPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Quản lý Sơ đồ</h1>
-          <p className="text-slate-500 text-sm mt-1">Thiết lập sơ đồ mặt bằng và nodes dẫn đường</p>
-        </div>
-        <button
-          onClick={() => setShowCreateForm(true)}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm"
-        >
-          <Plus size={18} /> Tạo sơ đồ mới
-        </button>
-      </div>
+      <p className="text-slate-500 text-sm">Thiết lập sơ đồ mặt bằng và nodes dẫn đường</p>
 
-      {/* Campus map section */}
+      {/* 1. Campus map section */}
       <div className="bg-white border border-slate-200 rounded-2xl p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Globe size={18} className="text-amber-600" />
-            <h2 className="font-semibold text-slate-700">Sơ đồ tổng thể bệnh viện</h2>
+            <h2 className="font-semibold text-slate-700">1. Sơ đồ tổng thể bệnh viện</h2>
             <span className="text-xs text-slate-400">(dùng cho chỉ đường liên tòa)</span>
           </div>
           {campusMap ? (
@@ -226,11 +219,21 @@ export default function MapListPage() {
         )}
       </div>
 
-      {/* Create form */}
-      {showCreateForm && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
-          <h2 className="font-semibold text-slate-700">Tạo sơ đồ mới</h2>
+      {/* 2. Floor maps section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold text-slate-700">2. Sơ đồ từng tầng</h2>
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm"
+          >
+            <Plus size={18} /> Tạo sơ đồ mới
+          </button>
+        </div>
 
+        {/* Create form */}
+        {showCreateForm && (
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
           <div className="flex gap-3 max-w-xl">
             <div className="flex-1">
               <label className="block text-sm font-medium text-slate-600 mb-1.5">Tòa nhà</label>
@@ -390,6 +393,7 @@ export default function MapListPage() {
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }

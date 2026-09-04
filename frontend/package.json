@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:docker": "docker run --rm -v .:/app -v signage_frontend_test_node_modules:/app/node_modules -w /app node:22-alpine sh -c \"[ -d node_modules/vitest ] || npm ci --no-audit --no-fund; npx vitest run\""
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",

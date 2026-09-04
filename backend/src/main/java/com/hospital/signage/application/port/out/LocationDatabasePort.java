@@ -13,7 +13,7 @@ public interface LocationDatabasePort {
     List<Location> findByParentId(Long parentId);
     List<Location> findByParentIdAndHospital(Long parentId, Long hospitalId);
     boolean existsByParentId(Long parentId);
-    boolean existsByLocationCode(String locationCode);
+    boolean existsByLocationCode(String locationCode, Long hospitalId);
     void bulkUpdatePathPrefix(String oldPath, String newPath);
     void deleteById(Long id);
 }

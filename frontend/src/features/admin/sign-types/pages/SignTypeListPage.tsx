@@ -29,7 +29,7 @@ export default function SignTypeListPage() {
   const [editingItem, setEditingItem] = useState<SignType | null>(null);
 
   const { selectedHospitalId } = useAdminStore();
-  const hospitalIdParam = selectedHospitalId === 'ALL' ? undefined : selectedHospitalId;
+  const hospitalIdParam = selectedHospitalId ?? undefined;
 
   const { data: pagedData } = useQuery({
     queryKey: ['signTypes', page, search, hospitalIdParam],
@@ -47,7 +47,7 @@ export default function SignTypeListPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<SignType> }) => signTypeService.updateSignType(id, data),
+    mutationFn: ({ id, data }: { id: number; data: { code: string | null; name: string; description: string } }) => signTypeService.updateSignType(id, { ...data, code: data.code ?? undefined }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['signTypes'] }); setIsDialogOpen(false); },
     onError: (e: unknown) => alert(getApiError(e, 'Có lỗi xảy ra khi cập nhật loại biển.')),
   });
@@ -63,7 +63,7 @@ export default function SignTypeListPage() {
   const handleDelete = (st: SignType) => {
     if (window.confirm(`Bạn có chắc chắn muốn xóa loại biển "${st.name}"?`)) deleteMutation.mutate(st.id);
   };
-  const handleSubmit = (data: { code: string; name: string; description: string }) => {
+  const handleSubmit = (data: { code: string | null; name: string; description: string }) => {
     if (editingItem) {
       updateMutation.mutate({ id: editingItem.id, data });
     } else {

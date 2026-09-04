@@ -34,8 +34,8 @@ public class SignTypePersistenceAdapter implements SignTypeDatabasePort {
     }
 
     @Override
-    public Optional<SignType> findByCode(String code) {
-        return repository.findByCode(code).map(mapper::toDomain);
+    public Optional<SignType> findByCode(String code, Long hospitalId) {
+        return repository.findByCodeAndHospitalId(code, hospitalId).map(mapper::toDomain);
     }
 
     @Override

@@ -85,7 +85,9 @@ public class SignTypeController {
     }
 
     public record SignTypeRequest(
-            @NotBlank @Size(max = 100) String code,
+            // Không @NotBlank — khi tạo mới để trống sẽ được SignTypeService tự sinh mã từ tên.
+            // Khi cập nhật, SignTypeService tự yêu cầu phải có giá trị.
+            @Size(max = 100) String code,
             @NotBlank @Size(max = 200) String name,
             @Size(max = 500) String description
     ) {}

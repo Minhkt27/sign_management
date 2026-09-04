@@ -26,9 +26,15 @@ public class HospitalService implements HospitalUseCase {
     @Override
     @Transactional
     public Hospital createHospital(Hospital hospital) {
-        hospitalDatabasePort.findByShortCode(hospital.getShortCode()).ifPresent(existing -> {
-            throw new IllegalArgumentException("Mã viện '" + hospital.getShortCode() + "' đã tồn tại.");
-        });
+        if (hospital.getShortCode() == null || hospital.getShortCode().trim().isEmpty()) {
+            String base = CodeGenerator.normalizeToSegment(hospital.getName(), "BENH_VIEN");
+            hospital.setShortCode(CodeGenerator.generateUnique(base,
+                    code -> hospitalDatabasePort.findByShortCode(code).isPresent()));
+        } else {
+            hospitalDatabasePort.findByShortCode(hospital.getShortCode()).ifPresent(existing -> {
+                throw new IllegalArgumentException("Mã viện '" + hospital.getShortCode() + "' đã tồn tại.");
+            });
+        }
 
         Hospital saved = hospitalDatabasePort.save(hospital);
         log.info("Hospital '{}' created with id {}", saved.getShortCode(), saved.getId());
@@ -40,6 +46,10 @@ public class HospitalService implements HospitalUseCase {
     public Hospital updateHospital(Long id, Hospital hospitalDetails) {
         Hospital existing = hospitalDatabasePort.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy bệnh viện với ID: " + id));
+
+        if (hospitalDetails.getShortCode() == null || hospitalDetails.getShortCode().trim().isEmpty()) {
+            throw new IllegalArgumentException("Mã viện không được để trống.");
+        }
 
         if (!existing.getShortCode().equals(hospitalDetails.getShortCode())) {
             hospitalDatabasePort.findByShortCode(hospitalDetails.getShortCode()).ifPresent(duplicate -> {

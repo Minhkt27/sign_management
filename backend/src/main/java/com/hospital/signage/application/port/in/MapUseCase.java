@@ -21,10 +21,10 @@ public interface MapUseCase {
     List<MapFloorData> getFloorDataBatch(List<Long> floorIds, Long callerHospitalId);
 
     // Campus map
-    MapFloor createCampusFloor(MapFloor floor);
-    MapFloor updateCampusFloor(MapFloor floor);
+    MapFloor createCampusFloor(MapFloor floor, Long callerHospitalId);
+    MapFloor updateCampusFloor(MapFloor floor, Long callerHospitalId);
     Optional<MapFloorData> getCampusMap(Long hospitalId);
-    void deleteCampusFloor();
+    void deleteCampusFloor(Long callerHospitalId);
 
     // Node
     MapNode createNode(MapNode node, Long callerHospitalId);

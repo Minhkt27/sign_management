@@ -26,10 +26,15 @@ public class SignTypeService implements SignTypeUseCase {
     @Override
     @Transactional
     public SignType createSignType(SignType signType) {
-        // Check unique code
-        signTypeDatabasePort.findByCode(signType.getCode()).ifPresent(existing -> {
-            throw new IllegalArgumentException("Mã loại biển '" + signType.getCode() + "' đã tồn tại.");
-        });
+        if (signType.getCode() == null || signType.getCode().trim().isEmpty()) {
+            String base = CodeGenerator.normalizeToSegment(signType.getName(), "LOAI_BIEN");
+            signType.setCode(CodeGenerator.generateUnique(base,
+                    code -> signTypeDatabasePort.findByCode(code, signType.getHospitalId()).isPresent()));
+        } else {
+            signTypeDatabasePort.findByCode(signType.getCode(), signType.getHospitalId()).ifPresent(existing -> {
+                throw new IllegalArgumentException("Mã loại biển '" + signType.getCode() + "' đã tồn tại.");
+            });
+        }
 
         SignType saved = signTypeDatabasePort.save(signType);
         log.info("SignType '{}' created with id {}", saved.getCode(), saved.getId());
@@ -43,9 +48,13 @@ public class SignTypeService implements SignTypeUseCase {
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy loại biển với ID: " + id));
         assertSameHospital(existing, callerHospitalId);
 
+        if (signTypeDetails.getCode() == null || signTypeDetails.getCode().trim().isEmpty()) {
+            throw new IllegalArgumentException("Mã loại biển không được để trống.");
+        }
+
         // Check unique code if changed
         if (!existing.getCode().equals(signTypeDetails.getCode())) {
-            signTypeDatabasePort.findByCode(signTypeDetails.getCode()).ifPresent(duplicate -> {
+            signTypeDatabasePort.findByCode(signTypeDetails.getCode(), existing.getHospitalId()).ifPresent(duplicate -> {
                 throw new IllegalArgumentException("Mã loại biển '" + signTypeDetails.getCode() + "' đã tồn tại.");
             });
         }

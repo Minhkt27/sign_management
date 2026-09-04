@@ -13,7 +13,7 @@ import java.util.List;
 public interface LocationRepository extends JpaRepository<LocationEntity, Long> {
     List<LocationEntity> findByParentId(Long parentId);
     boolean existsByParentId(Long parentId);
-    boolean existsByLocationCode(String locationCode);
+    boolean existsByLocationCodeAndHospitalId(String locationCode, Long hospitalId);
 
     @Query("SELECT l FROM LocationEntity l WHERE (:hospitalId IS NULL OR l.hospitalId = :hospitalId)")
     List<LocationEntity> findAllByHospital(@Param("hospitalId") Long hospitalId);

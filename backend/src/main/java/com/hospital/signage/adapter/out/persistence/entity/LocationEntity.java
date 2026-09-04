@@ -12,6 +12,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.EnumType;
+import jakarta.persistence.UniqueConstraint;
 import com.hospital.signage.domain.enums.LocationType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -26,6 +27,8 @@ import java.time.Instant;
 @Entity
 @Table(name = "locations", indexes = {
         @Index(name = "idx_locations_parent_id", columnList = "parent_id")
+}, uniqueConstraints = {
+        @UniqueConstraint(name = "uk_locations_hospital_code", columnNames = {"hospital_id", "location_code"})
 })
 @Getter
 @Setter
@@ -38,7 +41,7 @@ public class LocationEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "location_code", unique = true, nullable = false)
+    @Column(name = "location_code", nullable = false)
     private String locationCode;
 
     @Column(nullable = false)

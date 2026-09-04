@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient, useQueries } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { locationService } from '@/services/locationService';
@@ -7,6 +7,7 @@ import { signTypeService } from '@/services/signTypeService';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
 import { getApiError } from '@/shared/helpers/apiError';
 import { Location, Asset, SignType } from '@/shared/types';
+import { useAdminStore } from '@/app/store/adminStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ChevronRight, ChevronDown, FolderOpen, Tag, Plus, Pencil, Trash2, Search, X, ExternalLink, MapPin, Package, Ruler, Calendar, Building } from 'lucide-react';
@@ -22,11 +23,10 @@ import {
 export default function AssetTreePage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { selectedHospitalId } = useAdminStore();
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
-  const [expandedNodes, setExpandedNodes] = useState<Record<number, boolean>>({
-    1: true, // Auto-expand Building A
-    2: true, // Auto-expand Building B
-  });
+  const [expandedNodes, setExpandedNodes] = useState<Record<number, boolean>>({});
+  const hasAutoExpanded = useRef(false);
 
   // Create Location State
   const [isLocDialogOpen, setIsLocDialogOpen] = useState(false);
@@ -47,9 +47,22 @@ export default function AssetTreePage() {
 
   // Queries
   const { data: locations = [] } = useQuery<Location[]>({
-    queryKey: ['locations'],
-    queryFn: locationService.getAllLocations,
+    queryKey: ['locations', selectedHospitalId],
+    queryFn: () => locationService.getAllLocations(selectedHospitalId),
   });
+
+  // Tự mở các vị trí gốc (không có parent, VD Tòa nhà) ngay khi tải xong — không hard-code ID
+  // cụ thể vì ID thật phụ thuộc dữ liệu từng viện, không phải lúc nào cũng là 1/2.
+  useEffect(() => {
+    if (hasAutoExpanded.current || locations.length === 0) return;
+    hasAutoExpanded.current = true;
+    const rootIds = locations.filter(l => !l.parentId).map(l => l.id);
+    setExpandedNodes(prev => {
+      const next = { ...prev };
+      rootIds.forEach(id => { next[id] = true; });
+      return next;
+    });
+  }, [locations]);
 
   // Chỉ load TẤT CẢ assets khi đang search — khi không search thì lazy load theo location
   const { data: searchAssets = [] } = useQuery<Asset[]>({
@@ -77,8 +90,8 @@ export default function AssetTreePage() {
   });
 
   const { data: signTypes = [] } = useQuery<SignType[]>({
-    queryKey: ['signTypes'],
-    queryFn: signTypeService.getAllSignTypes,
+    queryKey: ['signTypes', selectedHospitalId],
+    queryFn: () => signTypeService.getAllSignTypes(selectedHospitalId ?? undefined),
   });
 
   const signTypeMap = new Map(signTypes.map(st => [st.id, st.name]));
@@ -277,17 +290,11 @@ export default function AssetTreePage() {
         childAssets = childAssets.filter(a => matchingAssetIds.has(a.id));
       }
 
-      const hasChildren = locations.some(l => l.parentId === loc.id && (!visibleLocIds || visibleLocIds.has(l.id))) || childAssets.length > 0;
-
       return (
         <div key={loc.id} style={{ marginLeft: `${depth * 20}px` }} className="space-y-1 select-none">
           <div className="flex items-center justify-between group p-2 hover:bg-slate-100 rounded-xl transition-all duration-150">
             <div className="flex items-center space-x-2 cursor-pointer flex-1 min-w-0 overflow-hidden" onClick={() => toggleExpand(loc.id)}>
-              {hasChildren ? (
-                isExpanded ? <ChevronDown size={16} className="text-slate-500" /> : <ChevronRight size={16} className="text-slate-500" />
-              ) : (
-                <span className="w-4"></span>
-              )}
+              {isExpanded ? <ChevronDown size={16} className="text-slate-500" /> : <ChevronRight size={16} className="text-slate-500" />}
               <FolderOpen size={18} className="text-blue-500" />
               <span className="text-sm font-semibold text-slate-800">{loc.name}</span>
               {loc.type && (
@@ -577,9 +584,9 @@ export default function AssetTreePage() {
                   onChange={(e) => setNewLocType(e.target.value as Location['type'])}
                   className="w-full border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg p-2 border bg-white outline-none"
                 >
-                  <option value="BUILDING">Tòa nhà</option>
-                  <option value="FLOOR">Tầng</option>
-                  <option value="DEPARTMENT">Khoa/Phòng ban</option>
+                  {!parentLoc && <option value="BUILDING">Tòa nhà</option>}
+                  {(!parentLoc || parentLoc.type === 'BUILDING') && <option value="FLOOR">Tầng</option>}
+                  {(!parentLoc || parentLoc.type === 'BUILDING' || parentLoc.type === 'FLOOR') && <option value="DEPARTMENT">Khoa/Phòng ban</option>}
                   <option value="ROOM">Phòng</option>
                 </select>
               </div>
