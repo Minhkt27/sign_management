@@ -1,6 +1,5 @@
 package com.hospital.signage.infrastructure.security;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,13 +22,17 @@ import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
-@RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final String allowedOriginsRaw;
 
-    @Value("${cors.allowed-origins}")
-    private String allowedOriginsRaw;
+    public SecurityConfig(
+            JwtAuthenticationFilter jwtAuthFilter,
+            @Value("${cors.allowed-origins}") String allowedOriginsRaw) {
+        this.jwtAuthFilter = jwtAuthFilter;
+        this.allowedOriginsRaw = allowedOriginsRaw;
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {

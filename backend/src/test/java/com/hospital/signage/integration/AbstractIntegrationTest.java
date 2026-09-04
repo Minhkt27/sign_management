@@ -37,5 +37,6 @@ public abstract class AbstractIntegrationTest {
         registry.add("jwt.secret", () -> "integration-test-jwt-secret-must-be-at-least-256-bits-long-for-hs256");
         registry.add("app.admin-initial-password", () -> "AdminTest#2024");
         registry.add("app.tech-initial-password", () -> "TechTest#2024");
+        registry.add("app.superadmin-initial-password", () -> "SuperAdminTest#2024");
     }
 }

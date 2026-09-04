@@ -190,20 +190,38 @@ java -jar target/signage-management-*.jar \
 
 ## 11.7 Cài Đặt Database (Manual)
 
+> **Bắt buộc với database dựng mới.** Bỏ qua bước này thì backend chết ngay lần khởi động
+> đầu tiên ở migration V4 — `ERROR: operator class "gin_trgm_ops" does not exist`.
+
+`srt_db` chứa nhiều schema của nhiều dự án (`sign_management` cho dự án này, `docusync` cho
+DocuSync). Extension là thứ dùng chung nên đặt ở `public`, còn bảng của dự án đặt ở
+`sign_management`. Vì vậy `search_path` phải gồm **cả hai** schema.
+
 ```bash
-# Kết nối PostgreSQL
-psql -h localhost -U postgres
+# Tạo database (bỏ qua nếu đã có)
+docker exec -i shared_postgres psql -U postgres -c "CREATE DATABASE srt_db;"
 
-# Tạo database
-CREATE DATABASE srt_db;
-\c srt_db
-
-# Cài extensions
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
-CREATE EXTENSION IF NOT EXISTS unaccent;
-
-# Flyway sẽ tự chạy migrations khi backend khởi động
+# Cài extension + tạo schema + đặt search_path mặc định
+docker exec -i shared_postgres psql -U postgres -d srt_db < scripts/init-db.sql
 ```
+
+Nội dung `scripts/init-db.sql` (idempotent, chạy lại nhiều lần không sao):
+
+```sql
+CREATE EXTENSION IF NOT EXISTS unaccent WITH SCHEMA public;
+CREATE EXTENSION IF NOT EXISTS pg_trgm  WITH SCHEMA public;
+CREATE SCHEMA IF NOT EXISTS sign_management;
+ALTER DATABASE srt_db SET search_path TO sign_management, public;
+```
+
+Sau bước này Flyway tự chạy toàn bộ migration khi backend khởi động. Hai biến môi trường
+tương ứng đã đặt sẵn trong `docker-compose.prod.yml`, không cần khai báo lại trong `.env`:
+
+| Biến | Giá trị | Vai trò |
+|---|---|---|
+| `FLYWAY_DEFAULT_SCHEMA` | `sign_management` | nơi Flyway tạo bảng + `flyway_schema_history` |
+| `SPRING_FLYWAY_SCHEMAS` | `sign_management,public` | `search_path` lúc chạy migration (V4 cần `public`) |
+| `DB_URL` … `currentSchema=` | `sign_management,public` | `search_path` lúc ứng dụng chạy (tìm kiếm không dấu cần `public`) |
 
 ---
 

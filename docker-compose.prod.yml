@@ -36,10 +36,21 @@ services:
       - default
       - vps_shared
     environment:
-      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-srt_db}?currentSchema=sign_management
+      # search_path gồm 2 schema, không phải 1:
+      #   - sign_management: bảng của dự án này (docusync có schema riêng trong cùng database)
+      #   - public: nơi đặt extension dùng chung (unaccent, pg_trgm)
+      # Thiếu "public" thì f_unaccent() không resolve được unaccent() lúc chạy → tìm kiếm
+      # không dấu chết. Schema không tồn tại trong search_path thì Postgres bỏ qua, nên khai
+      # báo cả hai là an toàn kể cả với DB cũ (extension đang nằm trong sign_management).
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-srt_db}?currentSchema=sign_management,public
       # Mặc định của app là schema "public" (khớp Render/Neon) — trên VPS dùng chung hạ tầng,
       # schema đã đổi tên thành "sign_management" (xem V16 migration), nên phải chỉ định rõ ở đây.
       FLYWAY_DEFAULT_SCHEMA: sign_management
+      # Flyway tự đặt search_path bằng đúng danh sách này khi chạy migration. Bắt buộc phải có
+      # "public": V4 gọi public.unaccent(...) và dùng gin_trgm_ops không kèm tiền tố schema, nên
+      # trên một DB dựng mới mà thiếu public thì V4 chết ("gin_trgm_ops does not exist").
+      # Bảng vẫn vào sign_management vì FLYWAY_DEFAULT_SCHEMA quyết định điều đó.
+      SPRING_FLYWAY_SCHEMAS: sign_management,public
     # File gốc yêu cầu postgres/minio healthy trước khi chạy backend — nhưng cả 2 đều chạy
     # profile "dev" và không có mặt trong project này ở chế độ prod nữa (dùng chung, thuộc
     # repo vps-shared), nên phải ghi đè về rỗng, nếu không compose sẽ báo lỗi "service không tồn tại".
