@@ -8,7 +8,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
-import jakarta.annotation.PostConstruct;
 import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
@@ -18,19 +17,16 @@ import java.util.function.Function;
 @Component
 public class JwtTokenProvider {
 
-    @Value("${jwt.secret}")
-    private String jwtSecret;
+    private final long jwtExpirationInMs;
+    private final long refreshExpirationInMs;
+    private final Key key;
 
-    @Value("${jwt.expiration}")
-    private long jwtExpirationInMs;
-
-    @Value("${jwt.refresh-expiration}")
-    private long refreshExpirationInMs;
-
-    private Key key;
-
-    @PostConstruct
-    public void init() {
+    public JwtTokenProvider(
+            @Value("${jwt.secret}") String jwtSecret,
+            @Value("${jwt.expiration}") long jwtExpirationInMs,
+            @Value("${jwt.refresh-expiration}") long refreshExpirationInMs) {
+        this.jwtExpirationInMs = jwtExpirationInMs;
+        this.refreshExpirationInMs = refreshExpirationInMs;
         this.key = Keys.hmacShaKeyFor(jwtSecret.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 

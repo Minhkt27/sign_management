@@ -3,7 +3,6 @@ package com.hospital.signage.infrastructure.storage;
 import com.hospital.signage.application.port.out.FileStoragePort;
 import io.minio.*;
 import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -13,16 +12,20 @@ import java.util.Map;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class MinioStorageAdapter implements FileStoragePort {
 
     private final MinioClient minioClient;
+    private final String bucketName;
+    private final String publicUrl;
 
-    @Value("${minio.bucket}")
-    private String bucketName;
-
-    @Value("${minio.public-url}")
-    private String publicUrl;
+    public MinioStorageAdapter(
+            MinioClient minioClient,
+            @Value("${minio.bucket}") String bucketName,
+            @Value("${minio.public-url}") String publicUrl) {
+        this.minioClient = minioClient;
+        this.bucketName = bucketName;
+        this.publicUrl = publicUrl;
+    }
 
     @PostConstruct
     public void initBucket() {
