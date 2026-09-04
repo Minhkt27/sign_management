@@ -54,7 +54,11 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
-      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-srt_db}?currentSchema=sign_management
+      # Xem chú thích chi tiết ở docker-compose.prod.yml: search_path phải gồm cả "public"
+      # (nơi đặt extension unaccent/pg_trgm) lẫn "sign_management" (nơi đặt bảng).
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-srt_db}?currentSchema=sign_management,public
+      FLYWAY_DEFAULT_SCHEMA: ${FLYWAY_DEFAULT_SCHEMA:-sign_management}
+      SPRING_FLYWAY_SCHEMAS: ${SPRING_FLYWAY_SCHEMAS:-sign_management,public}
       DB_USERNAME: ${POSTGRES_USER:-postgres}
       DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
