@@ -29,6 +29,7 @@ public class DataInitializer implements CommandLineRunner {
     private final String adminInitialPassword;
     private final String techInitialPassword;
     private final String superadminInitialPassword;
+    private final boolean seedDemoData;
 
     public DataInitializer(
             UserDatabasePort userDatabasePort,
@@ -39,7 +40,8 @@ public class DataInitializer implements CommandLineRunner {
             PasswordEncoder passwordEncoder,
             @Value("${app.admin-initial-password}") String adminInitialPassword,
             @Value("${app.tech-initial-password}") String techInitialPassword,
-            @Value("${app.superadmin-initial-password}") String superadminInitialPassword) {
+            @Value("${app.superadmin-initial-password}") String superadminInitialPassword,
+            @Value("${app.seed-demo-data:false}") boolean seedDemoData) {
         this.userDatabasePort = userDatabasePort;
         this.roleDatabasePort = roleDatabasePort;
         this.locationUseCase = locationUseCase;
@@ -49,6 +51,7 @@ public class DataInitializer implements CommandLineRunner {
         this.adminInitialPassword = adminInitialPassword;
         this.techInitialPassword = techInitialPassword;
         this.superadminInitialPassword = superadminInitialPassword;
+        this.seedDemoData = seedDemoData;
     }
 
     @Override
@@ -59,12 +62,12 @@ public class DataInitializer implements CommandLineRunner {
         // predates the role would otherwise have no way to ever get the account.
         seedSuperAdmin();
 
-        // The demo data below only makes sense on a brand-new database.
+        // Everything below only makes sense on a brand-new database.
         if (userDatabasePort.findByUsername("admin").isPresent()) {
             return;
         }
 
-        // 1. Seed Users
+        // 1. Seed Users — the default logins, seeded in every environment
         User admin = User.builder()
                 .username("admin")
                 .password(passwordEncoder.encode(adminInitialPassword))
@@ -88,6 +91,13 @@ public class DataInitializer implements CommandLineRunner {
                 .updatedAt(Instant.now())
                 .build();
         tech = userDatabasePort.save(tech);
+
+        // Dữ liệu mẫu bên dưới chỉ dành cho môi trường phát triển. Bản chạy thật dựng lên
+        // phải trắng trơn — chỉ có 3 tài khoản đăng nhập ở trên, còn sơ đồ / biển / phiếu
+        // bảo trì là do bệnh viện tự nhập. Bật lại bằng SEED_DEMO_DATA=true nếu cần.
+        if (!seedDemoData) {
+            return;
+        }
 
         // 2. Seed Locations
         // Building A

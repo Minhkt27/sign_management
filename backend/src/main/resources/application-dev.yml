@@ -33,6 +33,7 @@ cors:
   allowed-origins: http://localhost:5173,http://localhost:3000,https://*.ngrok-free.app,https://*.ngrok-free.dev
 
 app:
+  seed-demo-data: ${SEED_DEMO_DATA:true}
   admin-initial-password: ${ADMIN_INITIAL_PASSWORD:Admin@Dev#2024}
   tech-initial-password: ${TECH_INITIAL_PASSWORD:Tech@Dev#2024}
   superadmin-initial-password: ${SUPERADMIN_INITIAL_PASSWORD:SuperAdmin@Dev#2024}
