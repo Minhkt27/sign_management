@@ -9,7 +9,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem: SignType | null;
-  onSubmit: (data: { code: string; name: string; description: string }) => void;
+  onSubmit: (data: { code: string | null; name: string; description: string }) => void;
   isPending: boolean;
 }
 
@@ -29,13 +29,14 @@ export function SignTypeFormDialog({ open, onOpenChange, editingItem, onSubmit, 
     }
   }, [open, editingItem]);
 
+  const isEdit = !!editingItem;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!code || !name) return;
-    onSubmit({ code, name, description });
+    if (!name) return;
+    if (isEdit && !code) return;
+    onSubmit(isEdit ? { code, name, description } : { code: null, name, description });
   };
-
-  const isEdit = !!editingItem;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -48,15 +49,17 @@ export function SignTypeFormDialog({ open, onOpenChange, editingItem, onSubmit, 
                 <span>{isEdit ? 'Sửa loại biển' : 'Thêm loại biển mới'}</span>
               </DialogTitle>
               <DialogDescription className="text-slate-500 text-sm mt-1">
-                {isEdit ? 'Cập nhật thông tin loại biển.' : 'Điền mã và tên loại biển để thêm vào danh sách.'}
+                {isEdit ? 'Cập nhật thông tin loại biển.' : 'Điền tên loại biển — mã sẽ được tự động sinh ra.'}
               </DialogDescription>
             </DialogHeader>
           </div>
           <div className="px-6 py-5 space-y-4 text-left">
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Mã loại biển *</label>
-              <Input required placeholder="Ví dụ: CHI_DAN, PHONG_BAN, CANH_BAO..." value={code} onChange={(e) => setCode(e.target.value)} className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg" />
-            </div>
+            {isEdit && (
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Mã loại biển *</label>
+                <Input required placeholder="Ví dụ: CHI_DAN, PHONG_BAN, CANH_BAO..." value={code} onChange={(e) => setCode(e.target.value)} className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg" />
+              </div>
+            )}
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Tên loại biển *</label>
               <Input required placeholder="Ví dụ: Biển chỉ dẫn, Biển phòng ban..." value={name} onChange={(e) => setName(e.target.value)} className="border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg" />

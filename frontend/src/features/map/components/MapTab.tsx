@@ -55,7 +55,7 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
 
   const { data: campusMapData } = useQuery({
     queryKey: ['campusMap'],
-    queryFn: mapService.getCampusMap,
+    queryFn: () => mapService.getCampusMap(),
     staleTime: 60_000,
   });
 

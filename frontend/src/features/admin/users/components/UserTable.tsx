@@ -5,12 +5,8 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { UserCheck, UserX, RotateCcw, ShieldAlert, Pencil, Trash2, MoreHorizontal, Building2 } from 'lucide-react';
-import { User, Role, Hospital } from '@/shared/types';
-import { useAdminStore } from '@/app/store/adminStore';
-import { useQuery } from '@tanstack/react-query';
-import { hospitalService } from '@/services/hospitalService';
-import { authStore, isSuperAdmin } from '@/app/store/authStore';
+import { UserCheck, UserX, RotateCcw, ShieldAlert, Pencil, Trash2, MoreHorizontal } from 'lucide-react';
+import { User, Role } from '@/shared/types';
 
 interface Props {
   users: User[];
@@ -28,22 +24,6 @@ interface Props {
 }
 
 export function UserTable({ users, roles, isLoading, currentUserId, onToggleActive, onResetPassword, onEditRole, onEditUser, onDeleteUser, isTogglePending, isResetPending, isDeletePending }: Props) {
-  const { selectedHospitalId } = useAdminStore();
-  const token = authStore.getToken();
-  const isSuper = isSuperAdmin(token);
-
-  const { data: hospitals } = useQuery<Hospital[]>({
-    queryKey: ['all-hospitals'],
-    queryFn: hospitalService.getAllHospitals,
-    enabled: isSuper && selectedHospitalId === 'ALL',
-  });
-
-  const getHospitalName = (id?: number) => {
-    if (!id || !hospitals) return '—';
-    const h = hospitals.find(x => x.id === id);
-    return h ? h.name : '—';
-  };
-
   if (isLoading) {
     return <div className="p-8 text-center text-slate-400">Đang tải...</div>;
   }
@@ -60,7 +40,6 @@ export function UserTable({ users, roles, isLoading, currentUserId, onToggleActi
             <TableHead>Họ và tên</TableHead>
             <TableHead>Tên đăng nhập</TableHead>
             <TableHead>Số điện thoại</TableHead>
-            {isSuper && selectedHospitalId === 'ALL' && <TableHead>Bệnh viện</TableHead>}
             <TableHead>Vai trò</TableHead>
             <TableHead>Trạng thái</TableHead>
             <TableHead className="text-right">Thao tác</TableHead>
@@ -72,16 +51,6 @@ export function UserTable({ users, roles, isLoading, currentUserId, onToggleActi
               <TableCell className="font-medium">{user.fullName}</TableCell>
               <TableCell className="text-slate-800">{user.username}</TableCell>
               <TableCell className="text-slate-600">{user.phone || <span className="text-slate-300">—</span>}</TableCell>
-              {isSuper && selectedHospitalId === 'ALL' && (
-                <TableCell className="text-slate-600">
-                  <div className="flex items-center gap-1.5">
-                    <Building2 size={14} className="text-slate-400 shrink-0" />
-                    <span className="truncate max-w-[120px]" title={getHospitalName(user.hospitalId)}>
-                      {getHospitalName(user.hospitalId)}
-                    </span>
-                  </div>
-                </TableCell>
-              )}
               <TableCell>
                 <div className="flex flex-col gap-1 items-start">
                   <Badge variant={user.roleId === 1 ? 'default' : 'secondary'} className="text-sm px-2.5 h-6">
@@ -172,7 +141,7 @@ export function UserTable({ users, roles, isLoading, currentUserId, onToggleActi
           ))}
           {users.length === 0 && (
             <TableRow>
-              <TableCell colSpan={selectedHospitalId === 'ALL' ? 7 : 6} className="text-center text-slate-400 py-8">
+              <TableCell colSpan={6} className="text-center text-slate-400 py-8">
                 Không tìm thấy tài khoản nào
               </TableCell>
             </TableRow>

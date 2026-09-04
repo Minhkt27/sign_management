@@ -32,7 +32,7 @@ export default function LocationSchemaPage() {
               }`
             }
           >
-            <Map size={16} /> Theo bản đồ
+            <Map size={16} /> Quản lý sơ đồ
           </NavLink>
         </div>
       )}

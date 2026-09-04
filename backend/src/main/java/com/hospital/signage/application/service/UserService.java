@@ -137,9 +137,13 @@ public class UserService implements UserUseCase {
         if (grantsPrivilegeManagement && !callerHasAuthority("ROLE_MANAGE")) {
             throw new org.springframework.security.access.AccessDeniedException("Chỉ người có quyền ROLE_MANAGE mới được gán vai trò có khả năng quản lý quyền/người dùng.");
         }
+        // Không ai được cấp vai trò SUPER_ADMIN qua tạo/sửa tài khoản thông thường — kể cả
+        // chính SUPER_ADMIN khác — tránh tự nhân bản quyền cao nhất qua giao diện quản lý user.
+        // Tài khoản SUPER_ADMIN chỉ nên tạo qua DataInitializer (seed ban đầu) hoặc thao tác
+        // trực tiếp trên database bởi người vận hành hệ thống.
         boolean isSuperAdminRole = "SUPER_ADMIN".equals(role.getCode()) || role.getPermissions().contains("HOSPITAL_MANAGE");
-        if (isSuperAdminRole && !SecurityUtils.isSuperAdmin()) {
-            throw new org.springframework.security.access.AccessDeniedException("Chỉ Quản trị hệ thống mới được phép cấp vai trò Quản trị hệ thống.");
+        if (isSuperAdminRole) {
+            throw new org.springframework.security.access.AccessDeniedException("Không thể cấp vai trò Quản trị hệ thống qua tính năng này.");
         }
     }
 

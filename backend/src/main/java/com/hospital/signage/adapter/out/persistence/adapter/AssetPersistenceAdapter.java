@@ -41,8 +41,10 @@ public class AssetPersistenceAdapter implements AssetDatabasePort {
     }
 
     @Override
-    public Optional<Asset> findByAssetCode(String assetCode) {
-        return repository.findByAssetCode(assetCode).map(mapper::toDomain);
+    public List<Asset> findByAssetCode(String assetCode, Long hospitalId) {
+        return repository.findByAssetCodeWithHospital(assetCode, hospitalId).stream()
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -93,6 +95,9 @@ public class AssetPersistenceAdapter implements AssetDatabasePort {
 
     @Override
     public Page<Asset> findByLocationIdAndHospital(Long locationId, Long hospitalId, Pageable pageable) {
+        if (hospitalId == null) {
+            return repository.findByLocationId(locationId, pageable).map(mapper::toDomain);
+        }
         return repository.findByLocationIdAndHospitalId(locationId, hospitalId, pageable).map(mapper::toDomain);
     }
 

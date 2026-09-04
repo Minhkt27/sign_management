@@ -40,7 +40,7 @@ export default function TicketListPage() {
   };
 
   const { selectedHospitalId } = useAdminStore();
-  const hospitalIdParam = selectedHospitalId === 'ALL' ? undefined : selectedHospitalId;
+  const hospitalIdParam = selectedHospitalId ?? undefined;
 
   const { data: summary } = useQuery<TicketSummary>({
     queryKey: ['tickets-summary', hospitalIdParam],

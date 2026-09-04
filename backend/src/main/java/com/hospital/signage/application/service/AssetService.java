@@ -110,8 +110,12 @@ public class AssetService implements AssetUseCase {
 
     @Override
     public Optional<Asset> getAssetByCode(String assetCode, Long hospitalId) {
-        return assetDatabasePort.findByAssetCode(assetCode)
-                .filter(asset -> hospitalId == null || hospitalId.equals(asset.getHospitalId()));
+        List<Asset> assets = assetDatabasePort.findByAssetCode(assetCode, hospitalId);
+        if (assets.isEmpty()) return Optional.empty();
+        if (assets.size() > 1) {
+            throw new IllegalArgumentException("Có nhiều biển báo có cùng mã này. Vui lòng chỉ định rõ bệnh viện.");
+        }
+        return Optional.of(assets.get(0));
     }
 
     @Override

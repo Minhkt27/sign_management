@@ -65,8 +65,8 @@ public class LocationPersistenceAdapter implements LocationDatabasePort {
     }
 
     @Override
-    public boolean existsByLocationCode(String locationCode) {
-        return repository.existsByLocationCode(locationCode);
+    public boolean existsByLocationCode(String locationCode, Long hospitalId) {
+        return repository.existsByLocationCodeAndHospitalId(locationCode, hospitalId);
     }
 
     @Override

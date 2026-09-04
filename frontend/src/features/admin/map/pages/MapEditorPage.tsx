@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { mapService } from '@/services/mapService';
 import { locationService } from '@/services/locationService';
 import { assetService } from '@/services/assetService';
+import { useAdminStore } from '@/app/store/adminStore';
 import { MapNode, NodeType } from '@/shared/types';
 import { MapCanvas, EditorTool } from '../components/MapCanvas';
 import { NodePanel } from '../components/NodePanel';
@@ -25,6 +26,8 @@ export default function MapEditorPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
+  const { selectedHospitalId } = useAdminStore();
+  const hospitalIdParam = selectedHospitalId ?? undefined;
 
   const [tool, setTool]               = useState<EditorTool>('select');
   const [pendingType, setPendingType] = useState<NodeType>('JUNCTION');
@@ -40,8 +43,8 @@ export default function MapEditorPage() {
   });
 
   const { data: locations = [] } = useQuery({
-    queryKey: ['locations'],
-    queryFn: locationService.getAllLocations,
+    queryKey: ['locations', hospitalIdParam],
+    queryFn: () => locationService.getAllLocations(hospitalIdParam),
   });
 
   const { data: assets = [] } = useQuery({
@@ -50,8 +53,8 @@ export default function MapEditorPage() {
   });
 
   const { data: allFloors = [] } = useQuery({
-    queryKey: ['mapFloors'],
-    queryFn: mapService.getAllFloors,
+    queryKey: ['mapFloors', hospitalIdParam],
+    queryFn: () => mapService.getAllFloors(hospitalIdParam),
   });
 
   const isCampusFloor = floorData?.floor.campus ?? false;
@@ -59,8 +62,8 @@ export default function MapEditorPage() {
 
   // Load campus nodes for EXIT node linking (only on non-campus floors)
   const { data: campusMapData } = useQuery({
-    queryKey: ['campusMap'],
-    queryFn: mapService.getCampusMap,
+    queryKey: ['campusMap', hospitalIdParam],
+    queryFn: () => mapService.getCampusMap(hospitalIdParam),
     enabled: !isCampusFloor,
     staleTime: 60_000,
   });
@@ -161,7 +164,7 @@ export default function MapEditorPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
-      <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-slate-200 flex-shrink-0">
+      <div className="sticky top-0 z-10 flex items-center gap-3 px-4 py-3 bg-white border-b border-slate-200 flex-shrink-0">
         <button
           onClick={() => navigate('/admin/assets/tree/map')}
           className="flex items-center gap-1.5 text-slate-500 hover:text-slate-700 text-sm"

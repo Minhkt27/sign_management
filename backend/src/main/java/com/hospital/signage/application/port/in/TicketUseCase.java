@@ -18,11 +18,11 @@ public interface TicketUseCase {
     MaintenanceTicket takeTicket(Long ticketId, Long technicianId, Long callerHospitalId);
     MaintenanceTicket updateTicketStatus(Long ticketId, TicketStatus status, String imageBefore, String imageAfter, String rejectionNote, Long technicianId, Long callerHospitalId);
     Optional<MaintenanceTicket> getTicketById(Long id, Long callerHospitalId);
-    List<MaintenanceTicket> getAllTickets();
+    List<MaintenanceTicket> getAllTickets(Long hospitalId);
     Page<MaintenanceTicket> getTicketsPage(int page, int size, Long assigneeId, UUID assetId, TicketStatus status, Priority priority, Long hospitalId);
     Map<String, Long> getTicketsSummary(Long hospitalId);
-    List<MaintenanceTicket> getTicketsByAsset(UUID assetId);
-    List<MaintenanceTicket> getTicketsByAssignee(Long assigneeId);
+    List<MaintenanceTicket> getTicketsByAsset(UUID assetId, Long hospitalId);
+    List<MaintenanceTicket> getTicketsByAssignee(Long assigneeId, Long hospitalId);
 
     record CreateTicketCommand(UUID assetId, String description, Priority priority, User reporter, TicketSource source) {
         public CreateTicketCommand {

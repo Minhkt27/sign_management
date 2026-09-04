@@ -101,32 +101,34 @@ public class MapController {
     @Operation(summary = "Tạo sơ đồ tổng thể bệnh viện")
     @PreAuthorize("hasAuthority('MAP_MANAGE')")
     @PostMapping("/campus")
-    public ResponseEntity<MapFloor> createCampusFloor(@Valid @RequestBody CampusFloorRequest req) {
+    public ResponseEntity<MapFloor> createCampusFloor(@Valid @RequestBody CampusFloorRequest req,
+            @RequestParam(required = false) Long hospitalId) {
         MapFloor floor = MapFloor.builder()
                 .imageUrl(req.imageUrl())
                 .imgWidth(req.imgWidth())
                 .imgHeight(req.imgHeight())
                 .build();
-        return ResponseEntity.ok(mapUseCase.createCampusFloor(floor));
+        return ResponseEntity.ok(mapUseCase.createCampusFloor(floor, SecurityUtils.resolveAdminHospitalId(hospitalId)));
     }
 
     @Operation(summary = "Cập nhật ảnh sơ đồ tổng thể")
     @PreAuthorize("hasAuthority('MAP_MANAGE')")
     @PutMapping("/campus")
-    public ResponseEntity<MapFloor> updateCampusFloor(@Valid @RequestBody CampusFloorRequest req) {
+    public ResponseEntity<MapFloor> updateCampusFloor(@Valid @RequestBody CampusFloorRequest req,
+            @RequestParam(required = false) Long hospitalId) {
         MapFloor floor = MapFloor.builder()
                 .imageUrl(req.imageUrl())
                 .imgWidth(req.imgWidth())
                 .imgHeight(req.imgHeight())
                 .build();
-        return ResponseEntity.ok(mapUseCase.updateCampusFloor(floor));
+        return ResponseEntity.ok(mapUseCase.updateCampusFloor(floor, SecurityUtils.resolveAdminHospitalId(hospitalId)));
     }
 
     @Operation(summary = "Xóa sơ đồ tổng thể")
     @PreAuthorize("hasAuthority('MAP_MANAGE')")
     @DeleteMapping("/campus")
-    public ResponseEntity<Void> deleteCampusFloor() {
-        mapUseCase.deleteCampusFloor();
+    public ResponseEntity<Void> deleteCampusFloor(@RequestParam(required = false) Long hospitalId) {
+        mapUseCase.deleteCampusFloor(SecurityUtils.resolveAdminHospitalId(hospitalId));
         return ResponseEntity.ok().build();
     }
 

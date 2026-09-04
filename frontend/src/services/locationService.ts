@@ -2,8 +2,12 @@ import { apiClient } from './apiClient';
 import { Location, LocationTreeNode } from '../shared/types';
 
 export const locationService = {
-  getAllLocations: async (): Promise<Location[]> => {
-    const response = await apiClient.get<Location[]>('/locations');
+  getAllLocations: async (hospitalId?: number | 'ALL' | any): Promise<Location[]> => {
+    const params = new URLSearchParams();
+    if (typeof hospitalId === 'number' || (typeof hospitalId === 'string' && hospitalId !== 'ALL' && !hospitalId.includes('[object'))) {
+      params.set('hospitalId', String(hospitalId));
+    }
+    const response = await apiClient.get<Location[]>(`/locations?${params}`);
     return response.data;
   },
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { authStore, getPermissionsFromToken, getHospitalIdFromToken, AuthUser } from '@/app/store/authStore';
 import { authService } from '@/services/authService';
@@ -18,8 +18,8 @@ interface SidebarContentProps {
   navItems: NavItem[];
   showHospitalSelector: boolean;
   hospitals: Hospital[] | undefined;
-  selectedHospitalId: number | 'ALL';
-  setSelectedHospitalId: (id: number | 'ALL') => void;
+  selectedHospitalId: number | null;
+  setSelectedHospitalId: (id: number | null) => void;
   onNavClick?: () => void;
   onChangePassword: () => void;
   onLogout: () => void;
@@ -41,11 +41,10 @@ function SidebarContent({ user, navItems, showHospitalSelector, hospitals, selec
       {showHospitalSelector && hospitals && (
         <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/80 shrink-0">
           <select
-            value={selectedHospitalId}
-            onChange={(e) => setSelectedHospitalId(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
+            value={selectedHospitalId ?? ''}
+            onChange={(e) => setSelectedHospitalId(Number(e.target.value))}
             className="w-full bg-white border border-slate-200 text-sm font-semibold text-slate-700 py-1.5 px-3 rounded-lg cursor-pointer focus:ring-2 focus:ring-blue-500 shadow-sm truncate"
           >
-            <option value="ALL">Tất cả bệnh viện</option>
             {hospitals.map(h => (
               <option key={h.id} value={h.id}>{h.name}</option>
             ))}
@@ -134,6 +133,17 @@ function AdminLayoutInner() {
     enabled: !isSuperAdmin && !!userHospitalId,
   });
 
+  // SUPER_ADMIN luôn phải thao tác trong phạm vi đúng 1 bệnh viện — không còn tùy chọn
+  // "Tất cả bệnh viện". Nếu chưa chọn, hoặc viện đã chọn trước đó không còn tồn tại,
+  // tự động chọn viện đầu tiên trong danh sách.
+  useEffect(() => {
+    if (!isSuperAdmin || !hospitals || hospitals.length === 0) return;
+    const stillValid = selectedHospitalId != null && hospitals.some(h => h.id === selectedHospitalId);
+    if (!stillValid) {
+      setSelectedHospitalId(hospitals[0].id);
+    }
+  }, [isSuperAdmin, hospitals, selectedHospitalId, setSelectedHospitalId]);
+
   const handleLogout = () => {
     authService.logout().then(() => navigate('/login'));
   };
@@ -177,11 +187,10 @@ function AdminLayoutInner() {
             <div className="max-w-0 opacity-0 overflow-hidden group-hover:max-w-[200px] group-hover:opacity-100 transition-all duration-200 group-hover:delay-150 w-full pr-3">
               <div className="ml-3 min-w-0 w-full">
                 <select
-                  value={selectedHospitalId}
-                  onChange={(e) => setSelectedHospitalId(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
+                  value={selectedHospitalId ?? ''}
+                  onChange={(e) => setSelectedHospitalId(Number(e.target.value))}
                   className="w-full bg-white border border-slate-200 text-xs font-semibold text-slate-700 py-2 px-2 rounded-lg cursor-pointer focus:ring-2 focus:ring-blue-500 shadow-sm truncate"
                 >
-                  <option value="ALL">Tất cả bệnh viện</option>
                   {hospitals.map(h => (
                     <option key={h.id} value={h.id}>{h.name}</option>
                   ))}

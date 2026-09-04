@@ -27,7 +27,7 @@ export const hospitalService = {
     return response.data;
   },
 
-  createHospital: async (hospital: Partial<Hospital>): Promise<Hospital> => {
+  createHospital: async (hospital: Omit<Partial<Hospital>, 'shortCode'> & { shortCode?: string | null }): Promise<Hospital> => {
     const response = await apiClient.post<Hospital>('/hospitals', hospital);
     return response.data;
   },

@@ -282,8 +282,10 @@ public class TicketService implements TicketUseCase {
     }
 
     @Override
-    public List<MaintenanceTicket> getAllTickets() {
-        return ticketDatabasePort.findAll();
+    public List<MaintenanceTicket> getAllTickets(Long hospitalId) {
+        return hospitalId == null 
+                ? ticketDatabasePort.findAll() 
+                : ticketDatabasePort.findByFilters(null, null, null, null, hospitalId, PageRequest.of(0, 1000)).getContent();
     }
 
     @Override
@@ -297,13 +299,13 @@ public class TicketService implements TicketUseCase {
     }
 
     @Override
-    public List<MaintenanceTicket> getTicketsByAsset(UUID assetId) {
-        return ticketDatabasePort.findByAssetId(assetId);
+    public List<MaintenanceTicket> getTicketsByAsset(UUID assetId, Long hospitalId) {
+        return ticketDatabasePort.findByFilters(null, assetId, null, null, hospitalId, PageRequest.of(0, 200)).getContent();
     }
 
     @Override
-    public List<MaintenanceTicket> getTicketsByAssignee(Long assigneeId) {
-        return ticketDatabasePort.findByFilters(assigneeId, null, null, null, null, PageRequest.of(0, 200))
+    public List<MaintenanceTicket> getTicketsByAssignee(Long assigneeId, Long hospitalId) {
+        return ticketDatabasePort.findByFilters(assigneeId, null, null, null, hospitalId, PageRequest.of(0, 200))
                 .getContent();
     }
 

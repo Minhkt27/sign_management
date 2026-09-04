@@ -46,7 +46,7 @@ export default function UserListPage() {
   });
 
   const { selectedHospitalId } = useAdminStore();
-  const hospitalIdParam = selectedHospitalId === 'ALL' ? undefined : selectedHospitalId;
+  const hospitalIdParam = selectedHospitalId ?? undefined;
 
   const { data: pagedUsers, isLoading } = useQuery({
     queryKey: ['users', page, search, hospitalIdParam],
