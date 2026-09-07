@@ -75,8 +75,18 @@ describe('Scenario 1 — bắt đầu tại Thang máy số 3, đến Phòng 120
     expect(last.sub).toBe('Phòng 120');
   });
 
+  it('không bỏ sót lượt rẽ ngay sau khi ra khỏi thang máy', () => {
+    // Trước đây bước ra khỏi thang máy tự gắn hướng rẽ (tính từ vector chéo tầng, vô nghĩa)
+    // rồi bỏ qua luôn ngã rẽ kế tiếp. Với dữ liệu này, lượt rẽ trái THẬT tại junc3
+    // (0.5,0.3 → 0.3,0.3) vì thế biến mất khỏi hướng dẫn. Giờ nó phải có mặt.
+    const idxExit = steps.findIndex(s => s.text === 'Ra khỏi thang máy');
+    const idxLeft = steps.findIndex(s => /rẽ sang trái/i.test(s.text));
+    expect(idxExit).toBeGreaterThan(0);
+    expect(idxLeft).toBe(idxExit + 1);
+  });
+
   it('số lượng bước — đủ cả đoạn đường trước ngã rẽ cuối (không bị bỏ sót)', () => {
-    expect(steps).toHaveLength(5);
+    expect(steps).toHaveLength(7);
   });
 });
 
@@ -300,5 +310,60 @@ describe('Scenario 5 — Phòng 120 → Phòng 130 (dữ liệu thật, có đo�
     expect(steps).toHaveLength(7);
     const straightSteps = steps.filter(s => s.icon === '⬆️');
     expect(straightSteps.length).toBe(2); // đoạn dài (213→214) + đoạn có landmark (214→199)
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 6: node thang máy hai tầng đặt LỆCH nhau trên hai ảnh
+//
+// Toạ độ node thuộc hệ toạ độ của ảnh từng tầng, nên hiệu (elev tầng 2 − elev
+// tầng 1) không mang ý nghĩa hình học nào. Trước khi sửa, hướng "ra khỏi thang
+// máy" được tính từ chính vector vô nghĩa đó: với cặp toạ độ dưới đây nó cho ra
+// góc 135° và sinh câu "rẽ trái", trong khi thực tế chỉ cần đi thẳng là thấy
+// phòng đích bên tay trái. Báo cáo từ người dùng: tuyến 119 → 201.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Scenario 6 — thang máy lệch toạ độ giữa 2 tầng, sau thang máy chỉ cần đi thẳng', () => {
+  const LOCS: Location[] = [
+    ...LOCATIONS,
+    { id: 40, name: 'Phòng 119', parentId: 10 },
+    { id: 41, name: 'Phòng 201', parentId: 11 },
+  ];
+
+  const room119 = mkNode({ id: 10, type: 'ROOM',     floorId: 1, x: 0.2, y: 0.4, locationId: 40 });
+  const juncA   = mkNode({ id: 11, type: 'JUNCTION', floorId: 1, x: 0.4, y: 0.4 });
+  // Thang máy tầng 1 và tầng 2 đặt lệch nhau — chuyện bình thường vì là 2 ảnh khác nhau
+  const elevF1  = mkNode({ id: 12, type: 'ELEVATOR', floorId: 1, x: 0.4, y: 0.4, label: 'Thang máy' });
+  const elevF2  = mkNode({ id: 13, type: 'ELEVATOR', floorId: 2, x: 0.5, y: 0.5, label: 'Thang máy' });
+  const juncB   = mkNode({ id: 14, type: 'JUNCTION', floorId: 2, x: 0.5, y: 0.2 });
+  const room201 = mkNode({ id: 15, type: 'ROOM',     floorId: 2, x: 0.3, y: 0.2, locationId: 41 });
+
+  const path = [room119, juncA, elevF1, elevF2, juncB, room201];
+  const allFloorData: MapFloorData[] = [
+    { floor: FLOOR_1, nodes: [room119, juncA, elevF1],   edges: [] },
+    { floor: FLOOR_2, nodes: [elevF2, juncB, room201],   edges: [] },
+  ];
+
+  const steps = buildSteps(path, allFloorData, LOCS, FLOORS);
+  const exitStep = steps.find(s => s.text.includes('Ra khỏi thang máy'))!;
+
+  it('có bước ra khỏi thang máy', () => {
+    expect(exitStep).toBeTruthy();
+  });
+
+  it('KHÔNG bịa hướng rẽ khi vừa đổi tầng', () => {
+    expect(exitStep.text).not.toContain('rẽ trái');
+    expect(exitStep.text).not.toContain('rẽ phải');
+    expect(exitStep.text).toBe('Ra khỏi thang máy');
+  });
+
+  it('sau khi ra thang máy là đi thẳng, thấy Phòng 201 bên tay trái', () => {
+    const exitIdx = steps.indexOf(exitStep);
+    const after = steps.slice(exitIdx + 1);
+    const mentionsDest = after.some(s => s.text.includes('bên tay trái'));
+    expect(mentionsDest).toBe(true);
+  });
+
+  it('kết thúc tại Phòng 201', () => {
+    expect(steps[steps.length - 1].sub).toBe('Phòng 201');
   });
 });
