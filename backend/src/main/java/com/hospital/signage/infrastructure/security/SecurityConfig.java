@@ -69,7 +69,10 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(Arrays.asList(allowedOriginsRaw.split(",")));
+        // setAllowedOrigins (khớp chính xác) chứ không phải setAllowedOriginPatterns (cho phép
+        // wildcard). Kèm allowCredentials(true), một pattern lỡ tay kiểu "https://*.vn" sẽ mở
+        // cửa cho mọi subdomain — gồm cả subdomain do người khác kiểm soát.
+        configuration.setAllowedOrigins(parseAllowedOrigins(allowedOriginsRaw));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Cache-Control", "Accept", "X-Requested-With", "ngrok-skip-browser-warning"));
         configuration.setAllowCredentials(true);
@@ -77,6 +80,30 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    /**
+     * Tách danh sách origin, bỏ khoảng trắng thừa và mục rỗng (dấu phẩy cuối chuỗi).
+     *
+     * <p>Từ chối ngay lúc khởi động nếu cấu hình có "*": kết hợp với allowCredentials(true)
+     * thì Spring cũng sẽ ném lỗi, nhưng chỉ vào lúc request đầu tiên chạm CORS — nghĩa là
+     * ứng dụng vẫn "khởi động thành công" rồi mới hỏng, khó lần ra nguyên nhân hơn nhiều.
+     */
+    private static java.util.List<String> parseAllowedOrigins(String raw) {
+        java.util.List<String> origins = Arrays.stream(raw.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+
+        if (origins.isEmpty()) {
+            throw new IllegalStateException("CORS_ALLOWED_ORIGINS không được để trống.");
+        }
+        if (origins.contains("*")) {
+            throw new IllegalStateException(
+                    "CORS_ALLOWED_ORIGINS không được chứa '*' vì API dùng allowCredentials. "
+                    + "Hãy liệt kê đúng các origin thật, ví dụ: https://signage.benhvien.vn");
+        }
+        return origins;
     }
 
     @Bean

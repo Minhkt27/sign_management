@@ -125,6 +125,15 @@ public class UserService implements UserUseCase {
             if ((permission.equals("HOSPITAL_MANAGE") || permission.equals("HOSPITAL_VIEW")) && !SecurityUtils.isSuperAdmin()) {
                 throw new org.springframework.security.access.AccessDeniedException("Chỉ Quản trị hệ thống mới có thể cấp quyền liên quan đến Quản lý Bệnh viện.");
             }
+            // Nếu không chặn ở đây thì validateRoleAssignmentAllowed() bị đi vòng: thay vì gán
+            // một vai trò có ROLE_MANAGE (đã bị chặn), người chỉ có USER_MANAGE chỉ cần cấp
+            // thẳng ROLE_MANAGE qua customPermissions — kể cả cho chính mình — rồi từ đó gán
+            // được mọi vai trò.
+            if ((permission.equals("ROLE_MANAGE") || permission.equals("USER_MANAGE"))
+                    && !callerHasAuthority("ROLE_MANAGE")) {
+                throw new org.springframework.security.access.AccessDeniedException(
+                        "Chỉ người có quyền ROLE_MANAGE mới được cấp quyền quản lý quyền/người dùng.");
+            }
         }
     }
 

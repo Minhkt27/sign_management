@@ -22,8 +22,10 @@ public class AuthController {
 
     @Operation(summary = "Đăng nhập")
     @PostMapping("/api/auth/login")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        AuthUseCase.LoginCommand command = new AuthUseCase.LoginCommand(request.username(), request.password());
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request,
+            jakarta.servlet.http.HttpServletRequest httpRequest) {
+        AuthUseCase.LoginCommand command = new AuthUseCase.LoginCommand(
+                request.username(), request.password(), resolveClientIp(httpRequest));
         AuthUseCase.LoginResult result = authUseCase.login(command);
         return ResponseEntity.ok(new LoginResponse(
                 result.token(),
@@ -56,6 +58,31 @@ public class AuthController {
             return ResponseEntity.ok(UserResponse.from(user));
         }
         return ResponseEntity.badRequest().build();
+    }
+
+    /**
+     * IP thật của client để đếm số lần đăng nhập thất bại theo IP.
+     *
+     * <p>Backend luôn đứng sau reverse proxy (Caddy → nginx → backend) nên
+     * {@code getRemoteAddr()} chỉ ra IP của proxy — mọi người dùng sẽ dùng chung một bộ đếm.
+     * Vì vậy phải đọc X-Forwarded-For / X-Real-IP, lấy IP ngoài cùng bên trái (client gốc).
+     *
+     * <p><b>Giới hạn:</b> hai header này do client gửi lên nên về nguyên tắc giả mạo được —
+     * kẻ tấn công đổi IP giả mỗi lần thử là né được bộ đếm theo IP (bộ đếm theo username vẫn
+     * chặn). Chấp nhận được vì cổng 8080 chỉ mở trên loopback ở production, mọi request đều
+     * phải đi qua proxy và proxy tự ghi đè các header này. Nếu sau này backend được expose
+     * trực tiếp thì phải chuyển sang danh sách proxy tin cậy (ForwardedHeaderFilter).
+     */
+    private static String resolveClientIp(jakarta.servlet.http.HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded != null && !forwarded.isBlank()) {
+            return forwarded.split(",")[0].trim();
+        }
+        String realIp = request.getHeader("X-Real-IP");
+        if (realIp != null && !realIp.isBlank()) {
+            return realIp.trim();
+        }
+        return request.getRemoteAddr();
     }
 
     public record LoginRequest(

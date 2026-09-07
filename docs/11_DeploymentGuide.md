@@ -61,9 +61,14 @@ Chỉnh sửa `.env` với các giá trị phù hợp:
 
 ```env
 # ===== DATABASE =====
+# Superuser: chỉ để dựng container + chạy scripts/init-db.sql
 POSTGRES_DB=srt_db
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=your_secure_db_password_here
+
+# Tài khoản backend thực sự dùng để kết nối (không phải superuser) — xem 11.7
+APP_DB_USER=signage
+APP_DB_PASSWORD=your_secure_app_db_password_here
 
 # ===== JWT =====
 JWT_SECRET=your_jwt_secret_at_least_32_characters_long
@@ -201,18 +206,30 @@ DocuSync). Extension là thứ dùng chung nên đặt ở `public`, còn bảng
 # Tạo database (bỏ qua nếu đã có)
 docker exec -i shared_postgres psql -U postgres -c "CREATE DATABASE srt_db;"
 
-# Cài extension + tạo schema + đặt search_path mặc định
-docker exec -i shared_postgres psql -U postgres -d srt_db < scripts/init-db.sql
+# Cài extension + tạo user riêng cho app + tạo schema + đặt search_path mặc định.
+# APP_DB_PASSWORD phải khớp với giá trị trong .env của repo này.
+# Lưu ý: truyền mật khẩu TRẦN, không bọc thêm nháy đơn — psql đã tự quote.
+docker exec -i shared_postgres psql -U postgres -d srt_db \
+  -v app_password="$APP_DB_PASSWORD" < scripts/init-db.sql
 ```
 
-Nội dung `scripts/init-db.sql` (idempotent, chạy lại nhiều lần không sao):
+`scripts/init-db.sql` (idempotent, chạy lại nhiều lần không sao) làm 4 việc:
 
-```sql
-CREATE EXTENSION IF NOT EXISTS unaccent WITH SCHEMA public;
-CREATE EXTENSION IF NOT EXISTS pg_trgm  WITH SCHEMA public;
-CREATE SCHEMA IF NOT EXISTS sign_management;
-ALTER DATABASE srt_db SET search_path TO sign_management, public;
-```
+1. Cài extension `unaccent` + `pg_trgm` vào schema `public`
+2. Tạo user `signage` (hoặc xoay mật khẩu nếu đã có) — **tài khoản backend dùng để kết nối**
+3. Tạo schema `sign_management` do `signage` làm chủ; nếu schema đã tồn tại từ trước thì chuyển
+   quyền sở hữu schema + toàn bộ bảng/sequence/view sang `signage`
+4. Đặt `search_path` mặc định cho database
+
+> **Vì sao backend không dùng tài khoản `postgres`:** `srt_db` dùng chung với DocuSync. Nếu
+> backend chạy bằng superuser thì một sự cố ở dự án này đọc/ghi được cả schema của dự án kia,
+> và superuser còn cho phép `COPY ... TO PROGRAM` — tức chạy lệnh trên máy chủ database.
+> DocuSync đã có user riêng ngay từ đầu; từ 2026-09 sign_management cũng vậy.
+
+**Nâng cấp một hệ thống đang chạy** (trước đây backend dùng `postgres`): chạy lại
+`init-db.sql` như trên rồi thêm `APP_DB_USER`/`APP_DB_PASSWORD` vào `.env` và
+`docker compose up -d` để backend nhận tài khoản mới. Script tự chuyển quyền sở hữu các
+bảng sẵn có nên không mất dữ liệu và không cần dừng dịch vụ lâu.
 
 Sau bước này Flyway tự chạy toàn bộ migration khi backend khởi động. Hai biến môi trường
 tương ứng đã đặt sẵn trong `docker-compose.prod.yml`, không cần khai báo lại trong `.env`:

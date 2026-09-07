@@ -64,8 +64,9 @@ public class MapService implements MapUseCase {
     }
 
     @Override
-    public Optional<MapFloor> getFloorByLocationId(Long locationId) {
-        return mapDatabasePort.findFloorByLocationId(locationId);
+    public Optional<MapFloor> getFloorByLocationId(Long locationId, Long callerHospitalId) {
+        return mapDatabasePort.findFloorByLocationId(locationId)
+                .filter(floor -> callerHospitalId == null || callerHospitalId.equals(floor.getHospitalId()));
     }
 
     @Override
@@ -255,22 +256,24 @@ public class MapService implements MapUseCase {
     }
 
     @Override
-    public Optional<MapNode> getNodeByAssetId(UUID assetId) {
+    public Optional<MapNode> getNodeByAssetId(UUID assetId, Long callerHospitalId) {
         Optional<MapNode> dedicatedNode = mapDatabasePort.findNodeByAssetId(assetId);
         if (dedicatedNode.isPresent()) {
-            return dedicatedNode;
+            return dedicatedNode.filter(node -> isNodeInHospital(node, callerHospitalId));
         }
         // Biển chưa được gắn node riêng (VD 1 trong nhiều biển cùng phòng) — dẫn tạm về node
         // của Location chứa nó, còn hơn không dẫn được gì cả.
         return assetDatabasePort.findById(assetId)
                 .map(Asset::getLocation)
                 .map(Location::getId)
-                .flatMap(mapDatabasePort::findNodeByLocationId);
+                .flatMap(mapDatabasePort::findNodeByLocationId)
+                .filter(node -> isNodeInHospital(node, callerHospitalId));
     }
 
     @Override
-    public Optional<MapNode> getNodeByLocationId(Long locationId) {
-        return mapDatabasePort.findNodeByLocationId(locationId);
+    public Optional<MapNode> getNodeByLocationId(Long locationId, Long callerHospitalId) {
+        return mapDatabasePort.findNodeByLocationId(locationId)
+                .filter(node -> isNodeInHospital(node, callerHospitalId));
     }
 
     // ── Edge ───────────────────────────────────────────────────────────────
@@ -610,11 +613,17 @@ public class MapService implements MapUseCase {
     // Bắt buộc kiểm tra ở đây vì loadFloorGraph(floorId) không tự lọc theo viện —
     // nếu thiếu bước này, người dùng viện khác vẫn tìm được đường nếu biết node ID của viện khác.
     private void assertNodeInHospital(MapNode node, Long hospitalId) {
-        if (hospitalId == null) return;
-        MapFloor floor = mapDatabasePort.findFloorById(node.getFloorId()).orElse(null);
-        if (floor == null || !hospitalId.equals(floor.getHospitalId())) {
+        if (!isNodeInHospital(node, hospitalId)) {
             throw new NoSuchElementException("Node không tồn tại: " + node.getId());
         }
+    }
+
+    // Bản không ném exception của assertNodeInHospital — dùng cho các luồng tra cứu trả về
+    // Optional.empty() (404) thay vì lỗi.
+    private boolean isNodeInHospital(MapNode node, Long hospitalId) {
+        if (hospitalId == null) return true;
+        MapFloor floor = mapDatabasePort.findFloorById(node.getFloorId()).orElse(null);
+        return floor != null && hospitalId.equals(floor.getHospitalId());
     }
 
     // hospitalId == null nghĩa là SUPER_ADMIN, không giới hạn viện nào.

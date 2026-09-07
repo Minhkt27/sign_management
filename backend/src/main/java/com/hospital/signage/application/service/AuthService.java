@@ -5,11 +5,9 @@ import com.hospital.signage.application.port.out.UserDatabasePort;
 import com.hospital.signage.domain.exception.AccountInactiveException;
 import com.hospital.signage.domain.exception.InvalidCredentialsException;
 import com.hospital.signage.domain.enums.UiMode;
-import com.hospital.signage.domain.model.Role;
 import com.hospital.signage.domain.model.User;
 import com.hospital.signage.infrastructure.security.JwtTokenProvider;
 import com.hospital.signage.infrastructure.security.LoginAttemptService;
-import com.hospital.signage.application.port.out.RoleDatabasePort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -24,18 +22,18 @@ public class AuthService implements AuthUseCase {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final LoginAttemptService loginAttemptService;
-    private final RoleDatabasePort roleDatabasePort;
+    private final UserAuthorityService userAuthorityService;
 
     @Override
     @Transactional
     public LoginResult login(LoginCommand command) {
-        if (loginAttemptService.isBlocked(command.username())) {
+        if (loginAttemptService.isBlocked(command.username(), command.clientIp())) {
             throw new IllegalStateException("Quá nhiều lần đăng nhập thất bại. Vui lòng thử lại sau 15 phút.");
         }
 
         User user = userDatabasePort.findByUsername(command.username())
                 .orElseThrow(() -> {
-                    loginAttemptService.recordFailure(command.username());
+                    loginAttemptService.recordFailure(command.username(), command.clientIp());
                     return new InvalidCredentialsException("Invalid username or password");
                 });
 
@@ -44,11 +42,11 @@ public class AuthService implements AuthUseCase {
         }
 
         if (!passwordEncoder.matches(command.password(), user.getPassword())) {
-            loginAttemptService.recordFailure(command.username());
+            loginAttemptService.recordFailure(command.username(), command.clientIp());
             throw new InvalidCredentialsException("Invalid username or password");
         }
 
-        loginAttemptService.recordSuccess(command.username());
+        loginAttemptService.recordSuccess(command.username(), command.clientIp());
 
         AuthClaims claims = buildAuthClaims(user);
         String token = jwtTokenProvider.generateToken(user.getUsername(), claims.permissions(), claims.uiMode(), user.getHospitalId());
@@ -63,6 +61,12 @@ public class AuthService implements AuthUseCase {
     @Override
     @Transactional
     public RefreshResult refreshToken(String refreshToken) {
+        // Chiều ngược lại của kiểm tra trong JwtAuthenticationFilter: access token không được
+        // dùng để xin token mới. Token cũ chưa có claim "typ" vẫn qua được (giai đoạn chuyển tiếp).
+        if (jwtTokenProvider.isAccessToken(refreshToken)) {
+            throw new InvalidCredentialsException("Invalid or expired refresh token");
+        }
+
         String username = jwtTokenProvider.extractUsername(refreshToken);
         User user = userDatabasePort.findByUsername(username)
                 .orElseThrow(() -> new InvalidCredentialsException("Invalid or expired refresh token"));
@@ -94,20 +98,12 @@ public class AuthService implements AuthUseCase {
         });
     }
 
+    // Dùng chung UserAuthorityService với JwtAuthenticationFilter: quyền ghi vào token (cho
+    // giao diện) và quyền backend thực sự kiểm tra phải được tính từ cùng một chỗ, nếu không
+    // sẽ có cảnh menu hiện ra nhưng bấm vào lại bị 403.
     private AuthClaims buildAuthClaims(User user) {
-        java.util.List<String> permissions = new java.util.ArrayList<>();
-        UiMode uiMode = UiMode.ADMIN;
-        if (user.getRoleId() != null) {
-            Role role = roleDatabasePort.findById(user.getRoleId()).orElse(null);
-            if (role != null) {
-                if (role.getPermissions() != null) permissions.addAll(role.getPermissions());
-                if (role.getUiMode() != null) uiMode = role.getUiMode();
-            }
-        }
-        if (user.getCustomPermissions() != null) {
-            permissions.addAll(user.getCustomPermissions());
-        }
-        return new AuthClaims(permissions, uiMode.name());
+        UiMode uiMode = userAuthorityService.resolveUiMode(user);
+        return new AuthClaims(userAuthorityService.resolvePermissions(user), uiMode.name());
     }
 
     private record AuthClaims(java.util.List<String> permissions, String uiMode) {
