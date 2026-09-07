@@ -7,6 +7,7 @@ import com.hospital.signage.application.port.out.RoleDatabasePort;
 import com.hospital.signage.application.port.out.UserDatabasePort;
 import com.hospital.signage.domain.enums.*;
 import com.hospital.signage.domain.model.*;
+import com.hospital.signage.infrastructure.security.HospitalContext;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -30,6 +31,7 @@ public class DataInitializer implements CommandLineRunner {
     private final String techInitialPassword;
     private final String superadminInitialPassword;
     private final boolean seedDemoData;
+    private final org.springframework.transaction.support.TransactionTemplate transactionTemplate;
 
     public DataInitializer(
             UserDatabasePort userDatabasePort,
@@ -38,10 +40,12 @@ public class DataInitializer implements CommandLineRunner {
             AssetUseCase assetUseCase,
             TicketUseCase ticketUseCase,
             PasswordEncoder passwordEncoder,
+            org.springframework.transaction.PlatformTransactionManager transactionManager,
             @Value("${app.admin-initial-password}") String adminInitialPassword,
             @Value("${app.tech-initial-password}") String techInitialPassword,
             @Value("${app.superadmin-initial-password}") String superadminInitialPassword,
             @Value("${app.seed-demo-data:false}") boolean seedDemoData) {
+        this.transactionTemplate = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
         this.userDatabasePort = userDatabasePort;
         this.roleDatabasePort = roleDatabasePort;
         this.locationUseCase = locationUseCase;
@@ -55,8 +59,24 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     @Override
-    @Transactional
     public void run(String... args) throws Exception {
+        // Seed chạy lúc khởi động, ngoài phạm vi mọi request, nên không có bệnh viện nào để
+        // suy ra. Không khai báo tường minh thì RLS (V22) mặc định fail-closed và mọi lệnh
+        // ghi bên dưới sẽ bị chặn.
+        //
+        // Thứ tự ở đây là điều bắt buộc, không phải chuyện phong cách: biến phiên
+        // app.hospital_id được nạp vào lúc LẤY kết nối, nên context phải được đặt TRƯỚC khi
+        // transaction mở. Để @Transactional ngay trên run() thì transaction (và kết nối của
+        // nó) đã hình thành trước khi runAsSystem kịp chạy — kết nối mang giá trị rỗng và
+        // RLS chặn sạch. Vì vậy phải mở transaction bằng tay, bên trong runAsSystem.
+        HospitalContext.runAsSystem(() ->
+                transactionTemplate.execute(status -> {
+                    seedAll();
+                    return null;
+                }));
+    }
+
+    private void seedAll() {
         // Seeded on its own, not under the guard below: SUPER_ADMIN cannot be created
         // through the UI (UserService rejects the role), so an existing database that
         // predates the role would otherwise have no way to ever get the account.

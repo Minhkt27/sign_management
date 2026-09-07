@@ -39,4 +39,23 @@ public abstract class AbstractIntegrationTest {
         registry.add("app.tech-initial-password", () -> "TechTest#2024");
         registry.add("app.superadmin-initial-password", () -> "SuperAdminTest#2024");
     }
+
+    /**
+     * Integration test gọi thẳng repository, không đi qua {@code HospitalContextFilter}, nên
+     * không có gì khai báo bệnh viện cho kết nối. RLS (migration V22) mặc định fail-closed:
+     * thiếu bước này thì mọi truy vấn trả rỗng và mọi lệnh ghi bị chặn — test đỏ hàng loạt
+     * mà nguyên nhân trông chẳng liên quan gì tới thứ đang được kiểm tra.
+     *
+     * <p>Chạy với quyền hệ thống để test tự dựng dữ liệu của nhiều bệnh viện rồi tự khẳng
+     * định phần cách ly ở tầng ứng dụng, đúng như trước khi có RLS.
+     */
+    @org.junit.jupiter.api.BeforeEach
+    void grantSystemHospitalContext() {
+        com.hospital.signage.infrastructure.security.HospitalContext.setSystem();
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void clearHospitalContext() {
+        com.hospital.signage.infrastructure.security.HospitalContext.clear();
+    }
 }
