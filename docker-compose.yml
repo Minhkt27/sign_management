@@ -12,7 +12,9 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      # Bind loopback: chỉ máy đang chạy compose mới vào được, không mở ra cả LAN.
+      # Dev vẫn kết nối bình thường qua localhost:5432 (DBeaver, psql...).
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 10s
@@ -33,8 +35,8 @@ services:
     volumes:
       - minio_data:/data
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s
@@ -59,8 +61,10 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-srt_db}?currentSchema=sign_management,public
       FLYWAY_DEFAULT_SCHEMA: ${FLYWAY_DEFAULT_SCHEMA:-sign_management}
       SPRING_FLYWAY_SCHEMAS: ${SPRING_FLYWAY_SCHEMAS:-sign_management,public}
-      DB_USERNAME: ${POSTGRES_USER:-postgres}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      # Tài khoản RIÊNG của ứng dụng, không phải superuser "postgres" — xem scripts/init-db.sql.
+      # Database dùng chung với DocuSync nên backend chỉ được sở hữu đúng schema của mình.
+      DB_USERNAME: ${APP_DB_USER:-signage}
+      DB_PASSWORD: ${APP_DB_PASSWORD:?APP_DB_PASSWORD is required}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-3600000}
       JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-604800000}
@@ -76,6 +80,9 @@ services:
       TECH_INITIAL_PASSWORD: ${TECH_INITIAL_PASSWORD:?TECH_INITIAL_PASSWORD is required}
       SUPERADMIN_INITIAL_PASSWORD: ${SUPERADMIN_INITIAL_PASSWORD:?SUPERADMIN_INITIAL_PASSWORD is required}
     ports:
+      # CỐ Ý để 0.0.0.0 (khác với postgres/minio đã bind loopback): luồng QR/wayfinding phải
+      # test được bằng điện thoại thật trong cùng mạng LAN. Trên production thì
+      # docker-compose.prod.yml đã ép cổng này về 127.0.0.1, chỉ Caddy vào được.
       - "8080:8080"
 
   frontend:
@@ -86,6 +93,7 @@ services:
     depends_on:
       - backend
     ports:
+      # Cũng cố ý mở ra LAN cho việc test QR bằng điện thoại — xem chú thích ở service backend.
       - "3000:80"
 
   # Chỉ dùng cho dev cục bộ (sao lưu Postgres cục bộ ở trên) — bật cùng profile "dev".
