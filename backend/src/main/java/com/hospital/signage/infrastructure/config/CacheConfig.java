@@ -19,6 +19,14 @@ public class CacheConfig {
                         .expireAfterWrite(5, TimeUnit.MINUTES)
                         .maximumSize(500)
                         .build());
+        // Vai trò được đọc ở MỌI request đã đăng nhập (để tính quyền hiệu lực), nên bắt buộc
+        // phải cache. TTL 5 phút giống cache users: đó cũng là độ trễ tối đa của việc hạ quyền
+        // khi cache không kịp bị evict (VD sửa vai trò trực tiếp dưới database).
+        manager.registerCustomCache("roles",
+                Caffeine.newBuilder()
+                        .expireAfterWrite(5, TimeUnit.MINUTES)
+                        .maximumSize(200)
+                        .build());
         manager.registerCustomCache("mapGraph",
                 Caffeine.newBuilder()
                         .maximumSize(200)

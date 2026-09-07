@@ -14,7 +14,7 @@ public interface MapUseCase {
     MapFloor createFloor(MapFloor floor);
     MapFloor updateFloor(Long id, MapFloor floor, Long callerHospitalId);
     Optional<MapFloor> getFloorById(Long id);
-    Optional<MapFloor> getFloorByLocationId(Long locationId);
+    Optional<MapFloor> getFloorByLocationId(Long locationId, Long callerHospitalId);
     List<MapFloor> getAllFloors(Long hospitalId);
     void deleteFloor(Long id, Long callerHospitalId);
     MapFloorData getFloorData(Long floorId, Long callerHospitalId);
@@ -30,8 +30,8 @@ public interface MapUseCase {
     MapNode createNode(MapNode node, Long callerHospitalId);
     MapNode updateNode(Long id, MapNode node, Long callerHospitalId);
     void deleteNode(Long id, Long callerHospitalId);
-    Optional<MapNode> getNodeByAssetId(UUID assetId);
-    Optional<MapNode> getNodeByLocationId(Long locationId);
+    Optional<MapNode> getNodeByAssetId(UUID assetId, Long callerHospitalId);
+    Optional<MapNode> getNodeByLocationId(Long locationId, Long callerHospitalId);
 
     // Edge
     MapEdge createEdge(Long nodeFromId, Long nodeToId);

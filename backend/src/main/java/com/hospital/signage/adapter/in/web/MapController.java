@@ -37,21 +37,25 @@ public class MapController {
 
     @Operation(summary = "Sơ đồ tầng theo ID (kèm nodes + edges)")
     @GetMapping("/floors/{id}")
-    public ResponseEntity<MapFloorData> getFloorData(@PathVariable Long id) {
-        return ResponseEntity.ok(mapUseCase.getFloorData(id, SecurityUtils.getCurrentHospitalId()));
+    public ResponseEntity<MapFloorData> getFloorData(@PathVariable Long id,
+            @RequestParam(required = false) Long hospitalId) {
+        return ResponseEntity.ok(mapUseCase.getFloorData(id, SecurityUtils.resolveHospitalId(hospitalId)));
     }
 
     @Operation(summary = "Lấy nhiều sơ đồ tầng theo danh sách ID (batch)")
     @GetMapping("/floors/batch")
-    public ResponseEntity<List<MapFloorData>> getFloorDataBatch(@RequestParam List<Long> ids) {
-        return ResponseEntity.ok(mapUseCase.getFloorDataBatch(ids, SecurityUtils.getCurrentHospitalId()));
+    public ResponseEntity<List<MapFloorData>> getFloorDataBatch(@RequestParam List<Long> ids,
+            @RequestParam(required = false) Long hospitalId) {
+        return ResponseEntity.ok(mapUseCase.getFloorDataBatch(ids, SecurityUtils.resolveHospitalId(hospitalId)));
     }
 
     @Operation(summary = "Sơ đồ tầng theo locationId")
     @GetMapping("/floors/by-location/{locationId}")
-    public ResponseEntity<MapFloorData> getFloorByLocation(@PathVariable Long locationId) {
-        return mapUseCase.getFloorByLocationId(locationId)
-                .map(f -> ResponseEntity.ok(mapUseCase.getFloorData(f.getId(), SecurityUtils.getCurrentHospitalId())))
+    public ResponseEntity<MapFloorData> getFloorByLocation(@PathVariable Long locationId,
+            @RequestParam(required = false) Long hospitalId) {
+        Long callerHospitalId = SecurityUtils.resolveHospitalId(hospitalId);
+        return mapUseCase.getFloorByLocationId(locationId, callerHospitalId)
+                .map(f -> ResponseEntity.ok(mapUseCase.getFloorData(f.getId(), callerHospitalId)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -177,16 +181,18 @@ public class MapController {
 
     @Operation(summary = "Lấy node theo assetId (ADMIN/TECHNICAL)")
     @GetMapping("/nodes/by-asset/{assetId}")
-    public ResponseEntity<MapNode> getNodeByAsset(@PathVariable UUID assetId) {
-        return mapUseCase.getNodeByAssetId(assetId)
+    public ResponseEntity<MapNode> getNodeByAsset(@PathVariable UUID assetId,
+            @RequestParam(required = false) Long hospitalId) {
+        return mapUseCase.getNodeByAssetId(assetId, SecurityUtils.resolveHospitalId(hospitalId))
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @Operation(summary = "Lấy node theo locationId (public)")
     @GetMapping("/nodes/by-location/{locationId}")
-    public ResponseEntity<MapNode> getNodeByLocation(@PathVariable Long locationId) {
-        return mapUseCase.getNodeByLocationId(locationId)
+    public ResponseEntity<MapNode> getNodeByLocation(@PathVariable Long locationId,
+            @RequestParam(required = false) Long hospitalId) {
+        return mapUseCase.getNodeByLocationId(locationId, SecurityUtils.resolveHospitalId(hospitalId))
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -235,11 +241,13 @@ public class MapController {
     public ResponseEntity<List<MapNode>> findPathToAsset(
             @RequestParam Long from,
             @RequestParam UUID assetId,
-            @RequestParam(defaultValue = "false") boolean avoidStairs) {
-        MapNode target = mapUseCase.getNodeByAssetId(assetId)
+            @RequestParam(defaultValue = "false") boolean avoidStairs,
+            @RequestParam(required = false) Long hospitalId) {
+        Long callerHospitalId = SecurityUtils.resolveHospitalId(hospitalId);
+        MapNode target = mapUseCase.getNodeByAssetId(assetId, callerHospitalId)
                 .orElse(null);
         if (target == null) return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(mapUseCase.findPath(from, target.getId(), avoidStairs, SecurityUtils.getCurrentHospitalId()));
+        return ResponseEntity.ok(mapUseCase.findPath(from, target.getId(), avoidStairs, callerHospitalId));
     }
 
     // ── Request records ────────────────────────────────────────────────────

@@ -17,6 +17,7 @@ import java.util.List;
 public class RoleService implements RoleUseCase {
 
     private final RoleDatabasePort roleDatabasePort;
+    private final UserAuthorityService.RoleCacheService roleCacheService;
 
     @Override
     public List<Role> getAllRoles() {
@@ -71,7 +72,11 @@ public class RoleService implements RoleUseCase {
         role.setUiMode(command.uiMode() != null ? command.uiMode() : UiMode.ADMIN);
         validatePermissions(command.permissions());
         role.setPermissions(command.permissions() != null ? command.permissions() : List.of());
-        return roleDatabasePort.save(role);
+        Role saved = roleDatabasePort.save(role);
+        // Quyền hiệu lực của mọi tài khoản mang vai trò này vừa đổi — xoá cache ngay thay vì
+        // đợi TTL, để việc thu hồi quyền có tác dụng tức thì.
+        roleCacheService.evict(role.getId());
+        return saved;
     }
 
     private void validatePermissions(List<String> permissions) {
@@ -98,5 +103,6 @@ public class RoleService implements RoleUseCase {
             throw new org.springframework.security.access.AccessDeniedException("Chỉ Quản trị hệ thống mới được phép xóa nhóm quyền Quản trị hệ thống.");
         }
         roleDatabasePort.deleteById(id);
+        roleCacheService.evict(id);
     }
 }

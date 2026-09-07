@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -17,7 +18,22 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class FileUploadService implements FileUploadUseCase {
 
-    private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png", "gif", "webp", "svg");
+    // SVG cố tình KHÔNG nằm trong danh sách: nó là XML, có thể nhúng <script>, và bucket
+    // ảnh được phục vụ cùng origin với ứng dụng (nginx proxy /signage-assets/ → MinIO).
+    // Một file .svg độc hại mở thẳng bằng URL sẽ chạy script trên chính domain của app và
+    // đọc được token trong localStorage. Muốn hỗ trợ lại SVG thì phải sanitize trước khi lưu.
+    private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png", "gif", "webp");
+
+    // Đuôi file phải khớp với định dạng thật dò được từ magic byte. Thiếu bước này thì chỉ
+    // cần đặt tên "x.png" cho một file nội dung SVG là qua được whitelist đuôi, rồi lại được
+    // lưu với Content-Type image/svg+xml — trình duyệt xử theo Content-Type, không theo đuôi.
+    private static final Map<String, String> EXTENSION_MIME = Map.of(
+            "jpg", "image/jpeg",
+            "jpeg", "image/jpeg",
+            "png", "image/png",
+            "gif", "image/gif",
+            "webp", "image/webp");
+
     private static final long MAX_SIZE_ASSET    = 5L  * 1024 * 1024;  // 5MB  — ảnh tài sản/công việc
     private static final long MAX_SIZE_FLOOR_MAP = 20L * 1024 * 1024; // 20MB — ảnh sơ đồ tầng
 
@@ -47,6 +63,9 @@ public class FileUploadService implements FileUploadUseCase {
             if (detectedMime == null) {
                 throw new IllegalArgumentException("Nội dung file không hợp lệ");
             }
+            if (!detectedMime.equals(EXTENSION_MIME.get(ext))) {
+                throw new IllegalArgumentException("Phần mở rộng của file không khớp với nội dung thật của file");
+            }
             String filename = UUID.randomUUID() + "." + ext;
             return fileStoragePort.store(filename, new java.io.ByteArrayInputStream(bytes), bytes.length, detectedMime);
         } catch (IOException e) {
@@ -73,16 +92,6 @@ public class FileUploadService implements FileUploadUseCase {
                 && h[0] == 'R' && h[1] == 'I' && h[2] == 'F' && h[3] == 'F'
                 && h[8] == 'W' && h[9] == 'E' && h[10] == 'B' && h[11] == 'P')
             return "image/webp";
-        if (looksLikeSvg(h))
-            return "image/svg+xml";
         return null;
-    }
-
-    // SVG là text/XML, không có magic byte nhị phân cố định như các định dạng ảnh khác —
-    // kiểm tra thẻ <svg> xuất hiện gần đầu file (bỏ qua khai báo <?xml ...?>/DOCTYPE phía trước).
-    private static boolean looksLikeSvg(byte[] h) {
-        int len = Math.min(h.length, 1024);
-        String prefix = new String(h, 0, len, java.nio.charset.StandardCharsets.UTF_8);
-        return prefix.toLowerCase(java.util.Locale.ROOT).contains("<svg");
     }
 }

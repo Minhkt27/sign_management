@@ -44,8 +44,9 @@ public class SignTypeController {
 
     @Operation(summary = "Chi tiết loại biển theo ID")
     @GetMapping("/{id}")
-    public ResponseEntity<SignType> getSignTypeById(@PathVariable Long id) {
-        return signTypeUseCase.getSignTypeById(id, SecurityUtils.getCurrentHospitalId())
+    public ResponseEntity<SignType> getSignTypeById(@PathVariable Long id,
+            @RequestParam(required = false) Long hospitalId) {
+        return signTypeUseCase.getSignTypeById(id, SecurityUtils.resolveHospitalId(hospitalId))
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
