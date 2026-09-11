@@ -28,4 +28,6 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
                         "unaccent(username) ILIKE unaccent('%' || :search || '%') OR unaccent(full_name) ILIKE unaccent('%' || :search || '%'))",
            nativeQuery = true)
     Page<UserEntity> search(@Param("search") String search, @Param("hospitalId") Long hospitalId, Pageable pageable);
+
+    long countByHospitalId(Long hospitalId);
 }

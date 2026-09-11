@@ -9,6 +9,14 @@ export interface PagedResponse<T> {
   size: number;
 }
 
+/**
+ * Số biển hiệu tối đa mà `/assets/all` trả về — phải khớp với MAX_TREE_ASSETS ở
+ * AssetPersistenceAdapter phía backend. Nhận đúng bằng con số này nghĩa là danh sách đã bị
+ * cắt và còn dữ liệu nằm ngoài, nên nơi dùng phải báo cho người dùng biết thay vì lặng lẽ
+ * hiển thị thiếu.
+ */
+export const MAX_TREE_ASSETS = 1000;
+
 export const assetService = {
   getAllAssets: async (): Promise<Asset[]> => {
     const response = await apiClient.get<Asset[]>('/assets/all');

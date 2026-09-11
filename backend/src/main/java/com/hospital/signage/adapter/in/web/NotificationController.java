@@ -23,7 +23,7 @@ public class NotificationController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         Long userId = SecurityUtils.getCurrentUserId();
-        var result = notificationUseCase.getUnreadNotifications(userId, Math.max(0, page), Math.min(Math.max(1, size), 100));
+        var result = notificationUseCase.getNotifications(userId, Math.max(0, page), Math.min(Math.max(1, size), 100));
         return ResponseEntity.ok(PagedResponse.from(result));
     }
 

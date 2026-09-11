@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient, useQueries } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { locationService } from '@/services/locationService';
-import { assetService } from '@/services/assetService';
+import { assetService, MAX_TREE_ASSETS } from '@/services/assetService';
 import { signTypeService } from '@/services/signTypeService';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
 import { getApiError } from '@/shared/helpers/apiError';
@@ -70,6 +70,11 @@ export default function AssetTreePage() {
     queryFn: assetService.getAllAssets,
     enabled: !!searchTerm.trim(),
   });
+
+  // Backend cắt danh sách này ở MAX_TREE_ASSETS bản ghi. Chạm đúng trần gần như chắc chắn
+  // nghĩa là còn biển hiệu bị bỏ lại ngoài, và khi đó kết quả tìm kiếm thiếu — phải nói ra
+  // thay vì để người dùng tin rằng không tìm thấy nghĩa là không tồn tại.
+  const isSearchResultTruncated = !!searchTerm.trim() && searchAssets.length >= MAX_TREE_ASSETS;
 
   // Lazy load assets theo từng location đang được expand
   const expandedNodeIds = Object.keys(expandedNodes)
@@ -448,14 +453,25 @@ export default function AssetTreePage() {
       </div>
 
       {/* Search Bar */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
-        <Input
-          placeholder="Tìm nhanh biển hiệu (mã, mô tả, chất liệu...) hoặc vị trí..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-11 pr-4 py-3 text-base text-slate-800 placeholder:text-slate-400 border-slate-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl"
-        />
+      <div className="max-w-md space-y-2">
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
+          <Input
+            placeholder="Tìm nhanh biển hiệu (mã, mô tả, chất liệu...) hoặc vị trí..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-11 pr-4 py-3 text-base text-slate-800 placeholder:text-slate-400 border-slate-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl"
+          />
+        </div>
+        {isSearchResultTruncated && (
+          <p className="flex items-start gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            <span aria-hidden="true">!</span>
+            <span>
+              Danh sách biển hiệu dùng cho tìm kiếm ở trang này bị giới hạn ở {MAX_TREE_ASSETS.toLocaleString('vi-VN')} biển,
+              nên kết quả có thể chưa đầy đủ. Dùng trang <strong>Danh sách biển hiệu</strong> để tìm trên toàn bộ dữ liệu.
+            </span>
+          </p>
+        )}
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 items-start">

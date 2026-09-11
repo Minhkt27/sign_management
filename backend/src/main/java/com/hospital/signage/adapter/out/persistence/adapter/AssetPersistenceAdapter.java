@@ -120,4 +120,9 @@ public class AssetPersistenceAdapter implements AssetDatabasePort {
     public void deleteById(UUID id) {
         repository.deleteById(id);
     }
+
+    @Override
+    public long countByHospital(Long hospitalId) {
+        return repository.countByHospitalId(hospitalId);
+    }
 }

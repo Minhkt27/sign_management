@@ -78,4 +78,9 @@ public class LocationPersistenceAdapter implements LocationDatabasePort {
     public void deleteById(Long id) {
         repository.deleteById(id);
     }
+
+    @Override
+    public long countByHospital(Long hospitalId) {
+        return repository.countByHospitalId(hospitalId);
+    }
 }

@@ -1,7 +1,10 @@
 package com.hospital.signage.application.service;
 
 import com.hospital.signage.application.port.in.HospitalUseCase;
+import com.hospital.signage.application.port.out.AssetDatabasePort;
 import com.hospital.signage.application.port.out.HospitalDatabasePort;
+import com.hospital.signage.application.port.out.LocationDatabasePort;
+import com.hospital.signage.application.port.out.UserDatabasePort;
 import com.hospital.signage.domain.model.Hospital;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -10,6 +13,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,6 +26,9 @@ public class HospitalService implements HospitalUseCase {
     private static final long DEFAULT_HOSPITAL_ID = 1L;
 
     private final HospitalDatabasePort hospitalDatabasePort;
+    private final UserDatabasePort userDatabasePort;
+    private final LocationDatabasePort locationDatabasePort;
+    private final AssetDatabasePort assetDatabasePort;
 
     @Override
     @Transactional
@@ -132,6 +139,24 @@ public class HospitalService implements HospitalUseCase {
             throw new IllegalArgumentException("Không thể xóa bệnh viện mặc định.");
         }
 
+        // Khoá ngoại dưới database vẫn chặn được, nhưng người dùng chỉ nhận một câu chung
+        // chung về "liên kết dữ liệu" mà không biết phải dọn cái gì. Đếm trước và nói rõ —
+        // giống cách LocationService và AssetService đang báo khi từ chối xoá.
+        List<String> blockers = new ArrayList<>();
+        long users = userDatabasePort.countByHospital(id);
+        long locations = locationDatabasePort.countByHospital(id);
+        long assets = assetDatabasePort.countByHospital(id);
+        if (users > 0) blockers.add(users + " tài khoản");
+        if (locations > 0) blockers.add(locations + " vị trí");
+        if (assets > 0) blockers.add(assets + " biển báo");
+
+        if (!blockers.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Không thể xóa bệnh viện này vì vẫn còn " + String.join(", ", blockers)
+                    + ". Vui lòng chuyển hoặc xóa các dữ liệu đó trước.");
+        }
+
         hospitalDatabasePort.deleteById(id);
+        log.warn("Hospital {} deleted", id);
     }
 }
