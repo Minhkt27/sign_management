@@ -15,6 +15,7 @@ import { CreateUserDialog } from '../components/CreateUserDialog';
 import { EditUserDialog } from '../components/EditUserDialog';
 import { EditUserRoleDialog } from '../components/EditUserRoleDialog';
 import ChangePasswordModal from '@/components/ChangePasswordModal';
+import TemporaryPasswordDialog from '../components/TemporaryPasswordDialog';
 import { roleService } from '../services/roleService';
 
 const PAGE_SIZE = 10;
@@ -32,6 +33,8 @@ export default function UserListPage() {
   const [search, setSearch] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
+  const [resetTargetUsername, setResetTargetUsername] = useState('');
   const [createError, setCreateError] = useState('');
 
   const [selectedUserForRole, setSelectedUserForRole] = useState<User | null>(null);
@@ -96,7 +99,7 @@ export default function UserListPage() {
 
   const resetPasswordMutation = useMutation({
     mutationFn: (id: number) => userService.resetPassword(id),
-    onSuccess: (temporaryPassword) => alert(`Mật khẩu tạm thời: ${temporaryPassword}`),
+    onSuccess: (temporaryPassword) => setTemporaryPassword(temporaryPassword),
     onError: () => alert('Reset mật khẩu thất bại.'),
   });
 
@@ -115,6 +118,7 @@ export default function UserListPage() {
 
   const handleResetPassword = (user: User) => {
     if (window.confirm(`Tạo mật khẩu tạm thời mới cho tài khoản "${user.username}"?`)) {
+      setResetTargetUsername(user.username);
       resetPasswordMutation.mutate(user.id);
     }
   };
@@ -207,6 +211,12 @@ export default function UserListPage() {
       />
 
       <ChangePasswordModal open={isChangePasswordOpen} onClose={() => setIsChangePasswordOpen(false)} />
+
+      <TemporaryPasswordDialog
+        password={temporaryPassword}
+        username={resetTargetUsername}
+        onClose={() => setTemporaryPassword(null)}
+      />
     </div>
   );
 }

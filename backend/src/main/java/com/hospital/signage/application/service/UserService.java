@@ -74,6 +74,9 @@ public class UserService implements UserUseCase {
                 .phone(command.phone())
                 .customPermissions(command.customPermissions() != null ? command.customPermissions() : List.of())
                 .isActive(true)
+                // Mật khẩu ban đầu do quản trị viên đặt nên quản trị viên biết nó. Buộc đổi ở
+                // lần đăng nhập đầu để mật khẩu trở về đúng nghĩa: chỉ chủ tài khoản biết.
+                .mustChangePassword(true)
                 .build();
         User saved = userDatabasePort.save(user);
         log.info("User account '{}' created with id {}", saved.getUsername(), saved.getId());
@@ -199,6 +202,9 @@ public class UserService implements UserUseCase {
         }
         String temporaryPassword = generateTemporaryPassword();
         user.setPassword(passwordEncoder.encode(temporaryPassword));
+        // Mật khẩu tạm đi qua tay quản trị viên (đọc qua điện thoại, nhắn tin, ghi giấy) nên
+        // phải là thứ dùng đúng một lần rồi bỏ, không được trở thành mật khẩu lâu dài.
+        user.setMustChangePassword(true);
         user.setRefreshToken(null);
         userDatabasePort.save(user);
         userCacheService.evict(user.getUsername());
@@ -253,7 +259,12 @@ public class UserService implements UserUseCase {
         if (!passwordEncoder.matches(command.currentPassword(), user.getPassword())) {
             throw new IllegalArgumentException("Mật khẩu hiện tại không đúng");
         }
+        if (passwordEncoder.matches(command.newPassword(), user.getPassword())) {
+            throw new IllegalArgumentException("Mật khẩu mới phải khác mật khẩu hiện tại.");
+        }
         user.setPassword(passwordEncoder.encode(command.newPassword()));
+        // Người dùng đã tự đặt mật khẩu của mình — không còn ai khác biết nó nữa.
+        user.setMustChangePassword(false);
         userDatabasePort.save(user);
         userCacheService.evict(user.getUsername());
     }

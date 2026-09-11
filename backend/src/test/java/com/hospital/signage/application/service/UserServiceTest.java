@@ -198,6 +198,60 @@ class UserServiceTest {
         org.springframework.security.core.context.SecurityContextHolder.clearContext();
     }
 
+    // ── Buộc đổi mật khẩu tạm ──────────────────────────────────────────────
+
+    @Test
+    void resetPassword_batNguoiDungPhaiDoiMatKhau() {
+        when(userDatabasePort.findById(2L)).thenReturn(Optional.of(existingUser));
+        when(roleDatabasePort.findById(2L)).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(any())).thenReturn("hashed_temp");
+        when(userDatabasePort.save(any())).thenReturn(existingUser);
+
+        String temp = userService.resetPassword(2L);
+
+        assertThat(temp).isNotBlank();
+        assertThat(existingUser.getMustChangePassword())
+                .as("mật khẩu tạm đi qua tay quản trị viên nên không được dùng lâu dài")
+                .isTrue();
+    }
+
+    @Test
+    void createUser_taiKhoanMoiPhaiDoiMatKhauLanDau() {
+        when(userDatabasePort.findByUsername("tech1")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode("pass")).thenReturn("hashed");
+        when(userDatabasePort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        User created = userService.createUser(
+                new UserUseCase.CreateUserCommand("tech1", "Nguyễn Văn A", "pass", 2L, null, java.util.List.of(), null));
+
+        assertThat(created.getMustChangePassword()).isTrue();
+    }
+
+    @Test
+    void changePassword_tatCoBuocDoiMatKhau() {
+        existingUser.setMustChangePassword(true);
+        when(userDatabasePort.findById(2L)).thenReturn(Optional.of(existingUser));
+        when(passwordEncoder.matches("oldPass", "hashed")).thenReturn(true);
+        when(passwordEncoder.matches("newPass", "hashed")).thenReturn(false);
+        when(passwordEncoder.encode("newPass")).thenReturn("new_hashed");
+        when(userDatabasePort.save(any())).thenReturn(existingUser);
+
+        userService.changePassword(new UserUseCase.ChangePasswordCommand(2L, "oldPass", "newPass"));
+
+        assertThat(existingUser.getMustChangePassword()).isFalse();
+    }
+
+    @Test
+    void changePassword_matKhauMoiTrungMatKhauCu_biTuChoi() {
+        when(userDatabasePort.findById(2L)).thenReturn(Optional.of(existingUser));
+        when(passwordEncoder.matches("samePass", "hashed")).thenReturn(true);
+
+        assertThatThrownBy(() -> userService.changePassword(
+                new UserUseCase.ChangePasswordCommand(2L, "samePass", "samePass")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("khác mật khẩu hiện tại");
+    }
+
     @Test
     void changePassword_withWrongCurrentPassword_throwsIllegalArgument() {
         when(userDatabasePort.findById(2L)).thenReturn(Optional.of(existingUser));

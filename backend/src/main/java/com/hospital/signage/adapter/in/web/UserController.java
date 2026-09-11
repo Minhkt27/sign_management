@@ -138,13 +138,15 @@ public class UserController {
     ) {}
     public record ResetPasswordResponse(String temporaryPassword) {}
 
-    public record UserResponse(Long id, String username, String fullName, Long roleId, boolean isActive, String phone, java.util.List<String> customPermissions, Long hospitalId) {
+    public record UserResponse(Long id, String username, String fullName, Long roleId, boolean isActive, String phone,
+            java.util.List<String> customPermissions, Long hospitalId, boolean mustChangePassword) {
         static UserResponse from(User u) {
             return new UserResponse(u.getId(), u.getUsername(), u.getFullName(), u.getRoleId(),
                     Boolean.TRUE.equals(u.getIsActive()),
                     u.getPhone(),
                     u.getCustomPermissions() != null ? u.getCustomPermissions() : java.util.List.of(),
-                    u.getHospitalId());
+                    u.getHospitalId(),
+                    Boolean.TRUE.equals(u.getMustChangePassword()));
         }
     }
 }
