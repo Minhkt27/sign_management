@@ -21,4 +21,7 @@ public interface TicketDatabasePort {
     boolean existsByAssetId(UUID assetId);
     Map<String, Long> countByStatus(Long hospitalId);
     boolean existsOpenTicketForUser(Long userId);
+
+    /** Các phiếu chưa đóng của một biển báo, cũ nhất trước. Dùng để chặn báo hỏng trùng. */
+    List<MaintenanceTicket> findOpenTicketsForAsset(UUID assetId);
 }

@@ -73,6 +73,13 @@ public class TicketPersistenceAdapter implements TicketDatabasePort {
     }
 
     @Override
+    public List<MaintenanceTicket> findOpenTicketsForAsset(UUID assetId) {
+        return repository.findOpenTicketsForAsset(assetId).stream()
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public Map<String, Long> countByStatus(Long hospitalId) {
         return repository.countByStatus(hospitalId).stream()
                 .collect(Collectors.toMap(

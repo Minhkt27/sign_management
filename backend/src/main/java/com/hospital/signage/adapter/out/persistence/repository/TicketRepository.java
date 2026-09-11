@@ -63,4 +63,10 @@ public interface TicketRepository extends JpaRepository<MaintenanceTicketEntity,
            "WHERE (t.reporter.id = :userId OR t.assignee.id = :userId) " +
            "AND t.ticketStatus <> com.hospital.signage.domain.enums.TicketStatus.CLOSED")
     boolean existsOpenTicketForUser(@Param("userId") Long userId);
+
+    @Query("SELECT t FROM MaintenanceTicketEntity t " +
+           "WHERE t.asset.id = :assetId " +
+           "AND t.ticketStatus <> com.hospital.signage.domain.enums.TicketStatus.CLOSED " +
+           "ORDER BY t.createdAt ASC")
+    List<MaintenanceTicketEntity> findOpenTicketsForAsset(@Param("assetId") UUID assetId);
 }
