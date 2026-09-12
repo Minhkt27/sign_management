@@ -92,6 +92,13 @@ public class AssetService implements AssetUseCase {
         if (updatedAsset.getLocation() != null && updatedAsset.getLocation().getId() != null) {
             Location location = locationDatabasePort.findById(updatedAsset.getLocation().getId())
                     .orElseThrow(() -> new IllegalArgumentException("Location not found"));
+            // Kiểm tra giống hệt createAsset. Row Level Security cũng chặn được việc này (truy
+            // vấn trên chạy trong ngữ cảnh bệnh viện của người gọi), nhưng RLS bị bỏ qua hoàn
+            // toàn khi ứng dụng chạy bằng tài khoản superuser — tầng ứng dụng không nên phó
+            // thác hẳn cho lớp dưới.
+            if (!java.util.Objects.equals(location.getHospitalId(), existing.getHospitalId())) {
+                throw new IllegalArgumentException("Vị trí thuộc bệnh viện khác.");
+            }
             existing.setLocation(location);
         } else {
             existing.setLocation(null);

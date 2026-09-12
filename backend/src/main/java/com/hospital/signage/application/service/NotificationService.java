@@ -31,7 +31,7 @@ public class NotificationService implements NotificationUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<Notification> getUnreadNotifications(Long userId, int page, int size) {
+    public Page<Notification> getNotifications(Long userId, int page, int size) {
         return notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, PageRequest.of(page, size))
                 .map(notificationMapper::toDomain);
     }

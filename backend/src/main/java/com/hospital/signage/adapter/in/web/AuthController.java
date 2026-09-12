@@ -94,9 +94,11 @@ public class AuthController {
 
     public record LoginResponse(String token, String refreshToken, UserResponse user) {}
 
-    public record UserResponse(Long id, String username, String fullName, Long roleId, java.util.List<String> permissions) {
+    public record UserResponse(Long id, String username, String fullName, Long roleId,
+            java.util.List<String> permissions, boolean mustChangePassword) {
         static UserResponse from(User u) {
-            return new UserResponse(u.getId(), u.getUsername(), u.getFullName(), u.getRoleId(), u.getCustomPermissions());
+            return new UserResponse(u.getId(), u.getUsername(), u.getFullName(), u.getRoleId(),
+                    u.getCustomPermissions(), Boolean.TRUE.equals(u.getMustChangePassword()));
         }
     }
 }

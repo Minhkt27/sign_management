@@ -70,4 +70,6 @@ public interface AssetRepository extends JpaRepository<AssetEntity, UUID> {
     Page<AssetEntity> searchAndFilter(@Param("search") String search, @Param("status") String status,
             @Param("locationId") Long locationId, @Param("signTypeId") Long signTypeId,
             @Param("hospitalId") Long hospitalId, Pageable pageable);
+
+    long countByHospitalId(Long hospitalId);
 }

@@ -10,6 +10,8 @@ export default function MobileLayout() {
   const navigate = useNavigate();
   const user = authStore.getUser();
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  // Xem chú thích ở AdminLayout — kỹ thuật viên dùng giao diện này cũng phải đổi mật khẩu tạm.
+  const mustChangePassword = !!user?.mustChangePassword;
 
   const handleLogout = () => {
     authService.logout().then(() => navigate('/login'));
@@ -86,7 +88,11 @@ export default function MobileLayout() {
         </button>
       </nav>
 
-      <ChangePasswordModal open={isChangePasswordOpen} onClose={() => setIsChangePasswordOpen(false)} />
+      <ChangePasswordModal
+        open={isChangePasswordOpen || mustChangePassword}
+        required={mustChangePassword}
+        onClose={() => setIsChangePasswordOpen(false)}
+      />
     </div>
   );
 }

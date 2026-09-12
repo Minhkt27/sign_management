@@ -11,13 +11,20 @@ import {
 } from '@/components/ui/dialog';
 import { KeyRound } from 'lucide-react';
 import { getApiError } from '@/shared/helpers/apiError';
+import { authStore } from '@/app/store/authStore';
 
 interface Props {
   open: boolean;
   onClose: () => void;
+  /**
+   * Chế độ bắt buộc: tài khoản đang dùng mật khẩu tạm do quản trị viên cấp. Hộp thoại không
+   * đóng được cho tới khi đổi xong — nếu đóng được thì người dùng sẽ bỏ qua, và mật khẩu mà
+   * người khác cũng biết sẽ ở lại vĩnh viễn.
+   */
+  required?: boolean;
 }
 
-export default function ChangePasswordModal({ open, onClose }: Props) {
+export default function ChangePasswordModal({ open, onClose, required = false }: Props) {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -31,6 +38,12 @@ export default function ChangePasswordModal({ open, onClose }: Props) {
       setCurrentPassword('');
       setNewPassword('');
       setConfirm('');
+      // Cờ đã tắt phía máy chủ; cập nhật luôn bản lưu cục bộ để hộp thoại bắt buộc không
+      // bật lại ngay sau khi đóng.
+      const user = authStore.getUser();
+      if (user?.mustChangePassword) {
+        authStore.setUser({ ...user, mustChangePassword: false });
+      }
       setTimeout(() => { setSuccess(false); onClose(); }, 1200);
     },
     onError: (err: unknown) => setError(getApiError(err, 'Đổi mật khẩu thất bại')),
@@ -51,6 +64,7 @@ export default function ChangePasswordModal({ open, onClose }: Props) {
   };
 
   const handleClose = () => {
+    if (required) return; // chưa đổi xong thì không cho thoát
     setCurrentPassword('');
     setNewPassword('');
     setConfirm('');
@@ -61,13 +75,25 @@ export default function ChangePasswordModal({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent
+        className="sm:max-w-md"
+        showCloseButton={!required}
+        onEscapeKeyDown={required ? (e) => e.preventDefault() : undefined}
+        onInteractOutside={required ? (e) => e.preventDefault() : undefined}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <KeyRound size={18} />
-            Đổi mật khẩu
+            {required ? 'Đặt mật khẩu mới' : 'Đổi mật khẩu'}
           </DialogTitle>
         </DialogHeader>
+
+        {required && !success && (
+          <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            Tài khoản đang dùng mật khẩu do quản trị viên cấp. Hãy đặt mật khẩu riêng của bạn
+            trước khi tiếp tục sử dụng hệ thống.
+          </p>
+        )}
 
         {success ? (
           <p className="text-center text-green-600 font-medium py-4">Đổi mật khẩu thành công!</p>

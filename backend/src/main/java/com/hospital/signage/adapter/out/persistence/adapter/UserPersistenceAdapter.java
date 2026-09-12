@@ -66,4 +66,9 @@ public class UserPersistenceAdapter implements UserDatabasePort {
     public void deleteById(Long id) {
         repository.deleteById(id);
     }
+
+    @Override
+    public long countByHospital(Long hospitalId) {
+        return repository.countByHospitalId(hospitalId);
+    }
 }

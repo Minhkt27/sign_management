@@ -24,4 +24,6 @@ public interface LocationRepository extends JpaRepository<LocationEntity, Long> 
     @Modifying(clearAutomatically = true)
     @Query("UPDATE LocationEntity l SET l.path = CONCAT(:newPath, SUBSTRING(l.path, LENGTH(:oldPath) + 1)) WHERE l.path LIKE CONCAT(:oldPath, '.%')")
     void bulkUpdatePathPrefix(@Param("oldPath") String oldPath, @Param("newPath") String newPath);
+
+    long countByHospitalId(Long hospitalId);
 }

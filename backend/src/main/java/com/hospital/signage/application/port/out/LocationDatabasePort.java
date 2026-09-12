@@ -16,4 +16,7 @@ public interface LocationDatabasePort {
     boolean existsByLocationCode(String locationCode, Long hospitalId);
     void bulkUpdatePathPrefix(String oldPath, String newPath);
     void deleteById(Long id);
+
+    /** Số bản ghi thuộc một bệnh viện — dùng để chặn xoá bệnh viện còn dữ liệu. */
+    long countByHospital(Long hospitalId);
 }

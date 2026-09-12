@@ -4,7 +4,8 @@ import com.hospital.signage.domain.model.Notification;
 import org.springframework.data.domain.Page;
 
 public interface NotificationUseCase {
-    Page<Notification> getUnreadNotifications(Long userId, int page, int size);
+    /** Toàn bộ thông báo của một người dùng, mới nhất trước — gồm cả đã đọc lẫn chưa đọc. */
+    Page<Notification> getNotifications(Long userId, int page, int size);
     long countUnreadNotifications(Long userId);
     void markAsRead(Long id, Long userId);
     void markAllAsRead(Long userId);

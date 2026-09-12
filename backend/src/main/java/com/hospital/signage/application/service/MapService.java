@@ -145,6 +145,11 @@ public class MapService implements MapUseCase {
                 .orElseThrow(() -> new IllegalArgumentException("Sơ đồ không tồn tại: " + id));
         assertFloorInHospital(existing, callerHospitalId);
         mapDatabasePort.deleteFloorById(id);
+        // Xoá tầng kéo theo toàn bộ node và edge của nó (ON DELETE CASCADE), nên đồ thị đang
+        // nằm trong cache không còn đúng nữa. Thiếu dòng này, tìm đường vẫn dẫn người dùng đi
+        // qua một tầng đã bị xoá — và vì cache đồ thị không tự hết hạn, sai lệch đó kéo dài
+        // tới tận lần khởi động lại backend.
+        mapGraphCache.invalidateAll();
         log.info("MapFloor deleted: id={}", id);
     }
 

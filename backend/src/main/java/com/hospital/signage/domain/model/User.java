@@ -26,6 +26,9 @@ public class User {
     @Builder.Default
     private List<String> customPermissions = new ArrayList<>();
     private Boolean isActive;
+    /** Bật sau khi tài khoản được cấp mật khẩu tạm; tắt khi người dùng tự đặt mật khẩu mới. */
+    @Builder.Default
+    private Boolean mustChangePassword = false;
     @JsonIgnore
     private String refreshToken;
     private Instant createdAt;

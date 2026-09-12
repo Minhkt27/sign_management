@@ -24,4 +24,7 @@ public interface AssetDatabasePort {
     boolean existsByLocationId(Long locationId);
     boolean existsBySignTypeId(Long signTypeId);
     void deleteById(UUID id);
+
+    /** Số bản ghi thuộc một bệnh viện — dùng để chặn xoá bệnh viện còn dữ liệu. */
+    long countByHospital(Long hospitalId);
 }

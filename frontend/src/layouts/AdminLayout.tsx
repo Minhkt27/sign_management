@@ -113,6 +113,9 @@ function AdminLayoutInner() {
   const location = useLocation();
   const user = authStore.getUser();
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  // Mật khẩu do quản trị viên cấp thì người khác cũng biết — chặn mọi thao tác cho tới khi
+  // người dùng đặt mật khẩu riêng.
+  const mustChangePassword = !!user?.mustChangePassword;
   const [mobileOpen, setMobileOpen] = useState(false);
   const { selectedHospitalId, setSelectedHospitalId } = useAdminStore();
 
@@ -338,7 +341,11 @@ function AdminLayoutInner() {
         </div>
       </main>
 
-      <ChangePasswordModal open={isChangePasswordOpen} onClose={() => setIsChangePasswordOpen(false)} />
+      <ChangePasswordModal
+        open={isChangePasswordOpen || mustChangePassword}
+        required={mustChangePassword}
+        onClose={() => setIsChangePasswordOpen(false)}
+      />
     </div>
   );
 }
