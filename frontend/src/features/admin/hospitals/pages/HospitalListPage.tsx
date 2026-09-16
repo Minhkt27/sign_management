@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { hospitalService } from '@/services/hospitalService';
 import { Hospital } from '@/shared/types';
 import { Button } from '@/components/ui/button';
@@ -39,19 +40,19 @@ export default function HospitalListPage() {
   const createMutation = useMutation({
     mutationFn: hospitalService.createHospital,
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['hospitals'] }); setIsDialogOpen(false); },
-    onError: (e: unknown) => alert(getApiError(e, 'Có lỗi xảy ra khi tạo bệnh viện.')),
+    onError: (e: unknown) => toast.error(getApiError(e, 'Có lỗi xảy ra khi tạo bệnh viện.')),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: HospitalFormValues }) => hospitalService.updateHospital(id, { ...data, shortCode: data.shortCode ?? undefined }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['hospitals'] }); setIsDialogOpen(false); },
-    onError: (e: unknown) => alert(getApiError(e, 'Có lỗi xảy ra khi cập nhật bệnh viện.')),
+    onError: (e: unknown) => toast.error(getApiError(e, 'Có lỗi xảy ra khi cập nhật bệnh viện.')),
   });
 
   const deleteMutation = useMutation({
     mutationFn: hospitalService.deleteHospital,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['hospitals'] }),
-    onError: (e: unknown) => alert(getApiError(e, 'Có lỗi xảy ra khi xóa bệnh viện.')),
+    onError: (e: unknown) => toast.error(getApiError(e, 'Có lỗi xảy ra khi xóa bệnh viện.')),
   });
 
   const handleOpenCreate = () => { setEditingItem(null); setIsDialogOpen(true); };

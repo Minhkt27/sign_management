@@ -48,8 +48,8 @@ export default function MapEditorPage() {
   });
 
   const { data: assets = [] } = useQuery({
-    queryKey: ['assets', 'all'],
-    queryFn: assetService.getAllAssets,
+    queryKey: ['assets', 'all', hospitalIdParam],
+    queryFn: () => assetService.getAllAssets(hospitalIdParam),
   });
 
   const { data: allFloors = [] } = useQuery({

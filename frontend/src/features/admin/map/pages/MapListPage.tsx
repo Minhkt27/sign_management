@@ -1,6 +1,7 @@
 import { useState, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { mapService } from '@/services/mapService';
 import { locationService } from '@/services/locationService';
 import { fileService } from '@/services/fileService';
@@ -44,13 +45,13 @@ export default function MapListPage() {
     mutationFn: (data: { imageUrl: string; imgWidth: number; imgHeight: number }) =>
       mapService.createCampusFloor(data, hospitalIdParam),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campusMap'] }),
-    onError: (e: unknown) => alert(getApiError(e, 'Không thể tạo sơ đồ tổng thể')),
+    onError: (e: unknown) => toast.error(getApiError(e, 'Không thể tạo sơ đồ tổng thể')),
   });
 
   const deleteCampusMutation = useMutation({
     mutationFn: () => mapService.deleteCampusFloor(hospitalIdParam),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campusMap'] }),
-    onError: (e: unknown) => alert(getApiError(e, 'Không thể xóa sơ đồ tổng thể')),
+    onError: (e: unknown) => toast.error(getApiError(e, 'Không thể xóa sơ đồ tổng thể')),
   });
 
   const handleCampusFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -68,7 +69,7 @@ export default function MapListPage() {
       const url = await fileService.uploadFile(file, 'FLOOR_MAP');
       createCampusMutation.mutate({ imageUrl: url, imgWidth: width, imgHeight: height });
     } catch (err) {
-      alert(getApiError(err, 'Upload ảnh thất bại'));
+      toast.error(getApiError(err, 'Upload ảnh thất bại'));
     } finally {
       setCampusUploading(false);
       if (campusFileInputRef.current) campusFileInputRef.current.value = '';
@@ -84,13 +85,13 @@ export default function MapListPage() {
       setLocationId('');
       setUploadedImage(null);
     },
-    onError: (e: unknown) => alert(getApiError(e, 'Không thể tạo sơ đồ')),
+    onError: (e: unknown) => toast.error(getApiError(e, 'Không thể tạo sơ đồ')),
   });
 
   const deleteMutation = useMutation({
     mutationFn: mapService.deleteFloor,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['mapFloors'] }),
-    onError: (e: unknown) => alert(getApiError(e, 'Không thể xóa sơ đồ')),
+    onError: (e: unknown) => toast.error(getApiError(e, 'Không thể xóa sơ đồ')),
   });
 
   const readImageDimensions = (file: File): Promise<{ width: number; height: number }> =>
@@ -112,7 +113,7 @@ export default function MapListPage() {
       const url = await fileService.uploadFile(file, 'FLOOR_MAP');
       setUploadedImage({ url, width, height });
     } catch (err) {
-      alert(getApiError(err, 'Upload ảnh thất bại'));
+      toast.error(getApiError(err, 'Upload ảnh thất bại'));
     } finally {
       setUploading(false);
     }

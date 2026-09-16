@@ -49,8 +49,8 @@ export default function TicketListPage() {
   });
 
   const { data: technicians = [] } = useQuery<User[]>({
-    queryKey: ['technicians'],
-    queryFn: ticketService.getTechnicians,
+    queryKey: ['technicians', hospitalIdParam],
+    queryFn: () => ticketService.getTechnicians(hospitalIdParam),
     staleTime: 5 * 60 * 1000,
   });
 

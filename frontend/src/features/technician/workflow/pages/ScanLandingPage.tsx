@@ -45,6 +45,7 @@ export default function ScanLandingPage() {
     mutationFn: (ticketId: number) => ticketService.takeTicket(ticketId),
     onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
+      queryClient.invalidateQueries({ queryKey: ['tickets-summary'] });
       queryClient.invalidateQueries({ queryKey: ['techTickets'] });
       navigate(`/tech/tasks/${updated.id}`);
     },
@@ -60,6 +61,7 @@ export default function ScanLandingPage() {
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
+      queryClient.invalidateQueries({ queryKey: ['tickets-summary'] });
       queryClient.invalidateQueries({ queryKey: ['techTickets'] });
       setShowForm(false);
       setDesc('');

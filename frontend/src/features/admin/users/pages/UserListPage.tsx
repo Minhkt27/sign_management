@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { userService } from '@/services/userService';
 import { authStore } from '@/app/store/authStore';
 import { useAdminStore } from '@/app/store/adminStore';
@@ -64,6 +65,9 @@ export default function UserListPage() {
     mutationFn: userService.createUser,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
+      // Trang phân công phiếu nạp danh sách kỹ thuật viên bằng query riêng ['technicians'],
+      // nên tài khoản vừa tạo/khoá/xoá không xuất hiện ở đó nếu không làm mới cả key này.
+      queryClient.invalidateQueries({ queryKey: ['technicians'] });
       setIsCreateOpen(false);
       setCreateError('');
     },
@@ -94,19 +98,25 @@ export default function UserListPage() {
 
   const toggleActiveMutation = useMutation({
     mutationFn: ({ id, active }: { id: number; active: boolean }) => userService.setActive(id, active),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['technicians'] });
+    },
   });
 
   const resetPasswordMutation = useMutation({
     mutationFn: (id: number) => userService.resetPassword(id),
     onSuccess: (temporaryPassword) => setTemporaryPassword(temporaryPassword),
-    onError: () => alert('Reset mật khẩu thất bại.'),
+    onError: () => toast.error('Reset mật khẩu thất bại.'),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => userService.deleteUser(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
-    onError: () => alert('Xóa tài khoản thất bại.'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['technicians'] });
+    },
+    onError: () => toast.error('Xóa tài khoản thất bại.'),
   });
 
   const handleToggleActive = (user: User) => {

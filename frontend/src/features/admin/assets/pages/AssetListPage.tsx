@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { assetService, PagedResponse } from '@/services/assetService';
 import { useAdminStore } from '@/app/store/adminStore';
 import { locationService } from '@/services/locationService';
@@ -52,8 +53,15 @@ export default function AssetListPage() {
 
   const deleteMutation = useMutation({
     mutationFn: assetService.deleteAsset,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['assets'] }),
-    onError: (error: unknown) => alert(getApiError(error, 'Không thể xóa biển báo này vì đang có phiếu bảo trì liên kết.')),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['assets'] });
+      // Xem chú thích ở AssetDetailPage — cây biển báo nạp riêng theo vị trí.
+      queryClient.invalidateQueries({ queryKey: ['locationAssets'] });
+      toast.success('Đã xóa biển báo');
+    },
+    // Máy chủ trả về câu đầy đủ (số phiếu trong lịch sử, hướng chuyển sang Thanh lý) nên
+    // getApiError luôn ưu tiên dùng nó; câu dưới chỉ là dự phòng khi không đọc được phản hồi.
+    onError: (error: unknown) => toast.error(getApiError(error, 'Không thể xóa biển báo này.')),
   });
 
   const handleDeleteAsset = (id: string) => {

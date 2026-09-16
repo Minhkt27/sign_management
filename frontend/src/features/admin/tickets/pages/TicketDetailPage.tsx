@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { ticketService } from '@/services/ticketService';
 import { MaintenanceTicket } from '@/shared/types';
 import { Button } from '@/components/ui/button';
@@ -36,7 +37,10 @@ export default function TicketDetailPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ticket', id] });
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
+      queryClient.invalidateQueries({ queryKey: ['tickets-summary'] });
+      toast.success('Đã đóng phiếu');
     },
+    onError: (error: unknown) => toast.error(getApiError(error, 'Không thể đóng phiếu này.')),
   });
 
   const rejectMutation = useMutation({
@@ -45,6 +49,7 @@ export default function TicketDetailPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ticket', id] });
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
+      queryClient.invalidateQueries({ queryKey: ['tickets-summary'] });
       setShowRejectForm(false);
       setRejectionNote('');
       setRejectError('');
