@@ -29,6 +29,8 @@ public class HospitalService implements HospitalUseCase {
     private final UserDatabasePort userDatabasePort;
     private final LocationDatabasePort locationDatabasePort;
     private final AssetDatabasePort assetDatabasePort;
+    private final com.hospital.signage.application.port.out.SignTypeDatabasePort signTypeDatabasePort;
+    private final com.hospital.signage.adapter.out.persistence.repository.NotificationRepository notificationRepository;
 
     @Override
     @Transactional
@@ -142,13 +144,21 @@ public class HospitalService implements HospitalUseCase {
         // Khoá ngoại dưới database vẫn chặn được, nhưng người dùng chỉ nhận một câu chung
         // chung về "liên kết dữ liệu" mà không biết phải dọn cái gì. Đếm trước và nói rõ —
         // giống cách LocationService và AssetService đang báo khi từ chối xoá.
+        // Phải phủ HẾT các bảng có hospital_id, không chỉ ba bảng dễ nghĩ tới: mỗi khoá ngoại
+        // bỏ sót là một đường rơi ngược về thông báo chung chung của khoá ngoại. Loại biển và
+        // thông báo là hai thứ tồn tại độc lập — viện có thể sạch tài khoản/vị trí/biển báo mà
+        // vẫn còn chúng (VD thông báo cũ của SUPER_ADMIN gắn với viện này).
         List<String> blockers = new ArrayList<>();
         long users = userDatabasePort.countByHospital(id);
         long locations = locationDatabasePort.countByHospital(id);
         long assets = assetDatabasePort.countByHospital(id);
+        long signTypes = signTypeDatabasePort.countByHospital(id);
+        long notifications = notificationRepository.countByHospitalId(id);
         if (users > 0) blockers.add(users + " tài khoản");
         if (locations > 0) blockers.add(locations + " vị trí");
         if (assets > 0) blockers.add(assets + " biển báo");
+        if (signTypes > 0) blockers.add(signTypes + " loại biển");
+        if (notifications > 0) blockers.add(notifications + " thông báo");
 
         if (!blockers.isEmpty()) {
             throw new IllegalArgumentException(

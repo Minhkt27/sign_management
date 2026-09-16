@@ -19,9 +19,10 @@ public interface TicketDatabasePort {
     List<MaintenanceTicket> findByAssetId(UUID assetId);
     Page<MaintenanceTicket> findByFilters(Long assigneeId, UUID assetId, TicketStatus status, Priority priority, Long hospitalId, Pageable pageable);
     boolean existsByAssetId(UUID assetId);
+    long countByAsset(UUID assetId);
     Map<String, Long> countByStatus(Long hospitalId);
     boolean existsOpenTicketForUser(Long userId);
 
-    /** Các phiếu chưa đóng của một biển báo, cũ nhất trước. Dùng để chặn báo hỏng trùng. */
-    List<MaintenanceTicket> findOpenTicketsForAsset(UUID assetId);
+    /** Số hiệu các phiếu chưa đóng của một biển báo, cũ nhất trước. Dùng để chặn báo hỏng trùng. */
+    List<Long> findOpenTicketIdsForAsset(UUID assetId);
 }

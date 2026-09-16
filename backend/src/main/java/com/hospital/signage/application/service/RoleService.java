@@ -17,6 +17,7 @@ import java.util.List;
 public class RoleService implements RoleUseCase {
 
     private final RoleDatabasePort roleDatabasePort;
+    private final com.hospital.signage.application.port.out.UserDatabasePort userDatabasePort;
     private final UserAuthorityService.RoleCacheService roleCacheService;
 
     @Override
@@ -102,6 +103,17 @@ public class RoleService implements RoleUseCase {
         if (role.getPermissions().contains("HOSPITAL_MANAGE") && !com.hospital.signage.infrastructure.security.SecurityUtils.isSuperAdmin()) {
             throw new org.springframework.security.access.AccessDeniedException("Chỉ Quản trị hệ thống mới được phép xóa nhóm quyền Quản trị hệ thống.");
         }
+
+        // users.role_id tham chiếu roles(id) và không có ON DELETE, nên vai trò còn người dùng
+        // sẽ bị khoá ngoại chặn — nhưng thông điệp khi đó chỉ là câu chung chung về "liên kết
+        // dữ liệu". Kiểm tra trước để nói rõ còn bao nhiêu tài khoản và phải làm gì.
+        long userCount = userDatabasePort.countByRoleId(id);
+        if (userCount > 0) {
+            throw new IllegalStateException(
+                    "Không thể xóa nhóm quyền này vì đang có " + userCount + " tài khoản sử dụng. "
+                    + "Vui lòng chuyển các tài khoản đó sang nhóm quyền khác trước.");
+        }
+
         roleDatabasePort.deleteById(id);
         roleCacheService.evict(id);
     }

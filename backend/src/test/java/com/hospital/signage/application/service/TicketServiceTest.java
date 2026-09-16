@@ -82,12 +82,9 @@ class TicketServiceTest {
 
     @Test
     void bienDaCoPhieuDangXuLy_khongTaoThemPhieuMoi() {
-        MaintenanceTicket dangXuLy = MaintenanceTicket.builder()
-                .id(77L).hospitalId(HOSPITAL_ID).asset(asset)
-                .ticketStatus(TicketStatus.IN_PROGRESS).build();
         lenient().when(assetDatabasePort.findById(asset.getId())).thenReturn(Optional.of(asset));
-        lenient().when(ticketDatabasePort.findOpenTicketsForAsset(asset.getId()))
-                .thenReturn(java.util.List.of(dangXuLy));
+        lenient().when(ticketDatabasePort.findOpenTicketIdsForAsset(asset.getId()))
+                .thenReturn(java.util.List.of(77L));
 
         assertThatThrownBy(() -> ticketService.createTicket(new com.hospital.signage.application.port.in.TicketUseCase
                 .CreateTicketCommand(asset.getId(), "Biển bị mờ chữ",
@@ -101,7 +98,7 @@ class TicketServiceTest {
     @Test
     void bienChuaCoPhieuNao_taoPhieuBinhThuong() {
         lenient().when(assetDatabasePort.findById(asset.getId())).thenReturn(Optional.of(asset));
-        lenient().when(ticketDatabasePort.findOpenTicketsForAsset(asset.getId()))
+        lenient().when(ticketDatabasePort.findOpenTicketIdsForAsset(asset.getId()))
                 .thenReturn(java.util.List.of());
         asset.setStatus(AssetStatus.ACTIVE);
 
@@ -111,6 +108,49 @@ class TicketServiceTest {
 
         assertThat(asset.getStatus()).isEqualTo(AssetStatus.DAMAGED);
         verify(ticketDatabasePort).save(any());
+    }
+
+    // ── Phân công ──────────────────────────────────────────────────────────
+
+    // Giao diện đã lọc danh sách kỹ thuật viên theo viện, nhưng API thì không — chỉ cần biết
+    // id là giao được phiếu viện A cho người viện B. Bảng users lại là bảng DUY NHẤT không bật
+    // Row Level Security nên không có lớp nào đỡ phía dưới.
+    @Test
+    void khongGiaoPhieuChoKyThuatVienVienKhac() {
+        User techVienKhac = new User();
+        techVienKhac.setId(99L);
+        techVienKhac.setUsername("tech-vien-B");
+        techVienKhac.setHospitalId(2L);
+        techVienKhac.setRoleId(3L);
+
+        lenient().when(userDatabasePort.findById(99L)).thenReturn(Optional.of(techVienKhac));
+        lenient().when(roleDatabasePort.findById(3L)).thenReturn(Optional.of(
+                com.hospital.signage.domain.model.Role.builder().id(3L).code("TECHNICAL").build()));
+
+        assertThatThrownBy(() -> ticketService.assignTicket(TICKET_ID, 99L, HOSPITAL_ID))
+                .isInstanceOf(com.hospital.signage.domain.exception.HospitalScopeException.class)
+                .hasMessageContaining("bệnh viện khác");
+
+        assertThat(ticket.getAssignee().getId())
+                .as("người được giao cũ phải giữ nguyên")
+                .isEqualTo(technician.getId());
+    }
+
+    @Test
+    void giaoPhieuChoKyThuatVienCungVien_thanhCong() {
+        User techCungVien = new User();
+        techCungVien.setId(7L);
+        techCungVien.setUsername("tech2");
+        techCungVien.setHospitalId(HOSPITAL_ID);
+        techCungVien.setRoleId(3L);
+
+        lenient().when(userDatabasePort.findById(7L)).thenReturn(Optional.of(techCungVien));
+        lenient().when(roleDatabasePort.findById(3L)).thenReturn(Optional.of(
+                com.hospital.signage.domain.model.Role.builder().id(3L).code("TECHNICAL").build()));
+
+        ticketService.assignTicket(TICKET_ID, 7L, HOSPITAL_ID);
+
+        assertThat(ticket.getAssignee().getId()).isEqualTo(7L);
     }
 
     // ── Đồng bộ trạng thái biển báo ────────────────────────────────────────

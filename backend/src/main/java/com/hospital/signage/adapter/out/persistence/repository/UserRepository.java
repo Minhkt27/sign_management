@@ -30,4 +30,5 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
     Page<UserEntity> search(@Param("search") String search, @Param("hospitalId") Long hospitalId, Pageable pageable);
 
     long countByHospitalId(Long hospitalId);
+    long countByRoleId(Long roleId);
 }

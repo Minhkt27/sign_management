@@ -19,4 +19,6 @@ public interface SignTypeRepository extends JpaRepository<SignTypeEntity, Long> 
 
     @Query("SELECT s FROM SignTypeEntity s WHERE (:hospitalId IS NULL OR s.hospitalId = :hospitalId)")
     java.util.List<SignTypeEntity> findAllByHospital(@Param("hospitalId") Long hospitalId);
+
+    long countByHospitalId(Long hospitalId);
 }

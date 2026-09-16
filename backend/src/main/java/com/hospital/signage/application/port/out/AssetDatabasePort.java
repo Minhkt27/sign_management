@@ -22,6 +22,7 @@ public interface AssetDatabasePort {
     Page<Asset> findByLocationIdAndHospital(Long locationId, Long hospitalId, Pageable pageable);
     Page<Asset> findBySignTypeId(Long signTypeId, Pageable pageable);
     boolean existsByLocationId(Long locationId);
+    long countByLocationId(Long locationId);
     boolean existsBySignTypeId(Long signTypeId);
     void deleteById(UUID id);
 
