@@ -59,7 +59,7 @@ public class UserController {
     @Operation(summary = "Sửa quyền và vai trò của tài khoản")
     @PutMapping("/{id}/role-permissions")
     @PreAuthorize("hasAuthority('USER_MANAGE')")
-    public ResponseEntity<UserResponse> updateRoleAndPermissions(@PathVariable Long id, @RequestBody UpdateRolePermissionsRequest req) {
+    public ResponseEntity<UserResponse> updateRoleAndPermissions(@PathVariable Long id, @Valid @RequestBody UpdateRolePermissionsRequest req) {
         User user = userUseCase.updateUserRoleAndPermissions(id, req.roleId(), req.customPermissions());
         return ResponseEntity.ok(UserResponse.from(user));
     }
@@ -67,7 +67,7 @@ public class UserController {
     @Operation(summary = "Kích hoạt / vô hiệu hóa tài khoản")
     @PutMapping("/{id}/active")
     @PreAuthorize("hasAuthority('USER_MANAGE')")
-    public ResponseEntity<UserResponse> setActive(@PathVariable Long id, @RequestBody SetActiveRequest req) {
+    public ResponseEntity<UserResponse> setActive(@PathVariable Long id, @Valid @RequestBody SetActiveRequest req) {
         User user = userUseCase.setUserActive(id, req.active());
         return ResponseEntity.ok(UserResponse.from(user));
     }
