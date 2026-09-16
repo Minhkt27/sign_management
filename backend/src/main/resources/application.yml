@@ -58,6 +58,15 @@ app:
   # chỉ có sẵn các tài khoản đăng nhập mặc định. Profile dev bật lại (xem application-dev.yml).
   seed-demo-data: ${SEED_DEMO_DATA:false}
 
+  # Cố tình KHÔNG có giá trị mặc định — không bao giờ nhúng sẵn mật khẩu vào image.
+  # Khai báo ở đây (file luôn được nạp, không phụ thuộc profile) chỉ để lỗi nêu đúng tên
+  # biến môi trường còn thiếu. Nếu chỉ khai báo trong application-prod.yml, một môi trường
+  # không bật profile prod sẽ báo "Could not resolve placeholder 'app.admin-initial-password'"
+  # — tên property nội bộ, không cho biết phải đặt biến môi trường nào.
+  admin-initial-password: ${ADMIN_INITIAL_PASSWORD}
+  tech-initial-password: ${TECH_INITIAL_PASSWORD}
+  superadmin-initial-password: ${SUPERADMIN_INITIAL_PASSWORD}
+
 minio:
   endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
   access-key: ${MINIO_ACCESS_KEY:minioadmin}

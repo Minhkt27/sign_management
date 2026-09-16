@@ -18,8 +18,17 @@ export interface PagedResponse<T> {
 export const MAX_TREE_ASSETS = 1000;
 
 export const assetService = {
-  getAllAssets: async (): Promise<Asset[]> => {
-    const response = await apiClient.get<Asset[]>('/assets/all');
+  /**
+   * hospitalId phải truyền tường minh cho màn quản trị.
+   *
+   * apiClient tự gắn hospitalId lấy từ JWT, nhưng JWT của SUPER_ADMIN không mang bệnh viện nào
+   * (họ không thuộc viện cụ thể) — nên nếu không truyền, máy chủ trả về biển báo của TẤT CẢ
+   * bệnh viện trong khi giao diện đang nói là đang xem viện đã chọn.
+   */
+  getAllAssets: async (hospitalId?: number): Promise<Asset[]> => {
+    const response = await apiClient.get<Asset[]>('/assets/all', {
+      params: hospitalId != null ? { hospitalId } : undefined,
+    });
     return response.data;
   },
 

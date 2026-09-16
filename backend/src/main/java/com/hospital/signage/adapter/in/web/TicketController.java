@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -98,7 +99,7 @@ public class TicketController {
     @PutMapping("/{id}/assign")
     public ResponseEntity<MaintenanceTicket> assignTicket(
             @PathVariable Long id,
-            @RequestBody AssignTicketRequest request) {
+            @Valid @RequestBody AssignTicketRequest request) {
         return ResponseEntity.ok(ticketUseCase.assignTicket(id, request.assigneeId(), SecurityUtils.getCurrentHospitalId()));
     }
 
@@ -118,7 +119,7 @@ public class TicketController {
     @PutMapping("/{id}/status")
     public ResponseEntity<MaintenanceTicket> updateTicketStatus(
             @PathVariable Long id,
-            @RequestBody UpdateStatusRequest request) {
+            @Valid @RequestBody UpdateStatusRequest request) {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Long technicianId = null;
         if (principal instanceof User caller) {
@@ -178,10 +179,13 @@ public class TicketController {
 
     public record AssignTicketRequest(@NotNull(message = "Người được giao không được để trống") Long assigneeId) {}
 
+    // imageBefore/imageAfter giới hạn 500 cho khớp maintenance_tickets (V1). rejection_note là
+    // TEXT nên không có trần ở DB, nhưng vẫn chặn ở mức hợp lý — đây là ô ghi chú lý do, không
+    // phải nơi dán cả một tài liệu.
     public record UpdateStatusRequest(
             @NotNull(message = "Trạng thái không được để trống") TicketStatus status,
-            String imageBefore,
-            String imageAfter,
-            String rejectionNote
+            @Size(max = 500) String imageBefore,
+            @Size(max = 500) String imageAfter,
+            @Size(max = 2000) String rejectionNote
     ) {}
 }

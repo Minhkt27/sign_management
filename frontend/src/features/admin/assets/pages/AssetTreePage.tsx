@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient, useQueries } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { locationService } from '@/services/locationService';
 import { assetService, MAX_TREE_ASSETS } from '@/services/assetService';
@@ -66,8 +67,8 @@ export default function AssetTreePage() {
 
   // Chỉ load TẤT CẢ assets khi đang search — khi không search thì lazy load theo location
   const { data: searchAssets = [] } = useQuery<Asset[]>({
-    queryKey: ['assets', 'all'],
-    queryFn: assetService.getAllAssets,
+    queryKey: ['assets', 'all', selectedHospitalId],
+    queryFn: () => assetService.getAllAssets(selectedHospitalId ?? undefined),
     enabled: !!searchTerm.trim(),
   });
 
@@ -190,7 +191,9 @@ export default function AssetTreePage() {
       setNewLocName('');
       setNewLocDesc('');
       setIsLocDialogOpen(false);
+      toast.success('Đã thêm vị trí');
     },
+    onError: (error: unknown) => toast.error(getApiError(error, 'Không thể thêm vị trí.')),
   });
 
   const updateLocMutation = useMutation({
@@ -204,7 +207,7 @@ export default function AssetTreePage() {
       setEditLocCode('');
       setEditLocId(null);
     },
-    onError: (error: unknown) => alert(getApiError(error, 'Có lỗi xảy ra khi cập nhật vị trí.')),
+    onError: (error: unknown) => toast.error(getApiError(error, 'Có lỗi xảy ra khi cập nhật vị trí.')),
   });
 
   const deleteLocMutation = useMutation({
@@ -212,7 +215,7 @@ export default function AssetTreePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['locations'] });
     },
-    onError: (error: unknown) => alert(getApiError(error, 'Có lỗi xảy ra khi xóa vị trí.')),
+    onError: (error: unknown) => toast.error(getApiError(error, 'Có lỗi xảy ra khi xóa vị trí.')),
   });
 
   const toggleExpand = (locId: number) => {

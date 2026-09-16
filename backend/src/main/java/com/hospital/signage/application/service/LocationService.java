@@ -21,6 +21,7 @@ public class LocationService implements LocationUseCase {
 
     private final LocationDatabasePort locationDatabasePort;
     private final AssetDatabasePort assetDatabasePort;
+    private final com.hospital.signage.application.port.out.MapDatabasePort mapDatabasePort;
 
     @Override
     @Transactional
@@ -82,12 +83,27 @@ public class LocationService implements LocationUseCase {
                 .orElseThrow(() -> new IllegalArgumentException("Location not found"));
         assertSameHospital(existing, callerHospitalId);
 
-        if (locationDatabasePort.existsByParentId(id)) {
-            throw new IllegalArgumentException("Không thể xóa vị trí này vì vẫn còn vị trí con trực thuộc.");
+        // Liệt kê hết mọi thứ đang vướng trong một lần thay vì báo từng cái: dọn xong vị trí
+        // con rồi mới biết còn biển báo, dọn xong biển báo rồi mới biết còn sơ đồ tầng — mỗi
+        // vòng lại phải thử xoá lại mới biết còn gì.
+        List<String> blockers = new ArrayList<>();
+        long childCount = locationDatabasePort.countByParentId(id);
+        long assetCount = assetDatabasePort.countByLocationId(id);
+        // map_floors.location_id là NOT NULL và không có ON DELETE, nên sơ đồ tầng cũng chặn
+        // xoá. Thiếu bước kiểm tra này thì khoá ngoại ném ra câu chung chung về "liên kết dữ
+        // liệu" và người dùng không đoán được là vướng sơ đồ.
+        boolean hasFloorPlan = mapDatabasePort.findFloorByLocationId(id).isPresent();
+
+        if (childCount > 0) blockers.add(childCount + " vị trí con trực thuộc");
+        if (assetCount > 0) blockers.add(assetCount + " biển báo");
+        if (hasFloorPlan) blockers.add("1 sơ đồ tầng");
+
+        if (!blockers.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Không thể xóa vị trí này vì vẫn còn " + String.join(", ", blockers)
+                    + ". Vui lòng chuyển hoặc xóa các dữ liệu đó trước.");
         }
-        if (assetDatabasePort.existsByLocationId(id)) {
-            throw new IllegalArgumentException("Không thể xóa vị trí này vì đang có biển báo liên kết.");
-        }
+
         locationDatabasePort.deleteById(id);
         log.info("Location {} deleted", id);
     }
@@ -118,7 +134,7 @@ public class LocationService implements LocationUseCase {
         Location updated = locationDatabasePort.save(existing);
 
         if (!updated.getPath().equals(oldPath)) {
-            locationDatabasePort.bulkUpdatePathPrefix(oldPath, updated.getPath());
+            locationDatabasePort.bulkUpdatePathPrefix(oldPath, updated.getPath(), updated.getHospitalId());
             log.info("Location {} path updated: {} → {}", id, oldPath, updated.getPath());
         }
 

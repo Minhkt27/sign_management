@@ -42,6 +42,7 @@ export default function TaskDetailPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['task', id] });
       queryClient.invalidateQueries({ queryKey: ['techTickets'] });
+      queryClient.invalidateQueries({ queryKey: ['tickets-summary'] });
     },
     onError: () => {
       setUploadError('Cập nhật thất bại. Vui lòng thử lại hoặc đăng nhập lại.');

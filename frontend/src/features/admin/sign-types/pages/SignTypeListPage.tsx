@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { signTypeService } from '@/services/signTypeService';
 import { SignType } from '@/shared/types';
 import { useAdminStore } from '@/app/store/adminStore';
@@ -43,19 +44,19 @@ export default function SignTypeListPage() {
   const createMutation = useMutation({
     mutationFn: signTypeService.createSignType,
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['signTypes'] }); setIsDialogOpen(false); },
-    onError: (e: unknown) => alert(getApiError(e, 'Có lỗi xảy ra khi tạo loại biển.')),
+    onError: (e: unknown) => toast.error(getApiError(e, 'Có lỗi xảy ra khi tạo loại biển.')),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: { code: string | null; name: string; description: string } }) => signTypeService.updateSignType(id, { ...data, code: data.code ?? undefined }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['signTypes'] }); setIsDialogOpen(false); },
-    onError: (e: unknown) => alert(getApiError(e, 'Có lỗi xảy ra khi cập nhật loại biển.')),
+    onError: (e: unknown) => toast.error(getApiError(e, 'Có lỗi xảy ra khi cập nhật loại biển.')),
   });
 
   const deleteMutation = useMutation({
     mutationFn: signTypeService.deleteSignType,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['signTypes'] }),
-    onError: (e: unknown) => alert(getApiError(e, 'Có lỗi xảy ra khi xóa loại biển.')),
+    onError: (e: unknown) => toast.error(getApiError(e, 'Có lỗi xảy ra khi xóa loại biển.')),
   });
 
   const handleOpenCreate = () => { setEditingItem(null); setIsDialogOpen(true); };

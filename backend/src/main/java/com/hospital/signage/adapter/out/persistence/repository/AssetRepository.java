@@ -72,4 +72,5 @@ public interface AssetRepository extends JpaRepository<AssetEntity, UUID> {
             @Param("hospitalId") Long hospitalId, Pageable pageable);
 
     long countByHospitalId(Long hospitalId);
+    long countByLocationId(Long locationId);
 }

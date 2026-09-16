@@ -62,4 +62,9 @@ public class SignTypePersistenceAdapter implements SignTypeDatabasePort {
     public void deleteById(Long id) {
         repository.deleteById(id);
     }
+
+    @Override
+    public long countByHospital(Long hospitalId) {
+        return repository.countByHospitalId(hospitalId);
+    }
 }

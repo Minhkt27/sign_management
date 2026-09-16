@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -103,19 +104,29 @@ public class AssetController {
         return ResponseEntity.ok().build();
     }
 
+    /**
+     * Giới hạn độ dài phải khớp với schema (xem V1): vượt quá thì Postgres ném lỗi ràng buộc,
+     * và {@code GlobalExceptionHandler} dịch mọi lỗi ràng buộc không phải trùng khoá thành câu
+     * "không thể xóa hoặc thay đổi dữ liệu này do có các liên kết dữ liệu khác" — hoàn toàn
+     * không liên quan tới nguyên nhân thật là nhập quá dài. Chặn ngay ở đây để người dùng nhận
+     * đúng thông báo trường nào sai.
+     *
+     * <p>assetCode cố tình không @NotBlank: để trống thì AssetService tự sinh mã, giống cách
+     * SignType và Hospital đang làm.
+     */
     public record AssetRequest(
-            String assetCode,
-            String name,
+            @Size(max = 255) String assetCode,
+            @Size(max = 255) String name,
             String description,
-            String locationDescription,
+            @Size(max = 255) String locationDescription,
             LocationRef location,
             Long signTypeId,
             @NotNull(message = "Material không được để trống") Material material,
-            String size,
+            @Size(max = 255) String size,
             @NotNull(message = "Status không được để trống") AssetStatus status,
             Instant installedAt,
-            String supplier,
-            String imageUrl
+            @Size(max = 255) String supplier,
+            @Size(max = 500) String imageUrl
     ) {
         Asset toDomain() {
             Asset asset = new Asset();

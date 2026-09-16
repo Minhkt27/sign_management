@@ -30,6 +30,8 @@ public interface TicketRepository extends JpaRepository<MaintenanceTicketEntity,
     List<MaintenanceTicketEntity> findByAssetId(@Param("assetId") UUID assetId);
     boolean existsByAssetId(UUID assetId);
 
+    long countByAssetId(UUID assetId);
+
     @Query(value = "SELECT t FROM MaintenanceTicketEntity t " +
                    "LEFT JOIN FETCH t.asset " +
                    "LEFT JOIN FETCH t.reporter " +
@@ -64,9 +66,16 @@ public interface TicketRepository extends JpaRepository<MaintenanceTicketEntity,
            "AND t.ticketStatus <> com.hospital.signage.domain.enums.TicketStatus.CLOSED")
     boolean existsOpenTicketForUser(@Param("userId") Long userId);
 
-    @Query("SELECT t FROM MaintenanceTicketEntity t " +
+    /**
+     * Số hiệu các phiếu chưa đóng của một biển báo, cũ nhất trước.
+     *
+     * <p>Chỉ select id thay vì cả entity: nơi gọi dùng nó để chặn báo hỏng trùng và nêu số
+     * hiệu phiếu đang xử lý, không cần tới asset/reporter/assignee — lấy cả entity sẽ kéo theo
+     * ba truy vấn lazy load cho mỗi phiếu mà chẳng dùng vào đâu.
+     */
+    @Query("SELECT t.id FROM MaintenanceTicketEntity t " +
            "WHERE t.asset.id = :assetId " +
            "AND t.ticketStatus <> com.hospital.signage.domain.enums.TicketStatus.CLOSED " +
            "ORDER BY t.createdAt ASC")
-    List<MaintenanceTicketEntity> findOpenTicketsForAsset(@Param("assetId") UUID assetId);
+    List<Long> findOpenTicketIdsForAsset(@Param("assetId") UUID assetId);
 }

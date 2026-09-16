@@ -20,4 +20,7 @@ public interface UserDatabasePort {
 
     /** Số bản ghi thuộc một bệnh viện — dùng để chặn xoá bệnh viện còn dữ liệu. */
     long countByHospital(Long hospitalId);
+
+    /** Số tài khoản đang mang một vai trò — dùng để chặn xoá vai trò còn người dùng. */
+    long countByRoleId(Long roleId);
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { roleService } from '../services/roleService';
 import { Role } from '@/shared/types';
 import { Button } from '@/components/ui/button';
@@ -63,7 +64,7 @@ export default function RoleListPage() {
   const deleteMutation = useMutation({
     mutationFn: roleService.deleteRole,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['roles'] }),
-    onError: (err: unknown) => alert(getApiError(err, 'Xóa thất bại')),
+    onError: (err: unknown) => toast.error(getApiError(err, 'Xóa thất bại')),
   });
 
   const handleEdit = (role: Role) => {

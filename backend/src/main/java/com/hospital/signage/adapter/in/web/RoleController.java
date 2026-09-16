@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -62,10 +63,13 @@ public class RoleController {
         return ResponseEntity.ok().build();
     }
 
+    // Giới hạn khớp bảng roles (V5): code và name là VARCHAR(255), description là TEXT nhưng
+    // vẫn chặn ở mức hợp lý. Thiếu @Size thì nhập quá dài rơi vào lỗi ràng buộc của Postgres,
+    // và GlobalExceptionHandler dịch thành câu nói về "liên kết dữ liệu" — sai hẳn nguyên nhân.
     public record CreateRoleRequest(
-            @NotBlank String code,
-            @NotBlank String name,
-            String description,
+            @NotBlank @Size(max = 255) String code,
+            @NotBlank @Size(max = 255) String name,
+            @Size(max = 1000) String description,
             UiMode uiMode,
             List<String> permissions
     ) {}

@@ -152,8 +152,24 @@ public class AssetService implements AssetUseCase {
         Asset asset = assetDatabasePort.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Asset not found"));
         assertSameHospital(asset, callerHospitalId);
-        if (ticketDatabasePort.existsByAssetId(id)) {
-            throw new IllegalArgumentException("Không thể xóa biển báo này vì đang có phiếu bảo trì liên kết.");
+
+        // Phiếu bảo trì là hồ sơ công việc trên một tài sản công, phải giữ lại — nên biển đã
+        // có lịch sử bảo trì thì không xoá, mà chuyển sang trạng thái Thanh lý. Thông báo cũ
+        // chỉ nói "đang có phiếu bảo trì liên kết", khiến người dùng tưởng cứ đóng hết phiếu
+        // là xoá được, trong khi phiếu đã đóng cũng chặn và lại không có cách nào xoá phiếu.
+        long ticketCount = ticketDatabasePort.countByAsset(id);
+        if (ticketCount > 0) {
+            List<Long> openTicketIds = ticketDatabasePort.findOpenTicketIdsForAsset(id);
+            StringBuilder message = new StringBuilder()
+                    .append("Không thể xóa biển báo này vì có ").append(ticketCount)
+                    .append(" phiếu bảo trì trong lịch sử");
+            if (!openTicketIds.isEmpty()) {
+                message.append(" (").append(openTicketIds.size()).append(" phiếu chưa đóng, ví dụ #")
+                       .append(openTicketIds.get(0)).append(")");
+            }
+            message.append(". Nếu biển không còn sử dụng, hãy chuyển trạng thái sang \"Thanh lý\" ")
+                   .append("thay vì xóa — hồ sơ bảo trì sẽ được giữ lại.");
+            throw new IllegalArgumentException(message.toString());
         }
         assetDatabasePort.deleteById(id);
         scheduleImageDeletion(asset.getImageUrl());

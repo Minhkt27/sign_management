@@ -85,8 +85,11 @@ export const ticketService = {
     return response.data;
   },
 
-  getTechnicians: async (): Promise<User[]> => {
-    const response = await apiClient.get<User[]>('/users/technicians');
+  /** Xem chú thích ở assetService.getAllAssets — SUPER_ADMIN phải truyền hospitalId tường minh. */
+  getTechnicians: async (hospitalId?: number): Promise<User[]> => {
+    const response = await apiClient.get<User[]>('/users/technicians', {
+      params: hospitalId != null ? { hospitalId } : undefined,
+    });
     return response.data;
   },
 };

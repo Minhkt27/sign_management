@@ -28,6 +28,8 @@ class HospitalServiceTest {
     @Mock private UserDatabasePort userDatabasePort;
     @Mock private LocationDatabasePort locationDatabasePort;
     @Mock private AssetDatabasePort assetDatabasePort;
+    @Mock private com.hospital.signage.application.port.out.SignTypeDatabasePort signTypeDatabasePort;
+    @Mock private com.hospital.signage.adapter.out.persistence.repository.NotificationRepository notificationRepository;
 
     @InjectMocks private HospitalService hospitalService;
 
@@ -40,6 +42,8 @@ class HospitalServiceTest {
         lenient().when(userDatabasePort.countByHospital(HOSPITAL_ID)).thenReturn(0L);
         lenient().when(locationDatabasePort.countByHospital(HOSPITAL_ID)).thenReturn(0L);
         lenient().when(assetDatabasePort.countByHospital(HOSPITAL_ID)).thenReturn(0L);
+        lenient().when(signTypeDatabasePort.countByHospital(HOSPITAL_ID)).thenReturn(0L);
+        lenient().when(notificationRepository.countByHospitalId(HOSPITAL_ID)).thenReturn(0L);
     }
 
     @Test
@@ -71,6 +75,28 @@ class HospitalServiceTest {
         assertThatThrownBy(() -> hospitalService.deleteHospital(HOSPITAL_ID))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("8 vị trí");
+    }
+
+    // Loại biển và thông báo tồn tại độc lập với tài khoản/vị trí/biển báo, nên viện có thể
+    // sạch ba thứ kia mà vẫn còn chúng. Bỏ sót là rơi về câu chung chung của khoá ngoại.
+    @Test
+    void conLoaiBien_cungBiChan() {
+        when(signTypeDatabasePort.countByHospital(HOSPITAL_ID)).thenReturn(4L);
+
+        assertThatThrownBy(() -> hospitalService.deleteHospital(HOSPITAL_ID))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("4 loại biển");
+
+        verify(hospitalDatabasePort, never()).deleteById(any());
+    }
+
+    @Test
+    void conThongBao_cungBiChan() {
+        when(notificationRepository.countByHospitalId(HOSPITAL_ID)).thenReturn(11L);
+
+        assertThatThrownBy(() -> hospitalService.deleteHospital(HOSPITAL_ID))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("11 thông báo");
     }
 
     @Test

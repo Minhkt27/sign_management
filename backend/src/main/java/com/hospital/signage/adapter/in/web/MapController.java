@@ -11,6 +11,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -252,17 +254,20 @@ public class MapController {
 
     // ── Request records ────────────────────────────────────────────────────
 
+    // imageUrl giới hạn 500 ký tự cho khớp map_floors.image_url (V2). Kích thước ảnh phải
+    // dương: toàn bộ toạ độ node được lưu theo tỉ lệ trên khung ảnh này, nên số 0 hoặc số âm
+    // sẽ làm mọi phép tính vị trí và tìm đường sai mà không có gì báo lỗi.
     public record FloorRequest(
             @NotNull Long locationId,
-            @NotNull String imageUrl,
-            @NotNull Integer imgWidth,
-            @NotNull Integer imgHeight
+            @NotNull @Size(max = 500) String imageUrl,
+            @NotNull @Positive Integer imgWidth,
+            @NotNull @Positive Integer imgHeight
     ) {}
 
     public record CampusFloorRequest(
-            @NotNull String imageUrl,
-            @NotNull Integer imgWidth,
-            @NotNull Integer imgHeight
+            @NotNull @Size(max = 500) String imageUrl,
+            @NotNull @Positive Integer imgWidth,
+            @NotNull @Positive Integer imgHeight
     ) {}
 
     public record NodeRequest(
@@ -270,7 +275,7 @@ public class MapController {
             @NotNull Double x,
             @NotNull Double y,
             @NotNull NodeType type,
-            String label,
+            @Size(max = 255) String label,
             Long locationId,
             UUID assetId,
             Long linkedCampusNodeId
@@ -280,7 +285,7 @@ public class MapController {
             Double x,
             Double y,
             @NotNull NodeType type,
-            String label,
+            @Size(max = 255) String label,
             Long locationId,
             UUID assetId,
             Long linkedCampusNodeId

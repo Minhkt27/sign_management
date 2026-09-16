@@ -70,10 +70,10 @@ public class TicketService implements TicketUseCase {
         // Một biển hỏng chỉ cần một phiếu. Không chặn thì mỗi người đi ngang báo một lần là
         // sinh thêm một phiếu cho cùng cái biển, kèm một loạt thông báo cho quản trị viên,
         // và kỹ thuật viên không biết phiếu nào mới là phiếu cần xử lý.
-        List<MaintenanceTicket> openTickets = ticketDatabasePort.findOpenTicketsForAsset(command.assetId());
-        if (!openTickets.isEmpty()) {
+        List<Long> openTicketIds = ticketDatabasePort.findOpenTicketIdsForAsset(command.assetId());
+        if (!openTicketIds.isEmpty()) {
             throw new IllegalStateException(
-                    "Biển báo này đã có phiếu bảo trì đang xử lý (phiếu #" + openTickets.get(0).getId()
+                    "Biển báo này đã có phiếu bảo trì đang xử lý (phiếu #" + openTicketIds.get(0)
                     + "). Vui lòng bổ sung thông tin vào phiếu đó thay vì tạo phiếu mới.");
         }
 
@@ -118,6 +118,7 @@ public class TicketService implements TicketUseCase {
         User assignee = userDatabasePort.findById(assigneeId)
                 .orElseThrow(() -> new IllegalArgumentException("Assignee user not found"));
         validateAssigneeIsTechnician(assignee);
+        validateAssigneeSameHospital(assignee, ticket);
 
         ticket.setAssignee(assignee);
         MaintenanceTicket saved = ticketDatabasePort.save(ticket);
@@ -227,6 +228,25 @@ public class TicketService implements TicketUseCase {
     private void validateRejectionLimit(MaintenanceTicket ticket, boolean isRejection) {
         if (isRejection && ticket.getRejectionCount() >= MAX_REJECTION_LIMIT) {
             throw new TicketRejectionLimitExceededException("Phiếu này đã bị từ chối tối đa " + MAX_REJECTION_LIMIT + " lần.");
+        }
+    }
+
+    /**
+     * Người được giao phải thuộc cùng bệnh viện với phiếu.
+     *
+     * <p>Trước đây chỉ kiểm tra "có phải kỹ thuật viên" nên phiếu của viện A giao được cho kỹ
+     * thuật viên viện B chỉ cần biết id của họ. Giao diện không mở đường đó ra (danh sách kỹ
+     * thuật viên đã lọc theo viện) nhưng API thì cho phép, và đây là bảng {@code users} — bảng
+     * duy nhất KHÔNG bật Row Level Security, nên không có lớp nào đỡ phía dưới.
+     *
+     * <p>SUPER_ADMIN cũng không được miễn: họ thao tác trên phiếu của một viện cụ thể, nên
+     * người nhận việc vẫn phải thuộc đúng viện đó. Kỹ thuật viên không có viện (hospitalId
+     * null) thì không nhận việc của viện nào cả.
+     */
+    private void validateAssigneeSameHospital(User assignee, MaintenanceTicket ticket) {
+        if (!java.util.Objects.equals(assignee.getHospitalId(), ticket.getHospitalId())) {
+            throw new com.hospital.signage.domain.exception.HospitalScopeException(
+                    "Không thể giao phiếu cho kỹ thuật viên thuộc bệnh viện khác.");
         }
     }
 
