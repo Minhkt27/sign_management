@@ -26,7 +26,12 @@ services:
   # Trên production (docker-compose.prod.yml), MinIO dùng chung do repo vps-shared quản lý,
   # không chạy MinIO riêng ở đây nữa (tránh chạy dư + lộ cổng 9000/9001 ra ngoài không cần thiết).
   minio:
-    image: minio/minio:latest
+    # KHÔNG dùng minio/minio:latest trên Docker Hub: MinIO đã gỡ repository đó (tra lại
+    # 2026-09-22: API Docker Hub trả 404, pull báo "repository does not exist"). Máy nào đã tải
+    # từ trước thì vẫn chạy nhờ bản cache, nhưng server mới sẽ chết ngay bước kéo image.
+    # quay.io vẫn còn, và đây đúng là bản dev đã chạy suốt thời gian qua (trùng image ID).
+    # Ghim phiên bản cụ thể thay vì "latest" để server nào dựng lúc nào cũng ra cùng một bản.
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
     container_name: signage_minio
     command: server /data --console-address ":9001"
     environment:

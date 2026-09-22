@@ -31,6 +31,13 @@ public class DataInitializer implements CommandLineRunner {
     private final String techInitialPassword;
     private final String superadminInitialPassword;
     private final boolean seedDemoData;
+    /**
+     * Mật khẩu khởi tạo là mật khẩu tạm đúng nghĩa: in ra màn hình lúc cài đặt, nằm trong .env,
+     * và theo .env vào từng bản sao lưu. Không bắt đổi thì một tài khoản ít dùng (VD "tech")
+     * giữ mật khẩu đó mãi mãi, ai có được một bản .env cũ là đăng nhập được.
+     * Profile dev tắt cờ này để máy dev dựng lại database không phải đổi mật khẩu mỗi lần.
+     */
+    private final boolean initialPasswordMustChange;
     private final org.springframework.transaction.support.TransactionTemplate transactionTemplate;
 
     public DataInitializer(
@@ -44,7 +51,8 @@ public class DataInitializer implements CommandLineRunner {
             @Value("${app.admin-initial-password}") String adminInitialPassword,
             @Value("${app.tech-initial-password}") String techInitialPassword,
             @Value("${app.superadmin-initial-password}") String superadminInitialPassword,
-            @Value("${app.seed-demo-data:false}") boolean seedDemoData) {
+            @Value("${app.seed-demo-data:false}") boolean seedDemoData,
+            @Value("${app.initial-password-must-change:true}") boolean initialPasswordMustChange) {
         this.transactionTemplate = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
         this.userDatabasePort = userDatabasePort;
         this.roleDatabasePort = roleDatabasePort;
@@ -56,6 +64,7 @@ public class DataInitializer implements CommandLineRunner {
         this.techInitialPassword = techInitialPassword;
         this.superadminInitialPassword = superadminInitialPassword;
         this.seedDemoData = seedDemoData;
+        this.initialPasswordMustChange = initialPasswordMustChange;
     }
 
     @Override
@@ -95,6 +104,7 @@ public class DataInitializer implements CommandLineRunner {
                 .roleId(1L)
                 .hospitalId(1L)
                 .isActive(true)
+                .mustChangePassword(initialPasswordMustChange)
                 .createdAt(Instant.now())
                 .updatedAt(Instant.now())
                 .build();
@@ -107,6 +117,7 @@ public class DataInitializer implements CommandLineRunner {
                 .roleId(2L)
                 .hospitalId(1L)
                 .isActive(true)
+                .mustChangePassword(initialPasswordMustChange)
                 .createdAt(Instant.now())
                 .updatedAt(Instant.now())
                 .build();
@@ -280,6 +291,7 @@ public class DataInitializer implements CommandLineRunner {
                 .roleId(superAdminRole.getId())
                 .hospitalId(null) // null = SUPER_ADMIN, không giới hạn theo bệnh viện nào
                 .isActive(true)
+                .mustChangePassword(initialPasswordMustChange)
                 .createdAt(Instant.now())
                 .updatedAt(Instant.now())
                 .build());

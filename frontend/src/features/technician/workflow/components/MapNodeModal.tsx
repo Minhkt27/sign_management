@@ -40,7 +40,8 @@ export function MapNodeModal({ assetId, assetCode, onClose }: Props) {
 
   const { data: assets = [] } = useQuery<Asset[]>({
     queryKey: ['assets'],
-    queryFn: assetService.getAllAssets,
+    // Bọc arrow — xem chú thích ở LocationSelectModal.
+    queryFn: () => assetService.getAllAssets(),
   });
 
   // Nodes on the same floor with a label or linked asset (usable as "I am here" points)

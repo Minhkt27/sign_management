@@ -1,58 +1,92 @@
-# Override dùng khi triển khai thật trên VPS, cùng với file gốc:
+# Triển khai thật trên VPS. Hướng dẫn từng bước: deploy/README.md
+#
 #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 #
-# Việc này làm gì:
-#   - Bỏ public trực tiếp cổng 3000 (frontend), 8080 (backend), 5432 (postgres), 9000/9001 (minio)
-#     ra ngoài — chỉ Caddy (repo vps-shared, dùng chung nhiều dự án) mới được expose ra Internet.
-#   - Nối frontend/backend vào network "vps_shared" — do repo vps-shared làm chủ (Postgres + MinIO),
-#     tạo 1 lần trước bằng: cd ../vps-shared && docker compose up -d
-#   - ngrok không tự chạy (đã gắn profile "dev" ở file gốc, không cần override thêm ở đây)
+# Server này CHỈ chạy một dự án, nên mọi thứ nằm trong một stack: Postgres, MinIO, backend,
+# frontend, Caddy (HTTPS) và sao lưu. Trước đây Postgres/MinIO/Caddy tách sang thư mục
+# vps-shared để dùng chung với DocuSync — nhưng thư mục đó không nằm trong git, nên server
+# mới không có cách nào lấy về, và hai file .env ở hai nơi phải tự giữ khớp mật khẩu bằng tay.
+# Gộp lại thì clone một repo, tạo một .env là chạy được.
 #
-# Postgres và MinIO của dự án này giờ do repo vps-shared quản lý (dùng chung, kể cả với
-# DocuSync) — không còn định nghĩa service "postgres"/"minio" ở đây nữa, chỉ nối service
-# backend vào network chung để nó gọi tới được (hostname vẫn là "postgres"/"minio" như cũ).
-
-networks:
-  vps_shared:
-    external: true
+# Nguyên tắc cổng: chỉ Caddy mở ra ngoài (80/443). Mọi service khác KHÔNG publish cổng nào —
+# chúng nói chuyện với nhau qua mạng nội bộ của Docker.
+#
+# Mọi service đều có restart: unless-stopped. Thiếu nó thì VPS khởi động lại (nhà cung cấp bảo
+# trì, cập nhật kernel) là hệ thống tắt luôn cho tới khi có người vào gõ lệnh bật lại.
 
 services:
-  # ports: []  không xoá được cổng publish của file gốc — Compose mặc định GỘP THÊM, không thay thế,
-  # nên phải dùng tag !override để ép ghi đè hẳn danh sách cổng.
-  # Sau khi ghi đè, cổng chỉ bind về 127.0.0.1 (chỉ truy cập được từ chính VPS), không lộ ra Internet.
-  # Caddy (repo vps-shared) vẫn gọi được vào frontend qua network vps_shared, không qua cổng này.
+  postgres:
+    # File gốc gắn profile "dev" để máy dev không vô tình chạy nó. Production thì cần.
+    profiles: !reset []
+    restart: unless-stopped
+    ports: !reset []
+    environment:
+      # Chỉ đọc bởi deploy/postgres-init/ lúc database khởi tạo LẦN ĐẦU (volume còn trống),
+      # để tạo sẵn tài khoản "signage" cho backend. Các lần khởi động sau không dùng tới.
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?APP_DB_PASSWORD is required}
+    volumes:
+      - ./deploy/postgres-init:/docker-entrypoint-initdb.d:ro
+      - ./scripts/init-db.sql:/opt/signage/init-db.sql:ro
 
-  frontend:
-    ports: !override
-      - "127.0.0.1:3000:80"
-    networks:
-      - default
-      - vps_shared
+  minio:
+    profiles: !reset []
+    restart: unless-stopped
+    ports: !reset []
 
   backend:
-    ports: !override
-      - "127.0.0.1:8080:8080"
-    networks:
-      - default
-      - vps_shared
+    restart: unless-stopped
+    ports: !reset []
     environment:
-      # search_path gồm 2 schema, không phải 1:
-      #   - sign_management: bảng của dự án này (docusync có schema riêng trong cùng database)
-      #   - public: nơi đặt extension dùng chung (unaccent, pg_trgm)
-      # Thiếu "public" thì f_unaccent() không resolve được unaccent() lúc chạy → tìm kiếm
-      # không dấu chết. Schema không tồn tại trong search_path thì Postgres bỏ qua, nên khai
-      # báo cả hai là an toàn kể cả với DB cũ (extension đang nằm trong sign_management).
-      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-srt_db}?currentSchema=sign_management,public
-      # Mặc định của app là schema "public" (khớp Render/Neon) — trên VPS dùng chung hạ tầng,
-      # schema đã đổi tên thành "sign_management" (xem V16 migration), nên phải chỉ định rõ ở đây.
-      FLYWAY_DEFAULT_SCHEMA: sign_management
-      # Flyway tự đặt search_path bằng đúng danh sách này khi chạy migration. Bắt buộc phải có
-      # "public": V4 gọi public.unaccent(...) và dùng gin_trgm_ops không kèm tiền tố schema, nên
-      # trên một DB dựng mới mà thiếu public thì V4 chết ("gin_trgm_ops does not exist").
-      # Bảng vẫn vào sign_management vì FLYWAY_DEFAULT_SCHEMA quyết định điều đó.
-      SPRING_FLYWAY_SCHEMAS: sign_management,public
-    # File gốc yêu cầu postgres/minio healthy trước khi chạy backend — nhưng cả 2 đều chạy
-    # profile "dev" và không có mặt trong project này ở chế độ prod nữa (dùng chung, thuộc
-    # repo vps-shared), nên phải ghi đè về rỗng, nếu không compose sẽ báo lỗi "service không tồn tại".
-    # Đảm bảo vps-shared đã "up -d" xong (postgres + minio healthy) trước khi chạy stack này.
-    depends_on: !override {}
+      # Suy ra từ SITE_DOMAIN để chỉ phải khai báo tên miền MỘT lần trong .env.
+      CORS_ALLOWED_ORIGINS: https://${SITE_DOMAIN:?SITE_DOMAIN is required}
+      # Đường dẫn này được lưu NGUYÊN VĂN vào database cùng mỗi ảnh tải lên — đổi tên miền
+      # sau này thì ảnh cũ vẫn trỏ về tên miền cũ.
+      MINIO_PUBLIC_URL: https://${SITE_DOMAIN:?SITE_DOMAIN is required}/signage-assets
+
+  frontend:
+    restart: unless-stopped
+    ports: !reset []
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: signage_caddy
+    restart: unless-stopped
+    depends_on:
+      - frontend
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:?SITE_DOMAIN is required}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Chứa chứng chỉ HTTPS. Mất volume này thì Caddy phải xin lại chứng chỉ, mà Let's Encrypt
+      # giới hạn số lần cấp lại cho cùng tên miền mỗi tuần.
+      - caddy_data:/data
+      - caddy_config:/config
+
+  backup:
+    profiles: !reset []
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-srt_db}
+      TZ: Asia/Ho_Chi_Minh
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+    volumes:
+      - minio_data:/minio-data:ro
+      - ./deploy/backup:/opt/backup:ro
+      - ./.env:/opt/signage.env:ro
+    # Thay lịch của file gốc (mỗi Chủ nhật, chỉ database) bằng: mỗi đêm 02:00 giờ Việt Nam,
+    # cả database lẫn ảnh. Chi tiết trong deploy/backup/backup.sh.
+    entrypoint:
+      - sh
+      - -c
+      - |
+        echo "0 2 * * * sh /opt/backup/backup.sh >> /backups/backup.log 2>&1" > /etc/crontabs/root
+        exec crond -f -l 8
+
+volumes:
+  caddy_data:
+  caddy_config:

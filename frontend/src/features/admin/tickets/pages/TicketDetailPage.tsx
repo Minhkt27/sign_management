@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Clock, User as UserIcon, CheckCircle2, Image as ImageIcon, RotateCcw, X } from 'lucide-react';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
 import { PRIORITY_LABELS, renderTicketStatusBadge } from '@/shared/helpers/ticketBadges';
+import { getApiError } from '@/shared/helpers/apiError';
 
 export default function TicketDetailPage() {
   const { id } = useParams<{ id: string }>();

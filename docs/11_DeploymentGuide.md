@@ -1,6 +1,13 @@
 # 11. Deployment Guide
 ## Hệ Thống Quản Lý Biển Báo Bệnh Viện
 
+> **Triển khai lên VPS: làm theo [deploy/README.md](../deploy/README.md), không theo tài liệu này.**
+>
+> Tài liệu dưới đây viết cho mô hình cũ (Postgres/MinIO/Caddy nằm ở thư mục `vps-shared` riêng,
+> tạo bucket MinIO bằng tay, sao lưu mỗi tuần và chỉ sao lưu database). Từ 2026-09 production
+> chạy trọn trong một stack của repo này, database và bucket tự khởi tạo, sao lưu mỗi đêm cả
+> database lẫn ảnh. Các mục về build riêng frontend/backend bên dưới vẫn đúng cho môi trường dev.
+
 ---
 
 ## 11.1 Yêu Cầu Môi Trường
