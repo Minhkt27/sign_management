@@ -75,12 +75,10 @@ export default function ChangePasswordModal({ open, onClose, required = false }:
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent
-        className="sm:max-w-md"
-        showCloseButton={!required}
-        onEscapeKeyDown={required ? (e) => e.preventDefault() : undefined}
-        onInteractOutside={required ? (e) => e.preventDefault() : undefined}
-      >
+      {/* Không chặn Esc/bấm ra ngoài bằng prop ở đây: DialogContent dựng trên Base UI, không
+          phải Radix, nên onEscapeKeyDown/onInteractOutside không tồn tại. Base UI gọi
+          onOpenChange cho MỌI cách đóng, và handleClose bỏ qua khi required. */}
+      <DialogContent className="sm:max-w-md" showCloseButton={!required}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <KeyRound size={18} />

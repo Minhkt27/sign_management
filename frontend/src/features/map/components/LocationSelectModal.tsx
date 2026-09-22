@@ -24,7 +24,10 @@ interface Props {
 export function LocationSelectModal({ open, onClose, allFloorData, locations, onSetLocation }: Props) {
   const { data: assets = [] } = useQuery({
     queryKey: ['assets'],
-    queryFn: assetService.getAllAssets,
+    // Bọc arrow, KHÔNG truyền thẳng assetService.getAllAssets: TanStack Query gọi queryFn với
+    // object ngữ cảnh làm tham số đầu, và nó sẽ rơi vào chỗ hospitalId — máy chủ nhận tham
+    // số rác và trả lỗi 400.
+    queryFn: () => assetService.getAllAssets(),
     enabled: open,
   });
 
