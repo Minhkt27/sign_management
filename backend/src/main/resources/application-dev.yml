@@ -37,3 +37,6 @@ app:
   admin-initial-password: ${ADMIN_INITIAL_PASSWORD:Admin@Dev#2024}
   tech-initial-password: ${TECH_INITIAL_PASSWORD:Tech@Dev#2024}
   superadmin-initial-password: ${SUPERADMIN_INITIAL_PASSWORD:SuperAdmin@Dev#2024}
+  # Production mặc định BẮT đổi mật khẩu khởi tạo ngay lần đăng nhập đầu (xem DataInitializer).
+  # Máy dev tắt đi — mật khẩu dev ghi sẵn ở trên, dựng lại database không phải đổi mỗi lần.
+  initial-password-must-change: false
