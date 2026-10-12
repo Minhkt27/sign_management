@@ -63,14 +63,15 @@ public class UserService implements UserUseCase {
         if (userDatabasePort.findByUsername(command.username()).isPresent()) {
             throw new IllegalArgumentException("Tên đăng nhập đã tồn tại");
         }
+        Long userHospitalId = resolveNewUserHospitalId(command.hospitalId());
         validatePermissions(command.customPermissions());
-        validateRoleAssignmentAllowed(command.roleId());
+        validateRoleAssignmentAllowed(command.roleId(), userHospitalId);
         User user = User.builder()
                 .username(command.username())
                 .fullName(command.fullName())
                 .password(passwordEncoder.encode(command.password()))
                 .roleId(command.roleId())
-                .hospitalId(resolveNewUserHospitalId(command.hospitalId()))
+                .hospitalId(userHospitalId)
                 .phone(command.phone())
                 .customPermissions(command.customPermissions() != null ? command.customPermissions() : List.of())
                 .isActive(true)
@@ -93,7 +94,7 @@ public class UserService implements UserUseCase {
             throw new IllegalStateException("Không thể thay đổi quyền tài khoản quản trị viên");
         }
         validatePermissions(customPermissions);
-        validateRoleAssignmentAllowed(roleId);
+        validateRoleAssignmentAllowed(roleId, user.getHospitalId());
         user.setRoleId(roleId);
         user.setCustomPermissions(customPermissions != null ? customPermissions : List.of());
         User saved = userDatabasePort.save(user);
@@ -140,10 +141,21 @@ public class UserService implements UserUseCase {
         }
     }
 
-    private void validateRoleAssignmentAllowed(Long roleId) {
+    private void validateRoleAssignmentAllowed(Long roleId, Long userHospitalId) {
         if (roleId == null) return;
         Role role = roleDatabasePort.findById(roleId).orElse(null);
-        if (role == null || role.getPermissions() == null) return;
+        if (role == null) return;
+
+        if (role.getHospitalId() != null) {
+            if (userHospitalId == null) {
+                throw new IllegalArgumentException("Tài khoản Quản trị hệ thống chỉ có thể sử dụng nhóm quyền toàn hệ thống.");
+            }
+            if (!role.getHospitalId().equals(userHospitalId)) {
+                throw new IllegalArgumentException("Không thể gán nhóm quyền của bệnh viện khác cho tài khoản này.");
+            }
+        }
+
+        if (role.getPermissions() == null) return;
         boolean grantsPrivilegeManagement = role.getPermissions().contains("ROLE_MANAGE")
                 || role.getPermissions().contains("USER_MANAGE");
         if (grantsPrivilegeManagement && !callerHasAuthority("ROLE_MANAGE")) {

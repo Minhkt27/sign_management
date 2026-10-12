@@ -262,4 +262,53 @@ class UserServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Mật khẩu hiện tại không đúng");
     }
+
+    @Test
+    void ganVaiTroVienKhac_biTuChoi() {
+        setCaller("USER_MANAGE");
+        existingUser.setHospitalId(1L);
+        when(userDatabasePort.findById(2L)).thenReturn(Optional.of(existingUser));
+        when(roleDatabasePort.findById(2L)).thenReturn(Optional.empty());
+
+        com.hospital.signage.domain.model.Role roleVien2 = com.hospital.signage.domain.model.Role.builder()
+                .id(99L).code("ROLE_HOSP2").hospitalId(2L).build();
+        when(roleDatabasePort.findById(99L)).thenReturn(Optional.of(roleVien2));
+
+        assertThatThrownBy(() -> userService.updateUserRoleAndPermissions(2L, 99L, java.util.List.of()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("bệnh viện khác");
+    }
+
+    @Test
+    void ganVaiTroToanHeThong_thanhCong() {
+        setCaller("USER_MANAGE");
+        existingUser.setHospitalId(1L);
+        when(userDatabasePort.findById(2L)).thenReturn(Optional.of(existingUser));
+        when(roleDatabasePort.findById(2L)).thenReturn(Optional.empty());
+
+        com.hospital.signage.domain.model.Role globalRole = com.hospital.signage.domain.model.Role.builder()
+                .id(50L).code("GLOBAL_NURSE").hospitalId(null).permissions(java.util.List.of("TICKET_VIEW")).build();
+        when(roleDatabasePort.findById(50L)).thenReturn(Optional.of(globalRole));
+        when(userDatabasePort.save(any())).thenReturn(existingUser);
+
+        userService.updateUserRoleAndPermissions(2L, 50L, java.util.List.of());
+
+        verify(userDatabasePort).save(any());
+    }
+
+    @Test
+    void ganVaiTroVien_choTaiKhoanSuperAdmin_biTuChoi() {
+        setCaller("USER_MANAGE");
+        existingUser.setHospitalId(null);
+        when(userDatabasePort.findById(2L)).thenReturn(Optional.of(existingUser));
+        when(roleDatabasePort.findById(2L)).thenReturn(Optional.empty());
+
+        com.hospital.signage.domain.model.Role roleVien1 = com.hospital.signage.domain.model.Role.builder()
+                .id(99L).code("ROLE_HOSP1").hospitalId(1L).build();
+        when(roleDatabasePort.findById(99L)).thenReturn(Optional.of(roleVien1));
+
+        assertThatThrownBy(() -> userService.updateUserRoleAndPermissions(2L, 99L, java.util.List.of()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("toàn hệ thống");
+    }
 }

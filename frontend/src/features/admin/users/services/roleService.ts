@@ -1,11 +1,18 @@
 import { apiClient } from '@/services/apiClient';
 import { Role, UiMode } from '@/shared/types';
 
-export type RolePayload = { code: string; name: string; description?: string; uiMode: UiMode; permissions: string[] };
+export type RolePayload = {
+  code: string;
+  name: string;
+  description?: string;
+  uiMode: UiMode;
+  permissions: string[];
+  hospitalId?: number | null;
+};
 
 export const roleService = {
-  getAllRoles: (): Promise<Role[]> =>
-    apiClient.get<Role[]>('/roles').then(r => r.data),
+  getAllRoles: (hospitalId?: number): Promise<Role[]> =>
+    apiClient.get<Role[]>('/roles', { params: { hospitalId } }).then(r => r.data),
 
   getRoleById: (id: number): Promise<Role> =>
     apiClient.get<Role>(`/roles/${id}`).then(r => r.data),

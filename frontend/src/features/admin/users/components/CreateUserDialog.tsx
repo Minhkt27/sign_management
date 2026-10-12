@@ -48,9 +48,10 @@ export function CreateUserDialog({ open, onOpenChange, onSubmit, isPending, erro
   const isSuper = isSuperAdmin(authStore.getToken());
   const { selectedHospitalId } = useAdminStore();
 
+  const targetHospitalId = isSuper ? (selectedHospitalId ?? undefined) : undefined;
   const { data: roles = [], isLoading: isLoadingRoles } = useQuery({
-    queryKey: ['roles'],
-    queryFn: roleService.getAllRoles,
+    queryKey: ['roles', targetHospitalId],
+    queryFn: () => roleService.getAllRoles(targetHospitalId),
     enabled: open,
   });
 

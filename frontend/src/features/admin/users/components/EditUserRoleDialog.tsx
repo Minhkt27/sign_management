@@ -25,8 +25,8 @@ export function EditUserRoleDialog({ user, open, onOpenChange, onSubmit, isPendi
   const [localError, setLocalError] = useState('');
 
   const { data: roles = [], isLoading: isLoadingRoles } = useQuery({
-    queryKey: ['roles'],
-    queryFn: roleService.getAllRoles,
+    queryKey: ['roles', user?.hospitalId],
+    queryFn: () => roleService.getAllRoles(user?.hospitalId),
     enabled: open,
   });
 
