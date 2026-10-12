@@ -36,8 +36,11 @@ public class RoleEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
+    @Column(nullable = false)
     private String code;
+
+    @Column(name = "hospital_id")
+    private Long hospitalId;
 
     @Column(nullable = false)
     private String name;

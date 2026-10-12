@@ -44,13 +44,13 @@ export default function UserListPage() {
   const [selectedUserForEdit, setSelectedUserForEdit] = useState<User | null>(null);
   const [editUserError, setEditUserError] = useState('');
 
-  const { data: roles = [], isLoading: isLoadingRoles } = useQuery({
-    queryKey: ['roles'],
-    queryFn: roleService.getAllRoles,
-  });
-
   const { selectedHospitalId } = useAdminStore();
   const hospitalIdParam = selectedHospitalId ?? undefined;
+
+  const { data: roles = [], isLoading: isLoadingRoles } = useQuery({
+    queryKey: ['roles', hospitalIdParam],
+    queryFn: () => roleService.getAllRoles(hospitalIdParam),
+  });
 
   const { data: pagedUsers, isLoading } = useQuery({
     queryKey: ['users', page, search, hospitalIdParam],

@@ -234,7 +234,7 @@ export default function AssetTreePage() {
       parentId,
       description: newLocDesc,
       type: newLocType
-    } as any);
+    });
   };
 
   const openCreateLocDialog = (parentLocId: number | null) => {

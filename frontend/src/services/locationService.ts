@@ -2,7 +2,7 @@ import { apiClient } from './apiClient';
 import { Location, LocationTreeNode } from '../shared/types';
 
 export const locationService = {
-  getAllLocations: async (hospitalId?: number | 'ALL' | any): Promise<Location[]> => {
+  getAllLocations: async (hospitalId?: number | string | null): Promise<Location[]> => {
     const params = new URLSearchParams();
     if (typeof hospitalId === 'number' || (typeof hospitalId === 'string' && hospitalId !== 'ALL' && !hospitalId.includes('[object'))) {
       params.set('hospitalId', String(hospitalId));

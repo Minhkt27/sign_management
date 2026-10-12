@@ -3,6 +3,7 @@ package com.hospital.signage.adapter.in.web;
 import com.hospital.signage.application.port.in.RoleUseCase;
 import com.hospital.signage.domain.enums.UiMode;
 import com.hospital.signage.domain.model.Role;
+import com.hospital.signage.infrastructure.security.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -23,11 +24,12 @@ public class RoleController {
 
     private final RoleUseCase roleUseCase;
 
-    @Operation(summary = "Lấy danh sách tất cả các nhóm quyền")
+    @Operation(summary = "Lấy danh sách các nhóm quyền")
     @GetMapping
     @PreAuthorize("hasAuthority('ROLE_VIEW') or hasAuthority('ROLE_MANAGE') or hasAuthority('USER_MANAGE')")
-    public ResponseEntity<List<Role>> getAllRoles() {
-        return ResponseEntity.ok(roleUseCase.getAllRoles());
+    public ResponseEntity<List<Role>> getAllRoles(@RequestParam(required = false) Long hospitalId) {
+        Long resolvedHospitalId = SecurityUtils.resolveAdminHospitalId(hospitalId);
+        return ResponseEntity.ok(roleUseCase.getAllRoles(resolvedHospitalId));
     }
 
     @Operation(summary = "Lấy chi tiết một nhóm quyền")
@@ -42,7 +44,7 @@ public class RoleController {
     @PreAuthorize("hasAuthority('ROLE_MANAGE')")
     public ResponseEntity<Role> createRole(@Valid @RequestBody CreateRoleRequest request) {
         Role role = roleUseCase.createRole(new RoleUseCase.CreateRoleCommand(
-                request.code(), request.name(), request.description(), request.uiMode(), request.permissions()));
+                request.code(), request.name(), request.description(), request.uiMode(), request.permissions(), request.hospitalId()));
         return ResponseEntity.ok(role);
     }
 
@@ -71,6 +73,7 @@ public class RoleController {
             @NotBlank @Size(max = 255) String name,
             @Size(max = 1000) String description,
             UiMode uiMode,
-            List<String> permissions
+            List<String> permissions,
+            Long hospitalId
     ) {}
 }

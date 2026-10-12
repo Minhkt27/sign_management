@@ -5,12 +5,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Shield } from 'lucide-react';
 import { Role, UiMode } from '@/shared/types';
 import { PermissionMatrix } from './PermissionMatrix';
+import { authStore, isSuperAdmin } from '@/app/store/authStore';
+import { useAdminStore } from '@/app/store/adminStore';
 
 interface Props {
   role: Role | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: { code: string; name: string; description?: string; uiMode: UiMode; permissions: string[] }) => void;
+  onSubmit: (data: { code: string; name: string; description?: string; uiMode: UiMode; permissions: string[]; hospitalId?: number | null }) => void;
   isPending: boolean;
   error: string;
 }
@@ -21,43 +23,55 @@ export function EditRoleDialog({ role, open, onOpenChange, onSubmit, isPending, 
   const [description, setDescription] = useState('');
   const [uiMode, setUiMode] = useState<UiMode>('ADMIN');
   const [permissions, setPermissions] = useState<string[]>([]);
+  const [scope, setScope] = useState<'GLOBAL' | 'HOSPITAL'>('GLOBAL');
   const [localError, setLocalError] = useState('');
+
+  const isSuper = isSuperAdmin(authStore.getToken());
+  const { selectedHospitalId } = useAdminStore();
 
   useEffect(() => {
     if (open) {
       if (role) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setCode(role.code);
-         
         setName(role.name);
-         
         setDescription(role.description || '');
-         
         setUiMode(role.uiMode ?? 'ADMIN');
-         
         setPermissions(role.permissions);
+        setScope(role.hospitalId ? 'HOSPITAL' : 'GLOBAL');
       } else {
-         
         setCode('');
-         
         setName('');
-         
         setDescription('');
-         
         setUiMode('ADMIN');
-         
         setPermissions([]);
+        setScope(selectedHospitalId ? 'HOSPITAL' : 'GLOBAL');
       }
-       
       setLocalError('');
     }
-  }, [role, open]);
+  }, [role, open, selectedHospitalId]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError('');
     if (!code || !name) { setLocalError('Vui lòng điền đủ mã và tên nhóm quyền'); return; }
-    onSubmit({ code: code.toUpperCase(), name, description, uiMode, permissions });
+
+    const targetHospitalId = role
+      ? role.hospitalId
+      : (isSuper ? (scope === 'HOSPITAL' ? selectedHospitalId : null) : undefined);
+
+    if (!role && isSuper && scope === 'HOSPITAL' && !selectedHospitalId) {
+      setLocalError('Vui lòng chọn một bệnh viện ở thanh điều hướng trước khi tạo nhóm quyền riêng cho viện');
+      return;
+    }
+
+    onSubmit({
+      code: code.toUpperCase(),
+      name,
+      description,
+      uiMode,
+      permissions,
+      hospitalId: targetHospitalId,
+    });
   };
 
   const displayError = localError || error;
@@ -108,6 +122,26 @@ export function EditRoleDialog({ role, open, onOpenChange, onSubmit, isPending, 
               placeholder="Nhóm quyền dành cho..."
             />
           </div>
+
+          {/* Super Admin scope selector when creating */}
+          {!role && isSuper && (
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-700">Phạm vi áp dụng</label>
+              <select
+                value={scope}
+                onChange={e => setScope(e.target.value as 'GLOBAL' | 'HOSPITAL')}
+                className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="GLOBAL">Toàn hệ thống (Dùng chung cho tất cả các viện)</option>
+                <option value="HOSPITAL">Nội bộ bệnh viện {selectedHospitalId ? `(Viện #${selectedHospitalId})` : '(Đang chọn)'}</option>
+              </select>
+              <p className="text-xs text-slate-500">
+                {scope === 'GLOBAL'
+                  ? 'Nhóm quyền này sẽ hiển thị và sử dụng được ở tất cả các bệnh viện.'
+                  : 'Chỉ nhân viên thuộc bệnh viện này mới có thể được gán hoặc xem nhóm quyền này.'}
+              </p>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-slate-700">Giao diện hiển thị</label>

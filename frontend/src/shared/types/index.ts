@@ -69,6 +69,7 @@ export interface Role {
   description?: string;
   uiMode: UiMode;
   permissions: string[];
+  hospitalId?: number | null;
 }
 
 export interface User {

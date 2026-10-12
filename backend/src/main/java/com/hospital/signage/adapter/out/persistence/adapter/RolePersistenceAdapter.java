@@ -36,8 +36,23 @@ public class RolePersistenceAdapter implements RoleDatabasePort {
     }
 
     @Override
+    public Optional<Role> findByCodeAndHospitalId(String code, Long hospitalId) {
+        return repository.findByCodeAndHospitalId(code, hospitalId).map(mapper::toDomain);
+    }
+
+    @Override
+    public Optional<Role> findGlobalByCode(String code) {
+        return repository.findByCodeAndHospitalIdIsNull(code).map(mapper::toDomain);
+    }
+
+    @Override
     public List<Role> findAll() {
         return repository.findAll().stream().map(mapper::toDomain).toList();
+    }
+
+    @Override
+    public List<Role> findAllAccessible(Long hospitalId) {
+        return repository.findAllAccessible(hospitalId).stream().map(mapper::toDomain).toList();
     }
 
     @Override

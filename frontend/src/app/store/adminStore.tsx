@@ -31,6 +31,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAdminStore = () => {
   const context = useContext(AdminContext);
   if (!context) {
