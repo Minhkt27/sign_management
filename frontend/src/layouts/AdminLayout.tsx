@@ -111,11 +111,11 @@ function SidebarContent({ user, navItems, showHospitalSelector, hospitals, selec
 function AdminLayoutInner() {
   const navigate = useNavigate();
   const location = useLocation();
-  const user = authStore.getUser();
+  const [user, setUser] = useState(() => authStore.getUser());
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   // Mật khẩu do quản trị viên cấp thì người khác cũng biết — chặn mọi thao tác cho tới khi
   // người dùng đặt mật khẩu riêng.
-  const mustChangePassword = !!user?.mustChangePassword;
+  const [mustChangePassword, setMustChangePassword] = useState(() => !!authStore.getUser()?.mustChangePassword);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { selectedHospitalId, setSelectedHospitalId } = useAdminStore();
 
@@ -344,7 +344,11 @@ function AdminLayoutInner() {
       <ChangePasswordModal
         open={isChangePasswordOpen || mustChangePassword}
         required={mustChangePassword}
-        onClose={() => setIsChangePasswordOpen(false)}
+        onClose={() => {
+          setIsChangePasswordOpen(false);
+          setMustChangePassword(false);
+          setUser(authStore.getUser());
+        }}
       />
     </div>
   );
