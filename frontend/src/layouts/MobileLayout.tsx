@@ -88,15 +88,17 @@ export default function MobileLayout() {
         </button>
       </nav>
 
-      <ChangePasswordModal
-        open={isChangePasswordOpen || mustChangePassword}
-        required={mustChangePassword}
-        onClose={() => {
-          setIsChangePasswordOpen(false);
-          setMustChangePassword(false);
-          setUser(authStore.getUser());
-        }}
-      />
+      {(isChangePasswordOpen || mustChangePassword) && (
+        <ChangePasswordModal
+          open={isChangePasswordOpen || mustChangePassword}
+          required={mustChangePassword}
+          onClose={() => {
+            setIsChangePasswordOpen(false);
+            setMustChangePassword(false);
+            setUser(authStore.getUser());
+          }}
+        />
+      )}
     </div>
   );
 }

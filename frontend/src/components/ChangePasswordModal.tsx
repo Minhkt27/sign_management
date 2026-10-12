@@ -38,13 +38,16 @@ export default function ChangePasswordModal({ open, onClose, required = false }:
       setCurrentPassword('');
       setNewPassword('');
       setConfirm('');
+      setError('');
       // Cờ đã tắt phía máy chủ; cập nhật luôn bản lưu cục bộ để hộp thoại bắt buộc không
       // bật lại ngay sau khi đóng.
       const user = authStore.getUser();
-      if (user?.mustChangePassword) {
+      if (user) {
         authStore.setUser({ ...user, mustChangePassword: false });
       }
-      setTimeout(() => { setSuccess(false); onClose(); }, 1200);
+      setTimeout(() => {
+        onClose();
+      }, 1000);
     },
     onError: (err: unknown) => setError(getApiError(err, 'Đổi mật khẩu thất bại')),
   });
@@ -64,14 +67,11 @@ export default function ChangePasswordModal({ open, onClose, required = false }:
   };
 
   const handleClose = () => {
-    if (required) return; // chưa đổi xong thì không cho thoát
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirm('');
-    setError('');
-    setSuccess(false);
+    if (required && !success) return; // chưa đổi xong thì không cho thoát
     onClose();
   };
+
+  if (!open) return null;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
