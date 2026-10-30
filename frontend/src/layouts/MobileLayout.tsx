@@ -8,8 +8,10 @@ import NotificationBell from '@/components/NotificationBell';
 
 export default function MobileLayout() {
   const navigate = useNavigate();
-  const user = authStore.getUser();
+  const [user, setUser] = useState(() => authStore.getUser());
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  // Xem chú thích ở AdminLayout — kỹ thuật viên dùng giao diện này cũng phải đổi mật khẩu tạm.
+  const [mustChangePassword, setMustChangePassword] = useState(() => !!authStore.getUser()?.mustChangePassword);
 
   const handleLogout = () => {
     authService.logout().then(() => navigate('/login'));
@@ -86,7 +88,17 @@ export default function MobileLayout() {
         </button>
       </nav>
 
-      <ChangePasswordModal open={isChangePasswordOpen} onClose={() => setIsChangePasswordOpen(false)} />
+      {(isChangePasswordOpen || mustChangePassword) && (
+        <ChangePasswordModal
+          open={isChangePasswordOpen || mustChangePassword}
+          required={mustChangePassword}
+          onClose={() => {
+            setIsChangePasswordOpen(false);
+            setMustChangePassword(false);
+            setUser(authStore.getUser());
+          }}
+        />
+      )}
     </div>
   );
 }

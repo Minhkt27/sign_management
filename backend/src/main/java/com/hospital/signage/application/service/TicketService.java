@@ -67,6 +67,16 @@ public class TicketService implements TicketUseCase {
                     "Không có quyền tạo phiếu cho biển báo thuộc bệnh viện khác.");
         }
 
+        // Một biển hỏng chỉ cần một phiếu. Không chặn thì mỗi người đi ngang báo một lần là
+        // sinh thêm một phiếu cho cùng cái biển, kèm một loạt thông báo cho quản trị viên,
+        // và kỹ thuật viên không biết phiếu nào mới là phiếu cần xử lý.
+        List<Long> openTicketIds = ticketDatabasePort.findOpenTicketIdsForAsset(command.assetId());
+        if (!openTicketIds.isEmpty()) {
+            throw new IllegalStateException(
+                    "Biển báo này đã có phiếu bảo trì đang xử lý (phiếu #" + openTicketIds.get(0)
+                    + "). Vui lòng bổ sung thông tin vào phiếu đó thay vì tạo phiếu mới.");
+        }
+
         MaintenanceTicket ticket = MaintenanceTicket.builder()
                 .asset(asset)
                 .hospitalId(asset.getHospitalId())
@@ -108,6 +118,7 @@ public class TicketService implements TicketUseCase {
         User assignee = userDatabasePort.findById(assigneeId)
                 .orElseThrow(() -> new IllegalArgumentException("Assignee user not found"));
         validateAssigneeIsTechnician(assignee);
+        validateAssigneeSameHospital(assignee, ticket);
 
         ticket.setAssignee(assignee);
         MaintenanceTicket saved = ticketDatabasePort.save(ticket);
@@ -152,15 +163,18 @@ public class TicketService implements TicketUseCase {
         updateTicketImages(ticket, imageBefore, imageAfter);
         handleCompletionAndRejection(ticket, status, isRejection, rejectionNote);
 
-        TicketStatus finalStatus = (isRejection && ticket.getRejectionCount() >= MAX_REJECTION_LIMIT)
-                ? TicketStatus.CLOSED
-                : status;
-        if (finalStatus == TicketStatus.CLOSED) {
-            ticket.setCompletedAt(Instant.now());
+        boolean autoClosed = isRejection && ticket.getRejectionCount() >= MAX_REJECTION_LIMIT;
+        TicketStatus finalStatus = autoClosed ? TicketStatus.CLOSED : status;
+        if (autoClosed) {
+            // Cố tình KHÔNG gán completedAt: phiếu này đóng vì sửa mãi không đạt, không phải
+            // vì đã hoàn thành. Gán vào sẽ làm sai mọi thống kê dựa trên mốc hoàn thành.
             log.warn("Ticket {} auto-closed after reaching max rejection limit ({})", ticket.getId(), MAX_REJECTION_LIMIT);
         }
+        // Chỉ coi là đã sửa xong khi admin chủ động đóng một phiếu đang ở RESOLVED. Lần từ
+        // chối cuối cũng đi từ RESOLVED nhưng mang ý nghĩa ngược lại, nên phải loại trừ.
+        boolean fixConfirmed = current == TicketStatus.RESOLVED && !isRejection;
         ticket.setTicketStatus(finalStatus);
-        updateRelatedAssetState(ticket, finalStatus);
+        updateRelatedAssetState(ticket, finalStatus, fixConfirmed);
 
         MaintenanceTicket saved = ticketDatabasePort.save(ticket);
         
@@ -177,22 +191,62 @@ public class TicketService implements TicketUseCase {
         return saved;
     }
 
+    /**
+     * Ảnh "sau khi sửa" là bằng chứng duy nhất cho thấy công việc thực sự đã làm, nên nó bắt
+     * buộc với MỌI tài khoản.
+     *
+     * <p>Trước đây yêu cầu này chỉ áp dụng cho người có quyền tải ảnh, với ý tốt là không ép
+     * người ta làm điều họ không có quyền làm. Nhưng hệ quả ngược lại: một tài khoản kỹ thuật
+     * viên thiếu quyền {@code FILE_UPLOAD} lại đóng được phiếu mà không cần bằng chứng nào —
+     * tức là càng ít quyền càng dễ bỏ qua kiểm soát. Nay thiếu quyền là một lỗi cấu hình, và
+     * thông báo nói thẳng ra điều đó thay vì lặng lẽ miễn trừ.
+     */
     private void validateResolutionEvidence(MaintenanceTicket ticket, TicketStatus status, String imageAfter) {
+        if (status != TicketStatus.RESOLVED) {
+            return;
+        }
+
         boolean hasNewImage = imageAfter != null && !imageAfter.isBlank();
         boolean hasExistingImage = ticket.getImageAfter() != null && !ticket.getImageAfter().isBlank();
-        
+        if (hasNewImage || hasExistingImage) {
+            return;
+        }
+
         var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
         boolean canUpload = auth != null && auth.getAuthorities().stream()
                 .anyMatch(a -> "FILE_UPLOAD".equals(a.getAuthority()) || "ASSET_MANAGE".equals(a.getAuthority()));
 
-        if (canUpload && status == TicketStatus.RESOLVED && !hasNewImage && !hasExistingImage) {
-            throw new IllegalArgumentException("Phải đính kèm ảnh sau khi sửa (imageAfter) trước khi đánh dấu hoàn thành.");
+        if (!canUpload) {
+            log.warn("Ticket {}: tài khoản không có quyền tải ảnh nên không thể hoàn thành phiếu", ticket.getId());
+            throw new IllegalArgumentException(
+                    "Phải đính kèm ảnh sau khi sửa trước khi đánh dấu hoàn thành, nhưng tài khoản của bạn "
+                    + "chưa được cấp quyền tải ảnh lên. Vui lòng liên hệ quản trị viên.");
         }
+        throw new IllegalArgumentException("Phải đính kèm ảnh sau khi sửa (imageAfter) trước khi đánh dấu hoàn thành.");
     }
 
     private void validateRejectionLimit(MaintenanceTicket ticket, boolean isRejection) {
         if (isRejection && ticket.getRejectionCount() >= MAX_REJECTION_LIMIT) {
             throw new TicketRejectionLimitExceededException("Phiếu này đã bị từ chối tối đa " + MAX_REJECTION_LIMIT + " lần.");
+        }
+    }
+
+    /**
+     * Người được giao phải thuộc cùng bệnh viện với phiếu.
+     *
+     * <p>Trước đây chỉ kiểm tra "có phải kỹ thuật viên" nên phiếu của viện A giao được cho kỹ
+     * thuật viên viện B chỉ cần biết id của họ. Giao diện không mở đường đó ra (danh sách kỹ
+     * thuật viên đã lọc theo viện) nhưng API thì cho phép, và đây là bảng {@code users} — bảng
+     * duy nhất KHÔNG bật Row Level Security, nên không có lớp nào đỡ phía dưới.
+     *
+     * <p>SUPER_ADMIN cũng không được miễn: họ thao tác trên phiếu của một viện cụ thể, nên
+     * người nhận việc vẫn phải thuộc đúng viện đó. Kỹ thuật viên không có viện (hospitalId
+     * null) thì không nhận việc của viện nào cả.
+     */
+    private void validateAssigneeSameHospital(User assignee, MaintenanceTicket ticket) {
+        if (!java.util.Objects.equals(assignee.getHospitalId(), ticket.getHospitalId())) {
+            throw new com.hospital.signage.domain.exception.HospitalScopeException(
+                    "Không thể giao phiếu cho kỹ thuật viên thuộc bệnh viện khác.");
         }
     }
 
@@ -243,17 +297,45 @@ public class TicketService implements TicketUseCase {
         }
     }
 
-    private void updateRelatedAssetState(MaintenanceTicket ticket, TicketStatus status) {
+    /**
+     * Đồng bộ trạng thái biển báo theo trạng thái phiếu.
+     *
+     * <p>Điểm cần phân biệt: <b>đóng phiếu không đồng nghĩa với đã sửa xong</b>. Một phiếu
+     * có thể bị đóng vì trùng lặp, vì hoãn lại, hoặc vì tự động đóng sau khi bị từ chối quá
+     * số lần cho phép — tức là đúng những tình huống biển vẫn đang hỏng.
+     *
+     * <p>Lưu ý cái bẫy: không thể chỉ nhìn "trạng thái trước đó có phải RESOLVED không" để
+     * kết luận, vì lần từ chối thứ ba cũng xuất phát từ RESOLVED mà ý nghĩa thì ngược hẳn —
+     * đó là phủ nhận việc đã sửa xong. Vì vậy nơi gọi phải nói rõ qua {@code fixConfirmed}.
+     *
+     * <p>Trước đây mọi nhánh CLOSED đều đưa biển về ACTIVE, khiến biển hỏng biến mất khỏi
+     * danh sách cần xử lý mà không ai biết.
+     */
+    private void updateRelatedAssetState(MaintenanceTicket ticket, TicketStatus newStatus, boolean fixConfirmed) {
         Asset asset = ticket.getAsset();
         if (asset == null || asset.getStatus() == com.hospital.signage.domain.enums.AssetStatus.SCRAPPED) {
             return;
         }
 
-        if (status == TicketStatus.IN_PROGRESS) {
-            asset.setStatus(com.hospital.signage.domain.enums.AssetStatus.REPAIRING);
-            assetDatabasePort.save(asset);
-        } else if (status == TicketStatus.RESOLVED || status == TicketStatus.CLOSED) {
-            asset.setStatus(com.hospital.signage.domain.enums.AssetStatus.ACTIVE);
+        com.hospital.signage.domain.enums.AssetStatus target;
+        if (newStatus == TicketStatus.IN_PROGRESS) {
+            target = com.hospital.signage.domain.enums.AssetStatus.REPAIRING;
+        } else if (newStatus == TicketStatus.RESOLVED) {
+            target = com.hospital.signage.domain.enums.AssetStatus.ACTIVE;
+        } else if (newStatus == TicketStatus.CLOSED) {
+            // Đóng một phiếu đã được xác nhận sửa xong = biển hoạt động lại. Mọi kiểu đóng
+            // khác = ngừng theo đuổi phiếu này, biển vẫn hỏng và phải hiện ra như vậy.
+            // Nếu phiếu vốn được tạo nhầm, admin sửa lại trạng thái biển ở màn quản lý biển
+            // báo — thà báo hỏng dư còn hơn giấu mất một biển hỏng thật.
+            target = fixConfirmed
+                    ? com.hospital.signage.domain.enums.AssetStatus.ACTIVE
+                    : com.hospital.signage.domain.enums.AssetStatus.DAMAGED;
+        } else {
+            return;
+        }
+
+        if (asset.getStatus() != target) {
+            asset.setStatus(target);
             assetDatabasePort.save(asset);
         }
     }
@@ -282,8 +364,10 @@ public class TicketService implements TicketUseCase {
     }
 
     @Override
-    public List<MaintenanceTicket> getAllTickets() {
-        return ticketDatabasePort.findAll();
+    public List<MaintenanceTicket> getAllTickets(Long hospitalId) {
+        return hospitalId == null 
+                ? ticketDatabasePort.findAll() 
+                : ticketDatabasePort.findByFilters(null, null, null, null, hospitalId, PageRequest.of(0, 1000)).getContent();
     }
 
     @Override
@@ -297,13 +381,13 @@ public class TicketService implements TicketUseCase {
     }
 
     @Override
-    public List<MaintenanceTicket> getTicketsByAsset(UUID assetId) {
-        return ticketDatabasePort.findByAssetId(assetId);
+    public List<MaintenanceTicket> getTicketsByAsset(UUID assetId, Long hospitalId) {
+        return ticketDatabasePort.findByFilters(null, assetId, null, null, hospitalId, PageRequest.of(0, 200)).getContent();
     }
 
     @Override
-    public List<MaintenanceTicket> getTicketsByAssignee(Long assigneeId) {
-        return ticketDatabasePort.findByFilters(assigneeId, null, null, null, null, PageRequest.of(0, 200))
+    public List<MaintenanceTicket> getTicketsByAssignee(Long assigneeId, Long hospitalId) {
+        return ticketDatabasePort.findByFilters(assigneeId, null, null, null, hospitalId, PageRequest.of(0, 200))
                 .getContent();
     }
 

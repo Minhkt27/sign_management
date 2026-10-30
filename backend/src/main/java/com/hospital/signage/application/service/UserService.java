@@ -63,17 +63,21 @@ public class UserService implements UserUseCase {
         if (userDatabasePort.findByUsername(command.username()).isPresent()) {
             throw new IllegalArgumentException("Tên đăng nhập đã tồn tại");
         }
+        Long userHospitalId = resolveNewUserHospitalId(command.hospitalId());
         validatePermissions(command.customPermissions());
-        validateRoleAssignmentAllowed(command.roleId());
+        validateRoleAssignmentAllowed(command.roleId(), userHospitalId);
         User user = User.builder()
                 .username(command.username())
                 .fullName(command.fullName())
                 .password(passwordEncoder.encode(command.password()))
                 .roleId(command.roleId())
-                .hospitalId(resolveNewUserHospitalId(command.hospitalId()))
+                .hospitalId(userHospitalId)
                 .phone(command.phone())
                 .customPermissions(command.customPermissions() != null ? command.customPermissions() : List.of())
                 .isActive(true)
+                // Mật khẩu ban đầu do quản trị viên đặt nên quản trị viên biết nó. Buộc đổi ở
+                // lần đăng nhập đầu để mật khẩu trở về đúng nghĩa: chỉ chủ tài khoản biết.
+                .mustChangePassword(true)
                 .build();
         User saved = userDatabasePort.save(user);
         log.info("User account '{}' created with id {}", saved.getUsername(), saved.getId());
@@ -90,7 +94,7 @@ public class UserService implements UserUseCase {
             throw new IllegalStateException("Không thể thay đổi quyền tài khoản quản trị viên");
         }
         validatePermissions(customPermissions);
-        validateRoleAssignmentAllowed(roleId);
+        validateRoleAssignmentAllowed(roleId, user.getHospitalId());
         user.setRoleId(roleId);
         user.setCustomPermissions(customPermissions != null ? customPermissions : List.of());
         User saved = userDatabasePort.save(user);
@@ -125,21 +129,45 @@ public class UserService implements UserUseCase {
             if ((permission.equals("HOSPITAL_MANAGE") || permission.equals("HOSPITAL_VIEW")) && !SecurityUtils.isSuperAdmin()) {
                 throw new org.springframework.security.access.AccessDeniedException("Chỉ Quản trị hệ thống mới có thể cấp quyền liên quan đến Quản lý Bệnh viện.");
             }
+            // Nếu không chặn ở đây thì validateRoleAssignmentAllowed() bị đi vòng: thay vì gán
+            // một vai trò có ROLE_MANAGE (đã bị chặn), người chỉ có USER_MANAGE chỉ cần cấp
+            // thẳng ROLE_MANAGE qua customPermissions — kể cả cho chính mình — rồi từ đó gán
+            // được mọi vai trò.
+            if ((permission.equals("ROLE_MANAGE") || permission.equals("USER_MANAGE"))
+                    && !callerHasAuthority("ROLE_MANAGE")) {
+                throw new org.springframework.security.access.AccessDeniedException(
+                        "Chỉ người có quyền ROLE_MANAGE mới được cấp quyền quản lý quyền/người dùng.");
+            }
         }
     }
 
-    private void validateRoleAssignmentAllowed(Long roleId) {
+    private void validateRoleAssignmentAllowed(Long roleId, Long userHospitalId) {
         if (roleId == null) return;
         Role role = roleDatabasePort.findById(roleId).orElse(null);
-        if (role == null || role.getPermissions() == null) return;
+        if (role == null) return;
+
+        if (role.getHospitalId() != null) {
+            if (userHospitalId == null) {
+                throw new IllegalArgumentException("Tài khoản Quản trị hệ thống chỉ có thể sử dụng nhóm quyền toàn hệ thống.");
+            }
+            if (!role.getHospitalId().equals(userHospitalId)) {
+                throw new IllegalArgumentException("Không thể gán nhóm quyền của bệnh viện khác cho tài khoản này.");
+            }
+        }
+
+        if (role.getPermissions() == null) return;
         boolean grantsPrivilegeManagement = role.getPermissions().contains("ROLE_MANAGE")
                 || role.getPermissions().contains("USER_MANAGE");
         if (grantsPrivilegeManagement && !callerHasAuthority("ROLE_MANAGE")) {
             throw new org.springframework.security.access.AccessDeniedException("Chỉ người có quyền ROLE_MANAGE mới được gán vai trò có khả năng quản lý quyền/người dùng.");
         }
+        // Không ai được cấp vai trò SUPER_ADMIN qua tạo/sửa tài khoản thông thường — kể cả
+        // chính SUPER_ADMIN khác — tránh tự nhân bản quyền cao nhất qua giao diện quản lý user.
+        // Tài khoản SUPER_ADMIN chỉ nên tạo qua DataInitializer (seed ban đầu) hoặc thao tác
+        // trực tiếp trên database bởi người vận hành hệ thống.
         boolean isSuperAdminRole = "SUPER_ADMIN".equals(role.getCode()) || role.getPermissions().contains("HOSPITAL_MANAGE");
-        if (isSuperAdminRole && !SecurityUtils.isSuperAdmin()) {
-            throw new org.springframework.security.access.AccessDeniedException("Chỉ Quản trị hệ thống mới được phép cấp vai trò Quản trị hệ thống.");
+        if (isSuperAdminRole) {
+            throw new org.springframework.security.access.AccessDeniedException("Không thể cấp vai trò Quản trị hệ thống qua tính năng này.");
         }
     }
 
@@ -186,6 +214,9 @@ public class UserService implements UserUseCase {
         }
         String temporaryPassword = generateTemporaryPassword();
         user.setPassword(passwordEncoder.encode(temporaryPassword));
+        // Mật khẩu tạm đi qua tay quản trị viên (đọc qua điện thoại, nhắn tin, ghi giấy) nên
+        // phải là thứ dùng đúng một lần rồi bỏ, không được trở thành mật khẩu lâu dài.
+        user.setMustChangePassword(true);
         user.setRefreshToken(null);
         userDatabasePort.save(user);
         userCacheService.evict(user.getUsername());
@@ -240,7 +271,12 @@ public class UserService implements UserUseCase {
         if (!passwordEncoder.matches(command.currentPassword(), user.getPassword())) {
             throw new IllegalArgumentException("Mật khẩu hiện tại không đúng");
         }
+        if (passwordEncoder.matches(command.newPassword(), user.getPassword())) {
+            throw new IllegalArgumentException("Mật khẩu mới phải khác mật khẩu hiện tại.");
+        }
         user.setPassword(passwordEncoder.encode(command.newPassword()));
+        // Người dùng đã tự đặt mật khẩu của mình — không còn ai khác biết nó nữa.
+        user.setMustChangePassword(false);
         userDatabasePort.save(user);
         userCacheService.evict(user.getUsername());
     }

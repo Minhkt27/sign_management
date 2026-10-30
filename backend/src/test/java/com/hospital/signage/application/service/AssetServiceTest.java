@@ -133,13 +133,36 @@ class AssetServiceTest {
         assertThat(result).isPresent().contains(sampleAsset);
     }
 
+    // Thông báo phải nói rõ có bao nhiêu phiếu và hướng sang Thanh lý. Câu cũ chỉ nói "đang
+    // có phiếu bảo trì liên kết", khiến người dùng tưởng đóng hết phiếu là xoá được — trong
+    // khi phiếu đã đóng cũng chặn, mà lại không có cách nào xoá phiếu.
     @Test
-    void deleteAsset_withLinkedTickets_throwsIllegalArgument() {
+    void deleteAsset_conPhieuChuaDong_baoRoSoLuongVaHuongThanhLy() {
         when(assetDatabasePort.findById(sampleAsset.getId())).thenReturn(Optional.of(sampleAsset));
-        when(ticketDatabasePort.existsByAssetId(sampleAsset.getId())).thenReturn(true);
+        when(ticketDatabasePort.countByAsset(sampleAsset.getId())).thenReturn(3L);
+        when(ticketDatabasePort.findOpenTicketIdsForAsset(sampleAsset.getId()))
+                .thenReturn(java.util.List.of(77L));
 
         assertThatThrownBy(() -> assetService.deleteAsset(sampleAsset.getId(), null))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("3 phiếu bảo trì")
+                .hasMessageContaining("#77")
+                .hasMessageContaining("Thanh lý");
+
+        verify(assetDatabasePort, never()).deleteById(any());
+    }
+
+    @Test
+    void deleteAsset_chiConPhieuDaDong_vanChanVaHuongThanhLy() {
+        when(assetDatabasePort.findById(sampleAsset.getId())).thenReturn(Optional.of(sampleAsset));
+        when(ticketDatabasePort.countByAsset(sampleAsset.getId())).thenReturn(2L);
+        when(ticketDatabasePort.findOpenTicketIdsForAsset(sampleAsset.getId()))
+                .thenReturn(java.util.List.of());
+
+        assertThatThrownBy(() -> assetService.deleteAsset(sampleAsset.getId(), null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("2 phiếu bảo trì")
+                .hasMessageContaining("Thanh lý");
 
         verify(assetDatabasePort, never()).deleteById(any());
     }
@@ -147,7 +170,7 @@ class AssetServiceTest {
     @Test
     void deleteAsset_withNoTickets_deletesSuccessfully() {
         when(assetDatabasePort.findById(sampleAsset.getId())).thenReturn(Optional.of(sampleAsset));
-        when(ticketDatabasePort.existsByAssetId(sampleAsset.getId())).thenReturn(false);
+        when(ticketDatabasePort.countByAsset(sampleAsset.getId())).thenReturn(0L);
         doNothing().when(assetDatabasePort).deleteById(sampleAsset.getId());
 
         assetService.deleteAsset(sampleAsset.getId(), null);

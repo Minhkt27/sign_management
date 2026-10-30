@@ -1,6 +1,13 @@
 # 11. Deployment Guide
 ## Hệ Thống Quản Lý Biển Báo Bệnh Viện
 
+> **Triển khai lên VPS: làm theo [deploy/README.md](../deploy/README.md), không theo tài liệu này.**
+>
+> Tài liệu dưới đây viết cho mô hình cũ (Postgres/MinIO/Caddy nằm ở thư mục `vps-shared` riêng,
+> tạo bucket MinIO bằng tay, sao lưu mỗi tuần và chỉ sao lưu database). Từ 2026-09 production
+> chạy trọn trong một stack của repo này, database và bucket tự khởi tạo, sao lưu mỗi đêm cả
+> database lẫn ảnh. Các mục về build riêng frontend/backend bên dưới vẫn đúng cho môi trường dev.
+
 ---
 
 ## 11.1 Yêu Cầu Môi Trường
@@ -61,9 +68,14 @@ Chỉnh sửa `.env` với các giá trị phù hợp:
 
 ```env
 # ===== DATABASE =====
+# Superuser: chỉ để dựng container + chạy scripts/init-db.sql
 POSTGRES_DB=srt_db
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=your_secure_db_password_here
+
+# Tài khoản backend thực sự dùng để kết nối (không phải superuser) — xem 11.7
+APP_DB_USER=signage
+APP_DB_PASSWORD=your_secure_app_db_password_here
 
 # ===== JWT =====
 JWT_SECRET=your_jwt_secret_at_least_32_characters_long
@@ -190,20 +202,50 @@ java -jar target/signage-management-*.jar \
 
 ## 11.7 Cài Đặt Database (Manual)
 
+> **Bắt buộc với database dựng mới.** Bỏ qua bước này thì backend chết ngay lần khởi động
+> đầu tiên ở migration V4 — `ERROR: operator class "gin_trgm_ops" does not exist`.
+
+`srt_db` chứa nhiều schema của nhiều dự án (`sign_management` cho dự án này, `docusync` cho
+DocuSync). Extension là thứ dùng chung nên đặt ở `public`, còn bảng của dự án đặt ở
+`sign_management`. Vì vậy `search_path` phải gồm **cả hai** schema.
+
 ```bash
-# Kết nối PostgreSQL
-psql -h localhost -U postgres
+# Tạo database (bỏ qua nếu đã có)
+docker exec -i shared_postgres psql -U postgres -c "CREATE DATABASE srt_db;"
 
-# Tạo database
-CREATE DATABASE srt_db;
-\c srt_db
-
-# Cài extensions
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
-CREATE EXTENSION IF NOT EXISTS unaccent;
-
-# Flyway sẽ tự chạy migrations khi backend khởi động
+# Cài extension + tạo user riêng cho app + tạo schema + đặt search_path mặc định.
+# APP_DB_PASSWORD phải khớp với giá trị trong .env của repo này.
+# Lưu ý: truyền mật khẩu TRẦN, không bọc thêm nháy đơn — psql đã tự quote.
+docker exec -i shared_postgres psql -U postgres -d srt_db \
+  -v app_password="$APP_DB_PASSWORD" < scripts/init-db.sql
 ```
+
+`scripts/init-db.sql` (idempotent, chạy lại nhiều lần không sao) làm 4 việc:
+
+1. Cài extension `unaccent` + `pg_trgm` vào schema `public`
+2. Tạo user `signage` (hoặc xoay mật khẩu nếu đã có) — **tài khoản backend dùng để kết nối**
+3. Tạo schema `sign_management` do `signage` làm chủ; nếu schema đã tồn tại từ trước thì chuyển
+   quyền sở hữu schema + toàn bộ bảng/sequence/view sang `signage`
+4. Đặt `search_path` mặc định cho database
+
+> **Vì sao backend không dùng tài khoản `postgres`:** `srt_db` dùng chung với DocuSync. Nếu
+> backend chạy bằng superuser thì một sự cố ở dự án này đọc/ghi được cả schema của dự án kia,
+> và superuser còn cho phép `COPY ... TO PROGRAM` — tức chạy lệnh trên máy chủ database.
+> DocuSync đã có user riêng ngay từ đầu; từ 2026-09 sign_management cũng vậy.
+
+**Nâng cấp một hệ thống đang chạy** (trước đây backend dùng `postgres`): chạy lại
+`init-db.sql` như trên rồi thêm `APP_DB_USER`/`APP_DB_PASSWORD` vào `.env` và
+`docker compose up -d` để backend nhận tài khoản mới. Script tự chuyển quyền sở hữu các
+bảng sẵn có nên không mất dữ liệu và không cần dừng dịch vụ lâu.
+
+Sau bước này Flyway tự chạy toàn bộ migration khi backend khởi động. Hai biến môi trường
+tương ứng đã đặt sẵn trong `docker-compose.prod.yml`, không cần khai báo lại trong `.env`:
+
+| Biến | Giá trị | Vai trò |
+|---|---|---|
+| `FLYWAY_DEFAULT_SCHEMA` | `sign_management` | nơi Flyway tạo bảng + `flyway_schema_history` |
+| `SPRING_FLYWAY_SCHEMAS` | `sign_management,public` | `search_path` lúc chạy migration (V4 cần `public`) |
+| `DB_URL` … `currentSchema=` | `sign_management,public` | `search_path` lúc ứng dụng chạy (tìm kiếm không dấu cần `public`) |
 
 ---
 

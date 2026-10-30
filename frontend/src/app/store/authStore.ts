@@ -4,6 +4,8 @@ export interface AuthUser {
   fullName: string;
   roleId: number;
   customPermissions: string[];
+  /** true khi tài khoản đang dùng mật khẩu do quản trị viên đặt và chưa tự đổi. */
+  mustChangePassword?: boolean;
 }
 
 const decodeJwtPayload = (token: string): Record<string, unknown> | null => {

@@ -251,12 +251,19 @@ export const buildSteps = (
     const justArrived = prev.floorId !== curr.floorId;
     if (justArrived) {
       const transitType = prev.type === 'STAIRS' ? 'cầu thang' : 'thang máy';
-      const exitTurn = turnDir(prev, curr, next);
-      const dirText = exitTurn === 'right' ? 'rẽ phải' : exitTurn === 'left' ? 'rẽ trái' : 'đi thẳng';
-      const icon = exitTurn === 'right' ? '↪️' : exitTurn === 'left' ? '↩️' : '⬆️';
-      steps.push({ node: curr, icon, text: `Ra khỏi ${transitType}, ${dirText}` });
+      // KHÔNG kèm hướng rẽ ở đây. turnDir cần vector prev→curr, mà lúc vừa đổi tầng thì
+      // prev nằm trên ảnh tầng khác — hai hệ toạ độ không liên quan gì nhau, nên hiệu của
+      // chúng không mang ý nghĩa hình học. Node thang máy hai tầng đặt lệch nhau (chuyện
+      // bình thường vì là hai ảnh khác nhau) sẽ sinh ra hướng rẽ hoàn toàn bịa: thực tế chỉ
+      // cần đi thẳng nhưng lại được chỉ "rẽ trái".
+      //
+      // Hướng nhìn của người vừa bước ra khỏi thang máy phụ thuộc vào cửa thang mở về phía
+      // nào — dữ liệu hiện không có thông tin đó, nên đoán là sai. Chỉ nói "Ra khỏi thang
+      // máy", rồi để ngã rẽ kế tiếp tự mô tả bằng hình học TRONG CÙNG một tầng (vì thế cũng
+      // không đặt skipNextJunction: bỏ qua ngã rẽ đó là mất luôn lượt rẽ thật, nếu có).
+      const icon = prev.type === 'STAIRS' ? '🪜' : '🛗';
+      steps.push({ node: curr, icon, text: `Ra khỏi ${transitType}` });
       needStraight = true;
-      skipNextJunction = true;
       continue;
     }
 

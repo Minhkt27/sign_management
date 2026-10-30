@@ -13,7 +13,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import com.hospital.signage.application.port.out.RoleDatabasePort;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -30,7 +29,7 @@ class AuthServiceTest {
     private UserDatabasePort userDatabasePort;
 
     @Mock
-    private RoleDatabasePort roleDatabasePort;
+    private UserAuthorityService userAuthorityService;
 
     @Mock
     private PasswordEncoder passwordEncoder;
@@ -44,6 +43,8 @@ class AuthServiceTest {
     @InjectMocks
     private AuthService authService;
 
+    private static final String CLIENT_IP = "203.0.113.10";
+
     private User activeUser;
 
     @BeforeEach
@@ -54,6 +55,13 @@ class AuthServiceTest {
         activeUser.setPassword("hashed_password");
         activeUser.setRoleId(1L);
         activeUser.setIsActive(true);
+
+        // Quyền/uiMode giờ do UserAuthorityService quyết định (dùng chung với filter).
+        // lenient vì các test nhánh lỗi không đi tới bước phát token.
+        lenient().when(userAuthorityService.resolvePermissions(any()))
+                .thenReturn(java.util.List.of("ASSET_MANAGE"));
+        lenient().when(userAuthorityService.resolveUiMode(any()))
+                .thenReturn(com.hospital.signage.domain.enums.UiMode.ADMIN);
     }
 
     @Test
@@ -64,7 +72,7 @@ class AuthServiceTest {
         when(jwtTokenProvider.generateRefreshToken("admin")).thenReturn("refresh-token");
         when(userDatabasePort.save(any())).thenReturn(activeUser);
 
-        AuthUseCase.LoginResult result = authService.login(new AuthUseCase.LoginCommand("admin", "plain"));
+        AuthUseCase.LoginResult result = authService.login(new AuthUseCase.LoginCommand("admin", "plain", CLIENT_IP));
 
         assertThat(result.token()).isEqualTo("access-token");
         assertThat(result.refreshToken()).isEqualTo("refresh-token");
@@ -75,7 +83,7 @@ class AuthServiceTest {
     void login_withUnknownUsername_throwsInvalidCredentials() {
         when(userDatabasePort.findByUsername("unknown")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> authService.login(new AuthUseCase.LoginCommand("unknown", "pass")))
+        assertThatThrownBy(() -> authService.login(new AuthUseCase.LoginCommand("unknown", "pass", CLIENT_IP)))
                 .isInstanceOf(InvalidCredentialsException.class)
                 .hasMessage("Invalid username or password");
     }
@@ -85,7 +93,7 @@ class AuthServiceTest {
         when(userDatabasePort.findByUsername("admin")).thenReturn(Optional.of(activeUser));
         when(passwordEncoder.matches("wrong", "hashed_password")).thenReturn(false);
 
-        assertThatThrownBy(() -> authService.login(new AuthUseCase.LoginCommand("admin", "wrong")))
+        assertThatThrownBy(() -> authService.login(new AuthUseCase.LoginCommand("admin", "wrong", CLIENT_IP)))
                 .isInstanceOf(InvalidCredentialsException.class)
                 .hasMessage("Invalid username or password");
     }
@@ -95,7 +103,7 @@ class AuthServiceTest {
         activeUser.setIsActive(false);
         when(userDatabasePort.findByUsername("admin")).thenReturn(Optional.of(activeUser));
 
-        assertThatThrownBy(() -> authService.login(new AuthUseCase.LoginCommand("admin", "plain")))
+        assertThatThrownBy(() -> authService.login(new AuthUseCase.LoginCommand("admin", "plain", CLIENT_IP)))
                 .isInstanceOf(AccountInactiveException.class)
                 .hasMessage("User account is inactive");
     }
@@ -125,10 +133,35 @@ class AuthServiceTest {
     }
 
     @Test
-    void login_whenBlocked_throwsIllegalState() {
-        when(loginAttemptService.isBlocked("admin")).thenReturn(true);
+    void refreshToken_withAccessToken_isRejected() {
+        when(jwtTokenProvider.isAccessToken("an-access-token")).thenReturn(true);
 
-        assertThatThrownBy(() -> authService.login(new AuthUseCase.LoginCommand("admin", "any")))
+        assertThatThrownBy(() -> authService.refreshToken("an-access-token"))
+                .isInstanceOf(InvalidCredentialsException.class)
+                .hasMessage("Invalid or expired refresh token");
+
+        verify(userDatabasePort, never()).findByUsername(any());
+    }
+
+    @Test
+    void refreshToken_withLegacyTokenWithoutTypeClaim_stillWorks() {
+        activeUser.setRefreshToken("legacy-refresh");
+        when(jwtTokenProvider.isAccessToken("legacy-refresh")).thenReturn(false);
+        when(jwtTokenProvider.extractUsername("legacy-refresh")).thenReturn("admin");
+        when(userDatabasePort.findByUsername("admin")).thenReturn(Optional.of(activeUser));
+        when(jwtTokenProvider.generateToken(eq("admin"), anyList(), anyString(), any())).thenReturn("new-access-token");
+        when(jwtTokenProvider.generateRefreshToken("admin")).thenReturn("new-refresh-token");
+
+        AuthUseCase.RefreshResult result = authService.refreshToken("legacy-refresh");
+
+        assertThat(result.token()).isEqualTo("new-access-token");
+    }
+
+    @Test
+    void login_whenBlocked_throwsIllegalState() {
+        when(loginAttemptService.isBlocked("admin", CLIENT_IP)).thenReturn(true);
+
+        assertThatThrownBy(() -> authService.login(new AuthUseCase.LoginCommand("admin", "any", CLIENT_IP)))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Quá nhiều lần đăng nhập thất bại");
 
@@ -137,27 +170,27 @@ class AuthServiceTest {
 
     @Test
     void login_withWrongPassword_recordsFailure() {
-        when(loginAttemptService.isBlocked("admin")).thenReturn(false);
+        when(loginAttemptService.isBlocked("admin", CLIENT_IP)).thenReturn(false);
         when(userDatabasePort.findByUsername("admin")).thenReturn(Optional.of(activeUser));
         when(passwordEncoder.matches("wrong", "hashed_password")).thenReturn(false);
 
-        assertThatThrownBy(() -> authService.login(new AuthUseCase.LoginCommand("admin", "wrong")))
+        assertThatThrownBy(() -> authService.login(new AuthUseCase.LoginCommand("admin", "wrong", CLIENT_IP)))
                 .isInstanceOf(InvalidCredentialsException.class);
 
-        verify(loginAttemptService).recordFailure("admin");
+        verify(loginAttemptService).recordFailure("admin", CLIENT_IP);
     }
 
     @Test
     void login_withValidCredentials_recordsSuccess() {
-        when(loginAttemptService.isBlocked("admin")).thenReturn(false);
+        when(loginAttemptService.isBlocked("admin", CLIENT_IP)).thenReturn(false);
         when(userDatabasePort.findByUsername("admin")).thenReturn(Optional.of(activeUser));
         when(passwordEncoder.matches("plain", "hashed_password")).thenReturn(true);
         when(jwtTokenProvider.generateToken(eq("admin"), anyList(), anyString(), any())).thenReturn("access-token");
         when(jwtTokenProvider.generateRefreshToken("admin")).thenReturn("refresh-token");
         when(userDatabasePort.save(any())).thenReturn(activeUser);
 
-        authService.login(new AuthUseCase.LoginCommand("admin", "plain"));
+        authService.login(new AuthUseCase.LoginCommand("admin", "plain", CLIENT_IP));
 
-        verify(loginAttemptService).recordSuccess("admin");
+        verify(loginAttemptService).recordSuccess("admin", CLIENT_IP);
     }
 }

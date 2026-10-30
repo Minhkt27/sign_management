@@ -105,7 +105,9 @@ public class HospitalController {
 
     public record HospitalRequest(
             @NotBlank @Size(max = 255) String name,
-            @NotBlank @Size(max = 50) String shortCode,
+            // Không @NotBlank — khi tạo mới để trống sẽ được HospitalService tự sinh mã từ tên.
+            // Khi cập nhật, HospitalService tự yêu cầu phải có giá trị.
+            @Size(max = 50) String shortCode,
             @Size(max = 500) String address,
             @Size(max = 50) String phone,
             @Size(max = 255) String email,

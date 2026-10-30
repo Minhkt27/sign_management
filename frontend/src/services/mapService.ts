@@ -3,7 +3,8 @@ import { MapFloor, MapFloorData, MapNode, MapEdge, NodeType, WayfindingResult } 
 
 export const mapService = {
   // Floors
-  getAllFloors: () => apiClient.get<MapFloor[]>('/map/floors').then(r => r.data),
+  getAllFloors: (hospitalId?: number) =>
+    apiClient.get<MapFloor[]>('/map/floors', { params: hospitalId ? { hospitalId } : {} }).then(r => r.data),
   getFloorData: (id: number) => apiClient.get<MapFloorData>(`/map/floors/${id}`).then(r => r.data),
   getFloorDataBatch: (ids: number[]) =>
     apiClient.get<MapFloorData[]>(`/map/floors/batch?ids=${ids.join(',')}`).then(r => r.data),
@@ -16,15 +17,17 @@ export const mapService = {
   deleteFloor: (id: number) => apiClient.delete(`/map/floors/${id}`),
 
   // Campus map
-  getCampusMap: () => apiClient.get<MapFloorData>('/map/campus').then(r => r.data).catch((e: unknown) => {
-    if ((e as { response?: { status?: number } })?.response?.status === 404) return null;
-    throw e;
-  }),
-  createCampusFloor: (data: { imageUrl: string; imgWidth: number; imgHeight: number }) =>
-    apiClient.post<MapFloor>('/map/campus', data).then(r => r.data),
-  updateCampusFloor: (data: { imageUrl: string; imgWidth: number; imgHeight: number }) =>
-    apiClient.put<MapFloor>('/map/campus', data).then(r => r.data),
-  deleteCampusFloor: () => apiClient.delete('/map/campus'),
+  getCampusMap: (hospitalId?: number) =>
+    apiClient.get<MapFloorData>('/map/campus', { params: hospitalId ? { hospitalId } : {} }).then(r => r.data).catch((e: unknown) => {
+      if ((e as { response?: { status?: number } })?.response?.status === 404) return null;
+      throw e;
+    }),
+  createCampusFloor: (data: { imageUrl: string; imgWidth: number; imgHeight: number }, hospitalId?: number) =>
+    apiClient.post<MapFloor>('/map/campus', data, { params: hospitalId ? { hospitalId } : {} }).then(r => r.data),
+  updateCampusFloor: (data: { imageUrl: string; imgWidth: number; imgHeight: number }, hospitalId?: number) =>
+    apiClient.put<MapFloor>('/map/campus', data, { params: hospitalId ? { hospitalId } : {} }).then(r => r.data),
+  deleteCampusFloor: (hospitalId?: number) =>
+    apiClient.delete('/map/campus', { params: hospitalId ? { hospitalId } : {} }),
 
   // Nodes
   createNode: (data: {

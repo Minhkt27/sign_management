@@ -1,9 +1,11 @@
 package com.hospital.signage.application.service;
 
 import com.hospital.signage.application.port.in.MapUseCase;
+import com.hospital.signage.application.port.out.AssetDatabasePort;
 import com.hospital.signage.application.port.out.LocationDatabasePort;
 import com.hospital.signage.application.port.out.MapDatabasePort;
 import com.hospital.signage.domain.enums.NodeType;
+import com.hospital.signage.domain.model.Asset;
 import com.hospital.signage.domain.model.Location;
 import com.hospital.signage.domain.model.MapEdge;
 import com.hospital.signage.domain.model.MapFloor;
@@ -25,6 +27,7 @@ public class MapService implements MapUseCase {
 
     private final MapDatabasePort mapDatabasePort;
     private final LocationDatabasePort locationDatabasePort;
+    private final AssetDatabasePort assetDatabasePort;
     private final MapGraphCache mapGraphCache;
 
     // ── Floor ──────────────────────────────────────────────────────────────
@@ -61,8 +64,9 @@ public class MapService implements MapUseCase {
     }
 
     @Override
-    public Optional<MapFloor> getFloorByLocationId(Long locationId) {
-        return mapDatabasePort.findFloorByLocationId(locationId);
+    public Optional<MapFloor> getFloorByLocationId(Long locationId, Long callerHospitalId) {
+        return mapDatabasePort.findFloorByLocationId(locationId)
+                .filter(floor -> callerHospitalId == null || callerHospitalId.equals(floor.getHospitalId()));
     }
 
     @Override
@@ -72,24 +76,24 @@ public class MapService implements MapUseCase {
 
     @Override
     @Transactional
-    public MapFloor createCampusFloor(MapFloor floor) {
-        Long hospitalId = SecurityUtils.getCurrentHospitalId();
+    public MapFloor createCampusFloor(MapFloor floor, Long callerHospitalId) {
+        Long hospitalId = resolveCampusHospitalId(callerHospitalId);
         mapDatabasePort.findCampusFloor(hospitalId).ifPresent(existing -> {
             throw new IllegalArgumentException("Sơ đồ tổng thể đã tồn tại (id=" + existing.getId() + ")");
         });
         floor.setCampus(true);
         floor.setLocationId(null);
-        floor.setHospitalId(hospitalId != null ? hospitalId : SecurityUtils.DEFAULT_HOSPITAL_ID);
+        floor.setHospitalId(hospitalId);
         MapFloor saved = mapDatabasePort.saveFloor(floor);
         mapGraphCache.invalidateAll();
-        log.info("Campus map created: id={}", saved.getId());
+        log.info("Campus map created: id={}, hospitalId={}", saved.getId(), hospitalId);
         return saved;
     }
 
     @Override
     @Transactional
-    public MapFloor updateCampusFloor(MapFloor floor) {
-        MapFloor existing = mapDatabasePort.findCampusFloor(SecurityUtils.getCurrentHospitalId())
+    public MapFloor updateCampusFloor(MapFloor floor, Long callerHospitalId) {
+        MapFloor existing = mapDatabasePort.findCampusFloor(resolveCampusHospitalId(callerHospitalId))
                 .orElseThrow(() -> new IllegalArgumentException("Chưa có sơ đồ tổng thể"));
         existing.setImageUrl(floor.getImageUrl());
         existing.setImgWidth(floor.getImgWidth());
@@ -110,12 +114,28 @@ public class MapService implements MapUseCase {
 
     @Override
     @Transactional
-    public void deleteCampusFloor() {
-        MapFloor campus = mapDatabasePort.findCampusFloor(SecurityUtils.getCurrentHospitalId())
+    public void deleteCampusFloor(Long callerHospitalId) {
+        MapFloor campus = mapDatabasePort.findCampusFloor(resolveCampusHospitalId(callerHospitalId))
                 .orElseThrow(() -> new IllegalArgumentException("Chưa có sơ đồ tổng thể"));
         mapDatabasePort.deleteFloorById(campus.getId());
         mapGraphCache.invalidateAll();
         log.info("Campus map deleted: id={}", campus.getId());
+    }
+
+    /**
+     * Sơ đồ tổng thể là 1-per-hospital — admin thường luôn thao tác trên đúng viện của mình.
+     * SUPER_ADMIN không có viện cố định nên bắt buộc phải chỉ định rõ đang thao tác cho viện nào
+     * (qua hospitalId truyền lên), tránh lặp lại lỗi "getCurrentHospitalId() trả về null" khiến
+     * thao tác bị gán nhầm/khớp nhầm sang viện khác khi hệ thống có từ 2 viện trở lên.
+     */
+    private Long resolveCampusHospitalId(Long callerHospitalId) {
+        if (!SecurityUtils.isSuperAdmin()) {
+            return callerHospitalId != null ? callerHospitalId : SecurityUtils.DEFAULT_HOSPITAL_ID;
+        }
+        if (callerHospitalId == null) {
+            throw new IllegalArgumentException("Vui lòng chọn bệnh viện trước khi thao tác với sơ đồ tổng thể.");
+        }
+        return callerHospitalId;
     }
 
     @Override
@@ -125,6 +145,11 @@ public class MapService implements MapUseCase {
                 .orElseThrow(() -> new IllegalArgumentException("Sơ đồ không tồn tại: " + id));
         assertFloorInHospital(existing, callerHospitalId);
         mapDatabasePort.deleteFloorById(id);
+        // Xoá tầng kéo theo toàn bộ node và edge của nó (ON DELETE CASCADE), nên đồ thị đang
+        // nằm trong cache không còn đúng nữa. Thiếu dòng này, tìm đường vẫn dẫn người dùng đi
+        // qua một tầng đã bị xoá — và vì cache đồ thị không tự hết hạn, sai lệch đó kéo dài
+        // tới tận lần khởi động lại backend.
+        mapGraphCache.invalidateAll();
         log.info("MapFloor deleted: id={}", id);
     }
 
@@ -236,13 +261,24 @@ public class MapService implements MapUseCase {
     }
 
     @Override
-    public Optional<MapNode> getNodeByAssetId(UUID assetId) {
-        return mapDatabasePort.findNodeByAssetId(assetId);
+    public Optional<MapNode> getNodeByAssetId(UUID assetId, Long callerHospitalId) {
+        Optional<MapNode> dedicatedNode = mapDatabasePort.findNodeByAssetId(assetId);
+        if (dedicatedNode.isPresent()) {
+            return dedicatedNode.filter(node -> isNodeInHospital(node, callerHospitalId));
+        }
+        // Biển chưa được gắn node riêng (VD 1 trong nhiều biển cùng phòng) — dẫn tạm về node
+        // của Location chứa nó, còn hơn không dẫn được gì cả.
+        return assetDatabasePort.findById(assetId)
+                .map(Asset::getLocation)
+                .map(Location::getId)
+                .flatMap(mapDatabasePort::findNodeByLocationId)
+                .filter(node -> isNodeInHospital(node, callerHospitalId));
     }
 
     @Override
-    public Optional<MapNode> getNodeByLocationId(Long locationId) {
-        return mapDatabasePort.findNodeByLocationId(locationId);
+    public Optional<MapNode> getNodeByLocationId(Long locationId, Long callerHospitalId) {
+        return mapDatabasePort.findNodeByLocationId(locationId)
+                .filter(node -> isNodeInHospital(node, callerHospitalId));
     }
 
     // ── Edge ───────────────────────────────────────────────────────────────
@@ -582,11 +618,17 @@ public class MapService implements MapUseCase {
     // Bắt buộc kiểm tra ở đây vì loadFloorGraph(floorId) không tự lọc theo viện —
     // nếu thiếu bước này, người dùng viện khác vẫn tìm được đường nếu biết node ID của viện khác.
     private void assertNodeInHospital(MapNode node, Long hospitalId) {
-        if (hospitalId == null) return;
-        MapFloor floor = mapDatabasePort.findFloorById(node.getFloorId()).orElse(null);
-        if (floor == null || !hospitalId.equals(floor.getHospitalId())) {
+        if (!isNodeInHospital(node, hospitalId)) {
             throw new NoSuchElementException("Node không tồn tại: " + node.getId());
         }
+    }
+
+    // Bản không ném exception của assertNodeInHospital — dùng cho các luồng tra cứu trả về
+    // Optional.empty() (404) thay vì lỗi.
+    private boolean isNodeInHospital(MapNode node, Long hospitalId) {
+        if (hospitalId == null) return true;
+        MapFloor floor = mapDatabasePort.findFloorById(node.getFloorId()).orElse(null);
+        return floor != null && hospitalId.equals(floor.getHospitalId());
     }
 
     // hospitalId == null nghĩa là SUPER_ADMIN, không giới hạn viện nào.

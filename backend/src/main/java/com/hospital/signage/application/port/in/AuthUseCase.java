@@ -10,7 +10,8 @@ public interface AuthUseCase {
 
     void logout(String username);
 
-    record LoginCommand(String username, String password) {}
+    /** clientIp dùng để đếm số lần thất bại theo IP (chống password spraying); có thể null. */
+    record LoginCommand(String username, String password, String clientIp) {}
 
     record LoginResult(String token, String refreshToken, User user) {}
 

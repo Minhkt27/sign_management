@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { roleService } from '../services/roleService';
 import { Role } from '@/shared/types';
 import { Button } from '@/components/ui/button';
-import { Plus, Shield, Trash2, Edit } from 'lucide-react';
+import { Plus, Shield, Trash2, Edit, Globe, Building2 } from 'lucide-react';
 import { getApiError } from '@/shared/helpers/apiError';
 import { EditRoleDialog } from '../components/EditRoleDialog';
 import { authStore, isSuperAdmin } from '@/app/store/authStore';
+import { useAdminStore } from '@/app/store/adminStore';
 
 export default function RoleListPage() {
   const queryClient = useQueryClient();
@@ -14,9 +16,12 @@ export default function RoleListPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [dialogError, setDialogError] = useState('');
 
+  const { selectedHospitalId } = useAdminStore();
+  const hospitalIdParam = selectedHospitalId ?? undefined;
+
   const { data: roles = [], isLoading } = useQuery({
-    queryKey: ['roles'],
-    queryFn: roleService.getAllRoles,
+    queryKey: ['roles', hospitalIdParam],
+    queryFn: () => roleService.getAllRoles(hospitalIdParam),
   });
 
   const token = authStore.getToken();
@@ -25,6 +30,9 @@ export default function RoleListPage() {
   const canEditRole = (role: Role) => {
     if ((role.code === 'SUPER_ADMIN' || role.permissions.includes('HOSPITAL_MANAGE')) && !isSuper) {
       return false;
+    }
+    if (!role.hospitalId && !isSuper) {
+      return false; // Nhóm quyền toàn hệ thống chỉ Super Admin mới được sửa
     }
     return true;
   };
@@ -35,6 +43,9 @@ export default function RoleListPage() {
     }
     if (role.permissions.includes('HOSPITAL_MANAGE') && !isSuper) {
       return false;
+    }
+    if (!role.hospitalId && !isSuper) {
+      return false; // Nhóm quyền toàn hệ thống chỉ Super Admin mới được xóa
     }
     return true;
   };
@@ -63,7 +74,7 @@ export default function RoleListPage() {
   const deleteMutation = useMutation({
     mutationFn: roleService.deleteRole,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['roles'] }),
-    onError: (err: unknown) => alert(getApiError(err, 'Xóa thất bại')),
+    onError: (err: unknown) => toast.error(getApiError(err, 'Xóa thất bại')),
   });
 
   const handleEdit = (role: Role) => {
@@ -82,7 +93,7 @@ export default function RoleListPage() {
     }
   };
 
-  const handleSubmit = (data: { code: string; name: string; description?: string; uiMode: import('@/shared/types').UiMode; permissions: string[] }) => {
+  const handleSubmit = (data: { code: string; name: string; description?: string; uiMode: import('@/shared/types').UiMode; permissions: string[]; hospitalId?: number | null }) => {
     if (selectedRole) {
       updateMutation.mutate({ id: selectedRole.id, data });
     } else {
@@ -97,6 +108,10 @@ export default function RoleListPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-medium text-slate-800">Danh sách Nhóm quyền</h2>
+          <p className="text-xs text-slate-500">Quản lý các nhóm quyền toàn hệ thống và nhóm quyền riêng của bệnh viện</p>
+        </div>
         <Button onClick={handleCreate}>
           <Plus size={16} className="mr-2" />Thêm Nhóm quyền
         </Button>
@@ -119,9 +134,20 @@ export default function RoleListPage() {
             <p className="text-sm text-slate-600 min-h-[40px] mb-3">
               {role.description || 'Không có mô tả'}
             </p>
-            <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full mb-3 ${role.uiMode === 'TECHNICIAN' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
-              {role.uiMode === 'TECHNICIAN' ? 'Kỹ thuật viên' : 'Admin'}
-            </span>
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full ${role.uiMode === 'TECHNICIAN' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                {role.uiMode === 'TECHNICIAN' ? 'Kỹ thuật viên' : 'Admin'}
+              </span>
+              {role.hospitalId ? (
+                <span className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200/60">
+                  <Building2 size={12} className="mr-1" /> Nội bộ viện
+                </span>
+              ) : (
+                <span className="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200/60">
+                  <Globe size={12} className="mr-1" /> Toàn hệ thống
+                </span>
+              )}
+            </div>
             <div className="border-t border-slate-100 pt-4 flex items-center justify-between">
               <span className="text-sm font-medium text-slate-700 bg-slate-50 px-2.5 py-1 rounded-md">
                 {role.permissions.length} quyền

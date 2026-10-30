@@ -1,0 +1,14 @@
+# Cổng vào duy nhất từ internet. Tên miền lấy từ SITE_DOMAIN trong .env — không sửa file này.
+#
+# Caddy tự xin chứng chỉ HTTPS từ Let's Encrypt và tự gia hạn, với điều kiện:
+#   - bản ghi DNS của tên miền đã trỏ đúng về IP của VPS
+#   - cổng 80 và 443 mở (Let's Encrypt gọi vào cổng 80 để xác minh bạn sở hữu tên miền)
+# Thiếu một trong hai thì trang web không lên HTTPS được — xem mục "Khi có sự cố" trong README.
+
+{$SITE_DOMAIN} {
+	# Bắt trình duyệt luôn dùng HTTPS cho tên miền này trong một năm. Không kèm
+	# includeSubDomains: các tên miền con khác của bệnh viện có thể chưa có HTTPS.
+	header Strict-Transport-Security "max-age=31536000"
+
+	reverse_proxy frontend:80
+}

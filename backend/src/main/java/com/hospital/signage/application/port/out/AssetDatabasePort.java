@@ -12,7 +12,7 @@ import java.util.UUID;
 public interface AssetDatabasePort {
     Asset save(Asset asset);
     Optional<Asset> findById(UUID id);
-    Optional<Asset> findByAssetCode(String assetCode);
+    List<Asset> findByAssetCode(String assetCode, Long hospitalId);
     List<Asset> findAll();
     List<Asset> findAllByHospital(Long hospitalId);
     Page<Asset> findAll(Pageable pageable);
@@ -22,6 +22,10 @@ public interface AssetDatabasePort {
     Page<Asset> findByLocationIdAndHospital(Long locationId, Long hospitalId, Pageable pageable);
     Page<Asset> findBySignTypeId(Long signTypeId, Pageable pageable);
     boolean existsByLocationId(Long locationId);
+    long countByLocationId(Long locationId);
     boolean existsBySignTypeId(Long signTypeId);
     void deleteById(UUID id);
+
+    /** Số bản ghi thuộc một bệnh viện — dùng để chặn xoá bệnh viện còn dữ liệu. */
+    long countByHospital(Long hospitalId);
 }

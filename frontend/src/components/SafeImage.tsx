@@ -10,7 +10,13 @@ interface SafeImageProps {
 }
 
 export function SafeImage({ src, alt, className, style, onClick, onLoad: onLoadProp }: SafeImageProps) {
+  const [prevSrc, setPrevSrc] = useState(src);
   const [loaded, setLoaded] = useState(false);
+
+  if (prevSrc !== src) {
+    setPrevSrc(src);
+    setLoaded(false);
+  }
 
   const imgRef = useRef<HTMLImageElement>(null);
 
@@ -19,22 +25,21 @@ export function SafeImage({ src, alt, className, style, onClick, onLoad: onLoadP
     onLoadRef.current = onLoadProp;
   }, [onLoadProp]);
 
-  // Reset when src changes so spinner re-shows for new image
-  useEffect(() => { setLoaded(false); }, [src]);
-
   useEffect(() => {
-    if (!src) {
-      setLoaded(true);
-      onLoadRef.current?.();
-    } else if (imgRef.current?.complete) {
-      setLoaded(true);
-      onLoadRef.current?.();
+    if (src && imgRef.current?.complete) {
+      const rafId = requestAnimationFrame(() => {
+        setLoaded(true);
+        onLoadRef.current?.();
+      });
+      return () => cancelAnimationFrame(rafId);
     }
   }, [src]);
 
+  const isLoaded = !src || loaded;
+
   return (
     <>
-      {!loaded && (
+      {!isLoaded && (
         <div
           className={`flex flex-col items-center justify-center animate-pulse bg-green-50/50 border border-green-100 rounded-xl min-h-[400px] w-full ${className}`}
           style={style}
@@ -50,7 +55,7 @@ export function SafeImage({ src, alt, className, style, onClick, onLoad: onLoadP
           src={src}
           alt={alt}
           className={className}
-          style={loaded ? style : { ...style, opacity: 0, position: 'absolute', pointerEvents: 'none' }}
+          style={isLoaded ? style : { ...style, opacity: 0, position: 'absolute', pointerEvents: 'none' }}
           onClick={onClick}
           onLoad={() => {
             setLoaded(true);

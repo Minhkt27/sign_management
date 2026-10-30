@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { mapService } from '@/services/mapService';
 import { locationService } from '@/services/locationService';
 import { MapFloorData, MapNode, Hospital } from '@/shared/types';
-import { authStore, HOSPITAL_ID_STORAGE_KEY } from '@/app/store/authStore';
+import { authStore, HOSPITAL_ID_STORAGE_KEY, resolveHospitalId } from '@/app/store/authStore';
 import { HomeTab } from '../components/HomeTab';
 import { MapTab } from '../components/MapTab';
 import { DeptsTab } from '../components/DeptsTab';
@@ -34,6 +34,11 @@ export default function WayfindingPage() {
   const queryClient = useQueryClient();
   const { status: hospitalDetectStatus, detect: detectHospital } = useHospitalDetect();
 
+  // Viện hiện tại của luồng public: từ QR scan / GPS detect / chọn tay (sessionStorage),
+  // hoặc từ JWT nếu đang đăng nhập. Giữ ở state để query tự chạy lại khi viện đổi.
+  const [hospitalId, setHospitalId] = useState<string | null>(() => resolveHospitalId());
+  const hospitalIdParam = hospitalId != null ? Number(hospitalId) : undefined;
+
   // "Mở app lạnh": chưa đăng nhập và chưa có hospitalId nào được set (chưa quét QR).
   // GPS chỉ là fallback phụ — nếu GPS không xác định được, bắt buộc chọn tay qua HospitalPickerModal.
   useEffect(() => {
@@ -43,6 +48,7 @@ export default function WayfindingPage() {
     detectHospital().then(hospital => {
       if (hospital) {
         sessionStorage.setItem(HOSPITAL_ID_STORAGE_KEY, String(hospital.id));
+        setHospitalId(String(hospital.id));
         queryClient.invalidateQueries();
       } else {
         setIsHospitalPickerOpen(true);
@@ -53,18 +59,19 @@ export default function WayfindingPage() {
 
   const handlePickHospital = (hospital: Hospital) => {
     sessionStorage.setItem(HOSPITAL_ID_STORAGE_KEY, String(hospital.id));
+    setHospitalId(String(hospital.id));
     queryClient.invalidateQueries();
     setIsHospitalPickerOpen(false);
   };
 
   const { data: floors = [] } = useQuery({
-    queryKey: ['mapFloors'],
-    queryFn: mapService.getAllFloors,
+    queryKey: ['mapFloors', hospitalIdParam],
+    queryFn: () => mapService.getAllFloors(hospitalIdParam),
   });
 
   const { data: locations = [] } = useQuery({
-    queryKey: ['locations'],
-    queryFn: locationService.getAllLocations,
+    queryKey: ['locations', hospitalIdParam],
+    queryFn: () => locationService.getAllLocations(hospitalIdParam),
   });
 
   const floorIds = floors.map(f => f.id).join(',');

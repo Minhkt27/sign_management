@@ -10,7 +10,7 @@ import org.springframework.data.repository.query.Param;
 import java.util.Optional;
 
 public interface SignTypeRepository extends JpaRepository<SignTypeEntity, Long> {
-    Optional<SignTypeEntity> findByCode(String code);
+    Optional<SignTypeEntity> findByCodeAndHospitalId(String code, Long hospitalId);
 
     @Query(value = "SELECT * FROM sign_types WHERE (:hospitalId IS NULL OR hospital_id = :hospitalId) AND (unaccent(code) ILIKE unaccent('%' || :search || '%') OR unaccent(name) ILIKE unaccent('%' || :search || '%')) ORDER BY created_at DESC",
            countQuery = "SELECT count(*) FROM sign_types WHERE (:hospitalId IS NULL OR hospital_id = :hospitalId) AND (unaccent(code) ILIKE unaccent('%' || :search || '%') OR unaccent(name) ILIKE unaccent('%' || :search || '%'))",
@@ -19,4 +19,6 @@ public interface SignTypeRepository extends JpaRepository<SignTypeEntity, Long> 
 
     @Query("SELECT s FROM SignTypeEntity s WHERE (:hospitalId IS NULL OR s.hospitalId = :hospitalId)")
     java.util.List<SignTypeEntity> findAllByHospital(@Param("hospitalId") Long hospitalId);
+
+    long countByHospitalId(Long hospitalId);
 }

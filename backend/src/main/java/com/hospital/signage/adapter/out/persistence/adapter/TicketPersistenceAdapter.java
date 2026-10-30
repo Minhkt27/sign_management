@@ -68,8 +68,18 @@ public class TicketPersistenceAdapter implements TicketDatabasePort {
     }
 
     @Override
+    public long countByAsset(UUID assetId) {
+        return repository.countByAssetId(assetId);
+    }
+
+    @Override
     public boolean existsOpenTicketForUser(Long userId) {
         return repository.existsOpenTicketForUser(userId);
+    }
+
+    @Override
+    public List<Long> findOpenTicketIdsForAsset(UUID assetId) {
+        return repository.findOpenTicketIdsForAsset(assetId);
     }
 
     @Override

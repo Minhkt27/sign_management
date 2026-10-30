@@ -1,6 +1,7 @@
 package com.hospital.signage.adapter.in.web;
 
 import com.hospital.signage.application.port.in.FileUploadUseCase;
+import com.hospital.signage.application.service.UserAuthorityService;
 import com.hospital.signage.application.service.UserCacheService;
 import com.hospital.signage.infrastructure.security.JwtAuthenticationFilter;
 import com.hospital.signage.infrastructure.security.JwtTokenProvider;
@@ -40,6 +41,9 @@ public class FileUploadControllerTest {
 
     @MockBean
     private UserCacheService userCacheService;
+
+    @MockBean
+    private UserAuthorityService userAuthorityService;
 
     @Test
     @WithMockUser(authorities = {"ASSET_MANAGE"})

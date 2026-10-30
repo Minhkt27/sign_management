@@ -22,8 +22,19 @@ describe('assetService', () => {
 
     const result = await assetService.getAllAssets();
 
-    expect(apiClient.get).toHaveBeenCalledWith('/assets/all');
+    expect(apiClient.get).toHaveBeenCalledWith('/assets/all', { params: undefined });
     expect(result).toEqual(mockAssets);
+  });
+
+  // SUPER_ADMIN không thuộc bệnh viện nào nên JWT của họ không mang hospitalId — apiClient
+  // không có gì để tự gắn. Thiếu tham số này là máy chủ trả biển báo của mọi viện trong khi
+  // giao diện đang nói đang xem một viện cụ thể.
+  it('getAllAssets truyền hospitalId khi được chỉ định', async () => {
+    vi.mocked(apiClient.get).mockResolvedValueOnce({ data: [] });
+
+    await assetService.getAllAssets(7);
+
+    expect(apiClient.get).toHaveBeenCalledWith('/assets/all', { params: { hospitalId: 7 } });
   });
 
   it('getAssetsPage builds correct query string', async () => {

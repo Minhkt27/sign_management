@@ -19,7 +19,8 @@ export default function AssetBrowsePage() {
 
   const { data: assets = [] } = useQuery<Asset[]>({
     queryKey: ['assets'],
-    queryFn: assetService.getAllAssets,
+    // Bọc arrow — xem chú thích ở LocationSelectModal.
+    queryFn: () => assetService.getAllAssets(),
   });
   const [dropdownOpen, setDropdownOpen] = useState(false);
 

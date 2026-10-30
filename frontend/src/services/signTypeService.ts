@@ -3,8 +3,10 @@ import { SignType } from '../shared/types';
 import { PagedResponse } from './assetService';
 
 export const signTypeService = {
-  getAllSignTypes: async (): Promise<SignType[]> => {
-    const response = await apiClient.get<SignType[]>('/sign-types');
+  getAllSignTypes: async (hospitalId?: number): Promise<SignType[]> => {
+    const response = await apiClient.get<SignType[]>('/sign-types', {
+      params: hospitalId ? { hospitalId } : {},
+    });
     return response.data;
   },
 
@@ -20,7 +22,7 @@ export const signTypeService = {
     return response.data;
   },
 
-  createSignType: async (signType: Partial<SignType>): Promise<SignType> => {
+  createSignType: async (signType: Omit<Partial<SignType>, 'code'> & { code?: string | null }): Promise<SignType> => {
     const response = await apiClient.post<SignType>('/sign-types', signType);
     return response.data;
   },

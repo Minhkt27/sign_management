@@ -65,17 +65,27 @@ public class LocationPersistenceAdapter implements LocationDatabasePort {
     }
 
     @Override
-    public boolean existsByLocationCode(String locationCode) {
-        return repository.existsByLocationCode(locationCode);
+    public long countByParentId(Long parentId) {
+        return repository.countByParentId(parentId);
     }
 
     @Override
-    public void bulkUpdatePathPrefix(String oldPath, String newPath) {
-        repository.bulkUpdatePathPrefix(oldPath, newPath);
+    public boolean existsByLocationCode(String locationCode, Long hospitalId) {
+        return repository.existsByLocationCodeAndHospitalId(locationCode, hospitalId);
+    }
+
+    @Override
+    public void bulkUpdatePathPrefix(String oldPath, String newPath, Long hospitalId) {
+        repository.bulkUpdatePathPrefix(oldPath, newPath, hospitalId);
     }
 
     @Override
     public void deleteById(Long id) {
         repository.deleteById(id);
+    }
+
+    @Override
+    public long countByHospital(Long hospitalId) {
+        return repository.countByHospitalId(hospitalId);
     }
 }

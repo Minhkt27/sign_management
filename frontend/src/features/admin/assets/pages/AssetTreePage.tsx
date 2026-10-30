@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient, useQueries } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { locationService } from '@/services/locationService';
-import { assetService } from '@/services/assetService';
+import { assetService, MAX_TREE_ASSETS } from '@/services/assetService';
 import { signTypeService } from '@/services/signTypeService';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
 import { getApiError } from '@/shared/helpers/apiError';
 import { Location, Asset, SignType } from '@/shared/types';
+import { useAdminStore } from '@/app/store/adminStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ChevronRight, ChevronDown, FolderOpen, Tag, Plus, Pencil, Trash2, Search, X, ExternalLink, MapPin, Package, Ruler, Calendar, Building } from 'lucide-react';
@@ -22,11 +24,10 @@ import {
 export default function AssetTreePage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { selectedHospitalId } = useAdminStore();
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
-  const [expandedNodes, setExpandedNodes] = useState<Record<number, boolean>>({
-    1: true, // Auto-expand Building A
-    2: true, // Auto-expand Building B
-  });
+  const [expandedNodes, setExpandedNodes] = useState<Record<number, boolean>>({});
+  const hasAutoExpanded = useRef(false);
 
   // Create Location State
   const [isLocDialogOpen, setIsLocDialogOpen] = useState(false);
@@ -47,16 +48,34 @@ export default function AssetTreePage() {
 
   // Queries
   const { data: locations = [] } = useQuery<Location[]>({
-    queryKey: ['locations'],
-    queryFn: locationService.getAllLocations,
+    queryKey: ['locations', selectedHospitalId],
+    queryFn: () => locationService.getAllLocations(selectedHospitalId),
   });
+
+  // Tự mở các vị trí gốc (không có parent, VD Tòa nhà) ngay khi tải xong — không hard-code ID
+  // cụ thể vì ID thật phụ thuộc dữ liệu từng viện, không phải lúc nào cũng là 1/2.
+  useEffect(() => {
+    if (hasAutoExpanded.current || locations.length === 0) return;
+    hasAutoExpanded.current = true;
+    const rootIds = locations.filter(l => !l.parentId).map(l => l.id);
+    setExpandedNodes(prev => {
+      const next = { ...prev };
+      rootIds.forEach(id => { next[id] = true; });
+      return next;
+    });
+  }, [locations]);
 
   // Chỉ load TẤT CẢ assets khi đang search — khi không search thì lazy load theo location
   const { data: searchAssets = [] } = useQuery<Asset[]>({
-    queryKey: ['assets', 'all'],
-    queryFn: assetService.getAllAssets,
+    queryKey: ['assets', 'all', selectedHospitalId],
+    queryFn: () => assetService.getAllAssets(selectedHospitalId ?? undefined),
     enabled: !!searchTerm.trim(),
   });
+
+  // Backend cắt danh sách này ở MAX_TREE_ASSETS bản ghi. Chạm đúng trần gần như chắc chắn
+  // nghĩa là còn biển hiệu bị bỏ lại ngoài, và khi đó kết quả tìm kiếm thiếu — phải nói ra
+  // thay vì để người dùng tin rằng không tìm thấy nghĩa là không tồn tại.
+  const isSearchResultTruncated = !!searchTerm.trim() && searchAssets.length >= MAX_TREE_ASSETS;
 
   // Lazy load assets theo từng location đang được expand
   const expandedNodeIds = Object.keys(expandedNodes)
@@ -77,8 +96,8 @@ export default function AssetTreePage() {
   });
 
   const { data: signTypes = [] } = useQuery<SignType[]>({
-    queryKey: ['signTypes'],
-    queryFn: signTypeService.getAllSignTypes,
+    queryKey: ['signTypes', selectedHospitalId],
+    queryFn: () => signTypeService.getAllSignTypes(selectedHospitalId ?? undefined),
   });
 
   const signTypeMap = new Map(signTypes.map(st => [st.id, st.name]));
@@ -172,7 +191,9 @@ export default function AssetTreePage() {
       setNewLocName('');
       setNewLocDesc('');
       setIsLocDialogOpen(false);
+      toast.success('Đã thêm vị trí');
     },
+    onError: (error: unknown) => toast.error(getApiError(error, 'Không thể thêm vị trí.')),
   });
 
   const updateLocMutation = useMutation({
@@ -186,7 +207,7 @@ export default function AssetTreePage() {
       setEditLocCode('');
       setEditLocId(null);
     },
-    onError: (error: unknown) => alert(getApiError(error, 'Có lỗi xảy ra khi cập nhật vị trí.')),
+    onError: (error: unknown) => toast.error(getApiError(error, 'Có lỗi xảy ra khi cập nhật vị trí.')),
   });
 
   const deleteLocMutation = useMutation({
@@ -194,7 +215,7 @@ export default function AssetTreePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['locations'] });
     },
-    onError: (error: unknown) => alert(getApiError(error, 'Có lỗi xảy ra khi xóa vị trí.')),
+    onError: (error: unknown) => toast.error(getApiError(error, 'Có lỗi xảy ra khi xóa vị trí.')),
   });
 
   const toggleExpand = (locId: number) => {
@@ -213,7 +234,7 @@ export default function AssetTreePage() {
       parentId,
       description: newLocDesc,
       type: newLocType
-    } as any);
+    });
   };
 
   const openCreateLocDialog = (parentLocId: number | null) => {
@@ -277,17 +298,11 @@ export default function AssetTreePage() {
         childAssets = childAssets.filter(a => matchingAssetIds.has(a.id));
       }
 
-      const hasChildren = locations.some(l => l.parentId === loc.id && (!visibleLocIds || visibleLocIds.has(l.id))) || childAssets.length > 0;
-
       return (
         <div key={loc.id} style={{ marginLeft: `${depth * 20}px` }} className="space-y-1 select-none">
           <div className="flex items-center justify-between group p-2 hover:bg-slate-100 rounded-xl transition-all duration-150">
             <div className="flex items-center space-x-2 cursor-pointer flex-1 min-w-0 overflow-hidden" onClick={() => toggleExpand(loc.id)}>
-              {hasChildren ? (
-                isExpanded ? <ChevronDown size={16} className="text-slate-500" /> : <ChevronRight size={16} className="text-slate-500" />
-              ) : (
-                <span className="w-4"></span>
-              )}
+              {isExpanded ? <ChevronDown size={16} className="text-slate-500" /> : <ChevronRight size={16} className="text-slate-500" />}
               <FolderOpen size={18} className="text-blue-500" />
               <span className="text-sm font-semibold text-slate-800">{loc.name}</span>
               {loc.type && (
@@ -441,14 +456,25 @@ export default function AssetTreePage() {
       </div>
 
       {/* Search Bar */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
-        <Input
-          placeholder="Tìm nhanh biển hiệu (mã, mô tả, chất liệu...) hoặc vị trí..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-11 pr-4 py-3 text-base text-slate-800 placeholder:text-slate-400 border-slate-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl"
-        />
+      <div className="max-w-md space-y-2">
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
+          <Input
+            placeholder="Tìm nhanh biển hiệu (mã, mô tả, chất liệu...) hoặc vị trí..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-11 pr-4 py-3 text-base text-slate-800 placeholder:text-slate-400 border-slate-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl"
+          />
+        </div>
+        {isSearchResultTruncated && (
+          <p className="flex items-start gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            <span aria-hidden="true">!</span>
+            <span>
+              Danh sách biển hiệu dùng cho tìm kiếm ở trang này bị giới hạn ở {MAX_TREE_ASSETS.toLocaleString('vi-VN')} biển,
+              nên kết quả có thể chưa đầy đủ. Dùng trang <strong>Danh sách biển hiệu</strong> để tìm trên toàn bộ dữ liệu.
+            </span>
+          </p>
+        )}
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 items-start">
@@ -577,9 +603,9 @@ export default function AssetTreePage() {
                   onChange={(e) => setNewLocType(e.target.value as Location['type'])}
                   className="w-full border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg p-2 border bg-white outline-none"
                 >
-                  <option value="BUILDING">Tòa nhà</option>
-                  <option value="FLOOR">Tầng</option>
-                  <option value="DEPARTMENT">Khoa/Phòng ban</option>
+                  {!parentLoc && <option value="BUILDING">Tòa nhà</option>}
+                  {(!parentLoc || parentLoc.type === 'BUILDING') && <option value="FLOOR">Tầng</option>}
+                  {(!parentLoc || parentLoc.type === 'BUILDING' || parentLoc.type === 'FLOOR') && <option value="DEPARTMENT">Khoa/Phòng ban</option>}
                   <option value="ROOM">Phòng</option>
                 </select>
               </div>

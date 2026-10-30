@@ -45,3 +45,11 @@ jobs:
       - name: Run tests
         working-directory: frontend
         run: npm test -- --run
+
+      # Test chạy qua vitest KHÔNG kiểm tra kiểu TypeScript, còn "tsc --noEmit" ở thư mục gốc
+      # thì không kiểm file nào (tsconfig.json gốc có "files": [] và chỉ trỏ sang tsconfig con).
+      # Thiếu bước này, code sai kiểu vẫn qua CI xanh rồi chết ở bước build trên server —
+      # đã xảy ra thật (2026-09-22): 3 lỗi kiểu lọt qua, một trong số đó còn gây lỗi 400 lúc chạy.
+      - name: Type check & build
+        working-directory: frontend
+        run: npm run build

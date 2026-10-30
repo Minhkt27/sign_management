@@ -13,3 +13,4 @@ cors:
 app:
   admin-initial-password: AdminTest#2024
   tech-initial-password: TechTest#2024
+  superadmin-initial-password: SuperAdminTest#2024

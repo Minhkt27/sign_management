@@ -63,6 +63,10 @@ public class UserEntity {
     @Column(name = "refresh_token", length = 512)
     private String refreshToken;
 
+    @Builder.Default
+    @Column(name = "must_change_password", nullable = false)
+    private Boolean mustChangePassword = false;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;

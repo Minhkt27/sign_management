@@ -40,7 +40,7 @@ export default function TicketListPage() {
   };
 
   const { selectedHospitalId } = useAdminStore();
-  const hospitalIdParam = selectedHospitalId === 'ALL' ? undefined : selectedHospitalId;
+  const hospitalIdParam = selectedHospitalId ?? undefined;
 
   const { data: summary } = useQuery<TicketSummary>({
     queryKey: ['tickets-summary', hospitalIdParam],
@@ -49,8 +49,8 @@ export default function TicketListPage() {
   });
 
   const { data: technicians = [] } = useQuery<User[]>({
-    queryKey: ['technicians'],
-    queryFn: ticketService.getTechnicians,
+    queryKey: ['technicians', hospitalIdParam],
+    queryFn: () => ticketService.getTechnicians(hospitalIdParam),
     staleTime: 5 * 60 * 1000,
   });
 

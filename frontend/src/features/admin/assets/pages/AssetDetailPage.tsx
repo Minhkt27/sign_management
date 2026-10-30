@@ -8,9 +8,12 @@ import { ticketService } from '@/services/ticketService';
 import { signTypeService } from '@/services/signTypeService';
 import { fileService } from '@/services/fileService';
 import { mapService } from '@/services/mapService';
+import { useAdminStore } from '@/app/store/adminStore';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
 import { PRIORITY_LABELS, TICKET_STATUS_LABELS } from '@/shared/helpers/ticketBadges';
 import { getFullLocationPath, resolveLocationLevels } from '@/shared/helpers/locationHelper';
+import { getApiError } from '@/shared/helpers/apiError';
+import { toast } from 'sonner';
 import { Asset, Location, SignType } from '@/shared/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +33,8 @@ export default function AssetDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { selectedHospitalId } = useAdminStore();
+  const hospitalIdParam = selectedHospitalId ?? undefined;
   const [qrBaseUrl, setQrBaseUrl] = useState(() => {
     return localStorage.getItem('qrBaseUrl') || window.location.origin;
   });
@@ -72,8 +77,8 @@ export default function AssetDetailPage() {
 
   // Fetch Locations
   const { data: locations = [] } = useQuery<Location[]>({
-    queryKey: ['locations'],
-    queryFn: locationService.getAllLocations,
+    queryKey: ['locations', hospitalIdParam],
+    queryFn: () => locationService.getAllLocations(hospitalIdParam),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -87,8 +92,8 @@ export default function AssetDetailPage() {
 
   // Fetch Sign Types
   const { data: signTypes = [] } = useQuery<SignType[]>({
-    queryKey: ['signTypes'],
-    queryFn: signTypeService.getAllSignTypes,
+    queryKey: ['signTypes', hospitalIdParam],
+    queryFn: () => signTypeService.getAllSignTypes(hospitalIdParam),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -101,8 +106,8 @@ export default function AssetDetailPage() {
   });
 
   const { data: allFloors = [] } = useQuery({
-    queryKey: ['mapFloors'],
-    queryFn: mapService.getAllFloors,
+    queryKey: ['mapFloors', hospitalIdParam],
+    queryFn: () => mapService.getAllFloors(hospitalIdParam),
     enabled: !!id,
     staleTime: 5 * 60 * 1000,
   });
@@ -145,9 +150,16 @@ export default function AssetDetailPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['asset', id] });
       queryClient.invalidateQueries({ queryKey: ['assets'] });
+      // Cây biển báo (AssetTreePage) nạp riêng theo từng vị trí với staleTime 5 phút, nên nếu
+      // không làm mới ở đây thì biển vừa thêm/sửa/xoá không xuất hiện trên cây suốt 5 phút.
+      queryClient.invalidateQueries({ queryKey: ['locationAssets'] });
       setImageFile(null);
       setIsEditDialogOpen(false);
+      toast.success('Đã lưu thay đổi');
     },
+    // Không có nhánh này thì lỗi phía máy chủ (mã biển trùng, vị trí thuộc viện khác) chỉ làm
+    // hộp thoại không đóng — người dùng không biết vì sao và thường bấm Lưu lại nhiều lần.
+    onError: (error: unknown) => toast.error(getApiError(error, 'Không thể lưu thay đổi.')),
   });
 
   const createTicketMutation = useMutation({
@@ -156,9 +168,14 @@ export default function AssetDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['assetTickets', id] });
       queryClient.invalidateQueries({ queryKey: ['asset', id] });
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
+      queryClient.invalidateQueries({ queryKey: ['tickets-summary'] });
       setTicketForm({ desc: '', priority: 'MEDIUM' });
       setIsTicketDialogOpen(false);
+      toast.success('Đã tạo phiếu bảo trì');
     },
+    // Quan trọng: máy chủ chặn báo hỏng trùng và trả về số hiệu phiếu đang xử lý. Nuốt lỗi ở
+    // đây nghĩa là người dùng không bao giờ đọc được câu đó, chỉ thấy hộp thoại đứng im.
+    onError: (error: unknown) => toast.error(getApiError(error, 'Không thể tạo phiếu bảo trì.')),
   });
 
   const handleUpdateAsset = async (e: React.FormEvent) => {
@@ -187,7 +204,7 @@ export default function AssetDetailPage() {
         imageUrl: uploadedUrl || undefined,
       });
     } catch {
-      alert('Lỗi tải ảnh lên. Vui lòng thử lại.');
+      toast.error('Lỗi tải ảnh lên. Vui lòng thử lại.');
     } finally {
       setIsUploading(false);
     }

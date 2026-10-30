@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { assetService } from '@/services/assetService';
 import { fileService } from '@/services/fileService';
+import { getApiError } from '@/shared/helpers/apiError';
+import { toast } from 'sonner';
 
 export function useAssetForm(onSuccess: () => void) {
   const queryClient = useQueryClient();
@@ -43,16 +45,23 @@ export function useAssetForm(onSuccess: () => void) {
     mutationFn: assetService.createAsset,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assets'] });
+      // Cây biển báo nạp riêng theo từng vị trí với staleTime 5 phút — không làm mới ở đây
+      // thì biển vừa tạo không xuất hiện trên cây, người dùng tưởng chưa lưu được.
+      queryClient.invalidateQueries({ queryKey: ['locationAssets'] });
       reset();
       onSuccess();
+      toast.success('Đã thêm biển báo');
     },
+    // Tạo biển thất bại (mã trùng, trường vượt độ dài cho phép) trước đây không hiện gì cả:
+    // hộp thoại vẫn mở với dữ liệu còn nguyên, không có lý do nào được nói ra.
+    onError: (error: unknown) => toast.error(getApiError(error, 'Không thể thêm biển báo.')),
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const finalLocationId = selectedSubRoomId || selectedRoomId || selectedFloorId || selectedBuildingId;
     if (!finalLocationId) {
-      alert('Vui lòng chọn vị trí lắp đặt.');
+      toast.error('Vui lòng chọn vị trí lắp đặt.');
       return;
     }
     setIsUploading(true);
@@ -76,7 +85,7 @@ export function useAssetForm(onSuccess: () => void) {
         installedAt: new Date().toISOString(),
       });
     } catch {
-      alert('Lỗi tải ảnh lên. Vui lòng thử lại.');
+      toast.error('Lỗi tải ảnh lên. Vui lòng thử lại.');
     } finally {
       setIsUploading(false);
     }

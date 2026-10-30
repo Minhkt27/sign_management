@@ -12,6 +12,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.EnumType;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -27,6 +28,8 @@ import java.util.UUID;
 @Table(name = "assets", indexes = {
         @Index(name = "idx_assets_location_id",  columnList = "location_id"),
         @Index(name = "idx_assets_sign_type_id", columnList = "sign_type_id")
+}, uniqueConstraints = {
+        @UniqueConstraint(name = "uk_assets_hospital_code", columnNames = {"hospital_id", "asset_code"})
 })
 @Getter
 @Setter
@@ -38,7 +41,7 @@ public class AssetEntity {
     @Id
     private UUID id;
 
-    @Column(name = "asset_code", unique = true, nullable = false)
+    @Column(name = "asset_code", nullable = false)
     private String assetCode;
 
     @Column(name = "hospital_id", nullable = false)

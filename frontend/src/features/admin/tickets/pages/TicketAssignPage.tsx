@@ -6,11 +6,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, UserCheck, Lock, CheckCircle2 } from 'lucide-react';
 import { PRIORITY_LABELS, TICKET_STATUS_LABELS } from '@/shared/helpers/ticketBadges';
+import { getApiError } from '@/shared/helpers/apiError';
+import { toast } from 'sonner';
+import { useAdminStore } from '@/app/store/adminStore';
 
 export default function TicketAssignPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { selectedHospitalId } = useAdminStore();
+  const hospitalIdParam = selectedHospitalId ?? undefined;
 
   // Queries
   const { data: ticket, isLoading: isTicketLoading } = useQuery<MaintenanceTicket>({
@@ -20,8 +25,8 @@ export default function TicketAssignPage() {
   });
 
   const { data: techs = [], isLoading: isTechsLoading } = useQuery<User[]>({
-    queryKey: ['technicians'],
-    queryFn: ticketService.getTechnicians,
+    queryKey: ['technicians', hospitalIdParam],
+    queryFn: () => ticketService.getTechnicians(hospitalIdParam),
   });
 
   // Mutation
@@ -31,8 +36,14 @@ export default function TicketAssignPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ticket', id] });
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
+      queryClient.invalidateQueries({ queryKey: ['tickets-summary'] });
+      toast.success('Đã phân công kỹ thuật viên');
       navigate('/admin/tickets');
     },
+    // Thiếu nhánh này thì phân công thất bại (phiếu đã đóng, người được chọn không phải kỹ
+    // thuật viên, phiếu thuộc viện khác) chỉ đơn giản là không xảy ra gì — người dùng ở lại
+    // trang và tưởng mình chưa bấm.
+    onError: (error: unknown) => toast.error(getApiError(error, 'Không thể phân công phiếu này.')),
   });
 
   const handleAssign = (techId: number) => {

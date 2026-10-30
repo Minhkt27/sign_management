@@ -10,9 +10,12 @@ import java.util.Optional;
 public interface SignTypeDatabasePort {
     SignType save(SignType signType);
     Optional<SignType> findById(Long id);
-    Optional<SignType> findByCode(String code);
+    Optional<SignType> findByCode(String code, Long hospitalId);
     List<SignType> findAll();
     List<SignType> findAllByHospital(Long hospitalId);
     Page<SignType> findPage(String search, Long hospitalId, Pageable pageable);
     void deleteById(Long id);
+
+    /** Số bản ghi thuộc một bệnh viện — dùng để chặn xoá bệnh viện còn dữ liệu. */
+    long countByHospital(Long hospitalId);
 }

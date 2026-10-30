@@ -59,7 +59,7 @@ public class UserController {
     @Operation(summary = "Sửa quyền và vai trò của tài khoản")
     @PutMapping("/{id}/role-permissions")
     @PreAuthorize("hasAuthority('USER_MANAGE')")
-    public ResponseEntity<UserResponse> updateRoleAndPermissions(@PathVariable Long id, @RequestBody UpdateRolePermissionsRequest req) {
+    public ResponseEntity<UserResponse> updateRoleAndPermissions(@PathVariable Long id, @Valid @RequestBody UpdateRolePermissionsRequest req) {
         User user = userUseCase.updateUserRoleAndPermissions(id, req.roleId(), req.customPermissions());
         return ResponseEntity.ok(UserResponse.from(user));
     }
@@ -67,7 +67,7 @@ public class UserController {
     @Operation(summary = "Kích hoạt / vô hiệu hóa tài khoản")
     @PutMapping("/{id}/active")
     @PreAuthorize("hasAuthority('USER_MANAGE')")
-    public ResponseEntity<UserResponse> setActive(@PathVariable Long id, @RequestBody SetActiveRequest req) {
+    public ResponseEntity<UserResponse> setActive(@PathVariable Long id, @Valid @RequestBody SetActiveRequest req) {
         User user = userUseCase.setUserActive(id, req.active());
         return ResponseEntity.ok(UserResponse.from(user));
     }
@@ -138,13 +138,15 @@ public class UserController {
     ) {}
     public record ResetPasswordResponse(String temporaryPassword) {}
 
-    public record UserResponse(Long id, String username, String fullName, Long roleId, boolean isActive, String phone, java.util.List<String> customPermissions, Long hospitalId) {
+    public record UserResponse(Long id, String username, String fullName, Long roleId, boolean isActive, String phone,
+            java.util.List<String> customPermissions, Long hospitalId, boolean mustChangePassword) {
         static UserResponse from(User u) {
             return new UserResponse(u.getId(), u.getUsername(), u.getFullName(), u.getRoleId(),
                     Boolean.TRUE.equals(u.getIsActive()),
                     u.getPhone(),
                     u.getCustomPermissions() != null ? u.getCustomPermissions() : java.util.List.of(),
-                    u.getHospitalId());
+                    u.getHospitalId(),
+                    Boolean.TRUE.equals(u.getMustChangePassword()));
         }
     }
 }

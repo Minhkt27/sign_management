@@ -44,8 +44,9 @@ public class SignTypeController {
 
     @Operation(summary = "Chi tiết loại biển theo ID")
     @GetMapping("/{id}")
-    public ResponseEntity<SignType> getSignTypeById(@PathVariable Long id) {
-        return signTypeUseCase.getSignTypeById(id, SecurityUtils.getCurrentHospitalId())
+    public ResponseEntity<SignType> getSignTypeById(@PathVariable Long id,
+            @RequestParam(required = false) Long hospitalId) {
+        return signTypeUseCase.getSignTypeById(id, SecurityUtils.resolveHospitalId(hospitalId))
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -85,7 +86,9 @@ public class SignTypeController {
     }
 
     public record SignTypeRequest(
-            @NotBlank @Size(max = 100) String code,
+            // Không @NotBlank — khi tạo mới để trống sẽ được SignTypeService tự sinh mã từ tên.
+            // Khi cập nhật, SignTypeService tự yêu cầu phải có giá trị.
+            @Size(max = 100) String code,
             @NotBlank @Size(max = 200) String name,
             @Size(max = 500) String description
     ) {}

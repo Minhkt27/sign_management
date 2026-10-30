@@ -11,6 +11,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -37,21 +39,25 @@ public class MapController {
 
     @Operation(summary = "Sơ đồ tầng theo ID (kèm nodes + edges)")
     @GetMapping("/floors/{id}")
-    public ResponseEntity<MapFloorData> getFloorData(@PathVariable Long id) {
-        return ResponseEntity.ok(mapUseCase.getFloorData(id, SecurityUtils.getCurrentHospitalId()));
+    public ResponseEntity<MapFloorData> getFloorData(@PathVariable Long id,
+            @RequestParam(required = false) Long hospitalId) {
+        return ResponseEntity.ok(mapUseCase.getFloorData(id, SecurityUtils.resolveHospitalId(hospitalId)));
     }
 
     @Operation(summary = "Lấy nhiều sơ đồ tầng theo danh sách ID (batch)")
     @GetMapping("/floors/batch")
-    public ResponseEntity<List<MapFloorData>> getFloorDataBatch(@RequestParam List<Long> ids) {
-        return ResponseEntity.ok(mapUseCase.getFloorDataBatch(ids, SecurityUtils.getCurrentHospitalId()));
+    public ResponseEntity<List<MapFloorData>> getFloorDataBatch(@RequestParam List<Long> ids,
+            @RequestParam(required = false) Long hospitalId) {
+        return ResponseEntity.ok(mapUseCase.getFloorDataBatch(ids, SecurityUtils.resolveHospitalId(hospitalId)));
     }
 
     @Operation(summary = "Sơ đồ tầng theo locationId")
     @GetMapping("/floors/by-location/{locationId}")
-    public ResponseEntity<MapFloorData> getFloorByLocation(@PathVariable Long locationId) {
-        return mapUseCase.getFloorByLocationId(locationId)
-                .map(f -> ResponseEntity.ok(mapUseCase.getFloorData(f.getId(), SecurityUtils.getCurrentHospitalId())))
+    public ResponseEntity<MapFloorData> getFloorByLocation(@PathVariable Long locationId,
+            @RequestParam(required = false) Long hospitalId) {
+        Long callerHospitalId = SecurityUtils.resolveHospitalId(hospitalId);
+        return mapUseCase.getFloorByLocationId(locationId, callerHospitalId)
+                .map(f -> ResponseEntity.ok(mapUseCase.getFloorData(f.getId(), callerHospitalId)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -101,32 +107,34 @@ public class MapController {
     @Operation(summary = "Tạo sơ đồ tổng thể bệnh viện")
     @PreAuthorize("hasAuthority('MAP_MANAGE')")
     @PostMapping("/campus")
-    public ResponseEntity<MapFloor> createCampusFloor(@Valid @RequestBody CampusFloorRequest req) {
+    public ResponseEntity<MapFloor> createCampusFloor(@Valid @RequestBody CampusFloorRequest req,
+            @RequestParam(required = false) Long hospitalId) {
         MapFloor floor = MapFloor.builder()
                 .imageUrl(req.imageUrl())
                 .imgWidth(req.imgWidth())
                 .imgHeight(req.imgHeight())
                 .build();
-        return ResponseEntity.ok(mapUseCase.createCampusFloor(floor));
+        return ResponseEntity.ok(mapUseCase.createCampusFloor(floor, SecurityUtils.resolveAdminHospitalId(hospitalId)));
     }
 
     @Operation(summary = "Cập nhật ảnh sơ đồ tổng thể")
     @PreAuthorize("hasAuthority('MAP_MANAGE')")
     @PutMapping("/campus")
-    public ResponseEntity<MapFloor> updateCampusFloor(@Valid @RequestBody CampusFloorRequest req) {
+    public ResponseEntity<MapFloor> updateCampusFloor(@Valid @RequestBody CampusFloorRequest req,
+            @RequestParam(required = false) Long hospitalId) {
         MapFloor floor = MapFloor.builder()
                 .imageUrl(req.imageUrl())
                 .imgWidth(req.imgWidth())
                 .imgHeight(req.imgHeight())
                 .build();
-        return ResponseEntity.ok(mapUseCase.updateCampusFloor(floor));
+        return ResponseEntity.ok(mapUseCase.updateCampusFloor(floor, SecurityUtils.resolveAdminHospitalId(hospitalId)));
     }
 
     @Operation(summary = "Xóa sơ đồ tổng thể")
     @PreAuthorize("hasAuthority('MAP_MANAGE')")
     @DeleteMapping("/campus")
-    public ResponseEntity<Void> deleteCampusFloor() {
-        mapUseCase.deleteCampusFloor();
+    public ResponseEntity<Void> deleteCampusFloor(@RequestParam(required = false) Long hospitalId) {
+        mapUseCase.deleteCampusFloor(SecurityUtils.resolveAdminHospitalId(hospitalId));
         return ResponseEntity.ok().build();
     }
 
@@ -175,16 +183,18 @@ public class MapController {
 
     @Operation(summary = "Lấy node theo assetId (ADMIN/TECHNICAL)")
     @GetMapping("/nodes/by-asset/{assetId}")
-    public ResponseEntity<MapNode> getNodeByAsset(@PathVariable UUID assetId) {
-        return mapUseCase.getNodeByAssetId(assetId)
+    public ResponseEntity<MapNode> getNodeByAsset(@PathVariable UUID assetId,
+            @RequestParam(required = false) Long hospitalId) {
+        return mapUseCase.getNodeByAssetId(assetId, SecurityUtils.resolveHospitalId(hospitalId))
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @Operation(summary = "Lấy node theo locationId (public)")
     @GetMapping("/nodes/by-location/{locationId}")
-    public ResponseEntity<MapNode> getNodeByLocation(@PathVariable Long locationId) {
-        return mapUseCase.getNodeByLocationId(locationId)
+    public ResponseEntity<MapNode> getNodeByLocation(@PathVariable Long locationId,
+            @RequestParam(required = false) Long hospitalId) {
+        return mapUseCase.getNodeByLocationId(locationId, SecurityUtils.resolveHospitalId(hospitalId))
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -233,26 +243,31 @@ public class MapController {
     public ResponseEntity<List<MapNode>> findPathToAsset(
             @RequestParam Long from,
             @RequestParam UUID assetId,
-            @RequestParam(defaultValue = "false") boolean avoidStairs) {
-        MapNode target = mapUseCase.getNodeByAssetId(assetId)
+            @RequestParam(defaultValue = "false") boolean avoidStairs,
+            @RequestParam(required = false) Long hospitalId) {
+        Long callerHospitalId = SecurityUtils.resolveHospitalId(hospitalId);
+        MapNode target = mapUseCase.getNodeByAssetId(assetId, callerHospitalId)
                 .orElse(null);
         if (target == null) return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(mapUseCase.findPath(from, target.getId(), avoidStairs, SecurityUtils.getCurrentHospitalId()));
+        return ResponseEntity.ok(mapUseCase.findPath(from, target.getId(), avoidStairs, callerHospitalId));
     }
 
     // ── Request records ────────────────────────────────────────────────────
 
+    // imageUrl giới hạn 500 ký tự cho khớp map_floors.image_url (V2). Kích thước ảnh phải
+    // dương: toàn bộ toạ độ node được lưu theo tỉ lệ trên khung ảnh này, nên số 0 hoặc số âm
+    // sẽ làm mọi phép tính vị trí và tìm đường sai mà không có gì báo lỗi.
     public record FloorRequest(
             @NotNull Long locationId,
-            @NotNull String imageUrl,
-            @NotNull Integer imgWidth,
-            @NotNull Integer imgHeight
+            @NotNull @Size(max = 500) String imageUrl,
+            @NotNull @Positive Integer imgWidth,
+            @NotNull @Positive Integer imgHeight
     ) {}
 
     public record CampusFloorRequest(
-            @NotNull String imageUrl,
-            @NotNull Integer imgWidth,
-            @NotNull Integer imgHeight
+            @NotNull @Size(max = 500) String imageUrl,
+            @NotNull @Positive Integer imgWidth,
+            @NotNull @Positive Integer imgHeight
     ) {}
 
     public record NodeRequest(
@@ -260,7 +275,7 @@ public class MapController {
             @NotNull Double x,
             @NotNull Double y,
             @NotNull NodeType type,
-            String label,
+            @Size(max = 255) String label,
             Long locationId,
             UUID assetId,
             Long linkedCampusNodeId
@@ -270,7 +285,7 @@ public class MapController {
             Double x,
             Double y,
             @NotNull NodeType type,
-            String label,
+            @Size(max = 255) String label,
             Long locationId,
             UUID assetId,
             Long linkedCampusNodeId

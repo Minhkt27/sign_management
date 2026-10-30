@@ -23,6 +23,7 @@ public class Role {
     private UiMode uiMode = UiMode.ADMIN;
     @Builder.Default
     private List<String> permissions = new ArrayList<>();
+    private Long hospitalId;
     private Instant createdAt;
     private Instant updatedAt;
 }

@@ -33,6 +33,11 @@ public final class SecurityUtils {
     /**
      * hospitalId của user đang đăng nhập (null nếu SUPER_ADMIN — không giới hạn
      * viện nào, hoặc nếu chưa đăng nhập).
+     *
+     * <p><b>CHỈ dùng cho endpoint đã yêu cầu đăng nhập.</b> Trên endpoint permitAll,
+     * khách chưa đăng nhập cũng nhận null, mà tầng service hiểu null là "SUPER_ADMIN,
+     * bỏ qua lọc viện" — nghĩa là người lạ đọc được dữ liệu của mọi bệnh viện chỉ bằng
+     * cách dò ID. Endpoint public phải dùng {@link #resolveHospitalId(Long)}.
      */
     public static Long getCurrentHospitalId() {
         if (!isAuthenticated())

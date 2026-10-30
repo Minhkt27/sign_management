@@ -17,4 +17,10 @@ public interface UserDatabasePort {
     List<User> findAll();
     Page<User> findPage(String search, Long hospitalId, Pageable pageable);
     void deleteById(Long id);
+
+    /** Số bản ghi thuộc một bệnh viện — dùng để chặn xoá bệnh viện còn dữ liệu. */
+    long countByHospital(Long hospitalId);
+
+    /** Số tài khoản đang mang một vai trò — dùng để chặn xoá vai trò còn người dùng. */
+    long countByRoleId(Long roleId);
 }

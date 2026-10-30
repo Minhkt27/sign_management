@@ -130,6 +130,128 @@ class UserServiceTest {
         verify(userDatabasePort).deleteById(2L);
     }
 
+    // Đường vòng qua customPermissions: validateRoleAssignmentAllowed() chặn việc gán một
+    // VAI TRÒ có ROLE_MANAGE, nhưng nếu không chặn cả customPermissions thì người chỉ có
+    // USER_MANAGE vẫn tự cấp thẳng được quyền đó cho mình.
+    @Test
+    void updateRoleAndPermissions_grantingRoleManageWithoutHavingIt_isDenied() {
+        setCaller("USER_MANAGE");
+        when(userDatabasePort.findById(2L)).thenReturn(Optional.of(existingUser));
+        when(roleDatabasePort.findById(2L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.updateUserRoleAndPermissions(
+                2L, null, java.util.List.of("ROLE_MANAGE")))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class)
+                .hasMessageContaining("ROLE_MANAGE");
+
+        verify(userDatabasePort, never()).save(any());
+    }
+
+    @Test
+    void updateRoleAndPermissions_grantingUserManageWithoutRoleManage_isDenied() {
+        setCaller("USER_MANAGE");
+        when(userDatabasePort.findById(2L)).thenReturn(Optional.of(existingUser));
+        when(roleDatabasePort.findById(2L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.updateUserRoleAndPermissions(
+                2L, null, java.util.List.of("USER_MANAGE")))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+
+        verify(userDatabasePort, never()).save(any());
+    }
+
+    @Test
+    void updateRoleAndPermissions_grantingRoleManageWhenCallerHasIt_isAllowed() {
+        setCaller("USER_MANAGE", "ROLE_MANAGE");
+        when(userDatabasePort.findById(2L)).thenReturn(Optional.of(existingUser));
+        when(roleDatabasePort.findById(2L)).thenReturn(Optional.empty());
+        when(userDatabasePort.save(any())).thenReturn(existingUser);
+
+        userService.updateUserRoleAndPermissions(2L, null, java.util.List.of("ROLE_MANAGE"));
+
+        verify(userDatabasePort).save(any());
+    }
+
+    @Test
+    void updateRoleAndPermissions_withOrdinaryPermission_isAllowed() {
+        setCaller("USER_MANAGE");
+        when(userDatabasePort.findById(2L)).thenReturn(Optional.of(existingUser));
+        when(roleDatabasePort.findById(2L)).thenReturn(Optional.empty());
+        when(userDatabasePort.save(any())).thenReturn(existingUser);
+
+        userService.updateUserRoleAndPermissions(2L, null, java.util.List.of("TICKET_VIEW"));
+
+        verify(userDatabasePort).save(any());
+    }
+
+    private void setCaller(String... authorities) {
+        var granted = java.util.Arrays.stream(authorities)
+                .map(org.springframework.security.core.authority.SimpleGrantedAuthority::new)
+                .toList();
+        var auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                "caller", null, granted);
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void clearSecurityContext() {
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
+    }
+
+    // ── Buộc đổi mật khẩu tạm ──────────────────────────────────────────────
+
+    @Test
+    void resetPassword_batNguoiDungPhaiDoiMatKhau() {
+        when(userDatabasePort.findById(2L)).thenReturn(Optional.of(existingUser));
+        when(roleDatabasePort.findById(2L)).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(any())).thenReturn("hashed_temp");
+        when(userDatabasePort.save(any())).thenReturn(existingUser);
+
+        String temp = userService.resetPassword(2L);
+
+        assertThat(temp).isNotBlank();
+        assertThat(existingUser.getMustChangePassword())
+                .as("mật khẩu tạm đi qua tay quản trị viên nên không được dùng lâu dài")
+                .isTrue();
+    }
+
+    @Test
+    void createUser_taiKhoanMoiPhaiDoiMatKhauLanDau() {
+        when(userDatabasePort.findByUsername("tech1")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode("pass")).thenReturn("hashed");
+        when(userDatabasePort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        User created = userService.createUser(
+                new UserUseCase.CreateUserCommand("tech1", "Nguyễn Văn A", "pass", 2L, null, java.util.List.of(), null));
+
+        assertThat(created.getMustChangePassword()).isTrue();
+    }
+
+    @Test
+    void changePassword_tatCoBuocDoiMatKhau() {
+        existingUser.setMustChangePassword(true);
+        when(userDatabasePort.findById(2L)).thenReturn(Optional.of(existingUser));
+        when(passwordEncoder.matches("oldPass", "hashed")).thenReturn(true);
+        when(passwordEncoder.matches("newPass", "hashed")).thenReturn(false);
+        when(passwordEncoder.encode("newPass")).thenReturn("new_hashed");
+        when(userDatabasePort.save(any())).thenReturn(existingUser);
+
+        userService.changePassword(new UserUseCase.ChangePasswordCommand(2L, "oldPass", "newPass"));
+
+        assertThat(existingUser.getMustChangePassword()).isFalse();
+    }
+
+    @Test
+    void changePassword_matKhauMoiTrungMatKhauCu_biTuChoi() {
+        when(userDatabasePort.findById(2L)).thenReturn(Optional.of(existingUser));
+        when(passwordEncoder.matches("samePass", "hashed")).thenReturn(true);
+
+        assertThatThrownBy(() -> userService.changePassword(
+                new UserUseCase.ChangePasswordCommand(2L, "samePass", "samePass")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("khác mật khẩu hiện tại");
+    }
+
     @Test
     void changePassword_withWrongCurrentPassword_throwsIllegalArgument() {
         when(userDatabasePort.findById(2L)).thenReturn(Optional.of(existingUser));
@@ -139,5 +261,54 @@ class UserServiceTest {
                 new UserUseCase.ChangePasswordCommand(2L, "wrong", "newPass")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Mật khẩu hiện tại không đúng");
+    }
+
+    @Test
+    void ganVaiTroVienKhac_biTuChoi() {
+        setCaller("USER_MANAGE");
+        existingUser.setHospitalId(1L);
+        when(userDatabasePort.findById(2L)).thenReturn(Optional.of(existingUser));
+        when(roleDatabasePort.findById(2L)).thenReturn(Optional.empty());
+
+        com.hospital.signage.domain.model.Role roleVien2 = com.hospital.signage.domain.model.Role.builder()
+                .id(99L).code("ROLE_HOSP2").hospitalId(2L).build();
+        when(roleDatabasePort.findById(99L)).thenReturn(Optional.of(roleVien2));
+
+        assertThatThrownBy(() -> userService.updateUserRoleAndPermissions(2L, 99L, java.util.List.of()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("bệnh viện khác");
+    }
+
+    @Test
+    void ganVaiTroToanHeThong_thanhCong() {
+        setCaller("USER_MANAGE");
+        existingUser.setHospitalId(1L);
+        when(userDatabasePort.findById(2L)).thenReturn(Optional.of(existingUser));
+        when(roleDatabasePort.findById(2L)).thenReturn(Optional.empty());
+
+        com.hospital.signage.domain.model.Role globalRole = com.hospital.signage.domain.model.Role.builder()
+                .id(50L).code("GLOBAL_NURSE").hospitalId(null).permissions(java.util.List.of("TICKET_VIEW")).build();
+        when(roleDatabasePort.findById(50L)).thenReturn(Optional.of(globalRole));
+        when(userDatabasePort.save(any())).thenReturn(existingUser);
+
+        userService.updateUserRoleAndPermissions(2L, 50L, java.util.List.of());
+
+        verify(userDatabasePort).save(any());
+    }
+
+    @Test
+    void ganVaiTroVien_choTaiKhoanSuperAdmin_biTuChoi() {
+        setCaller("USER_MANAGE");
+        existingUser.setHospitalId(null);
+        when(userDatabasePort.findById(2L)).thenReturn(Optional.of(existingUser));
+        when(roleDatabasePort.findById(2L)).thenReturn(Optional.empty());
+
+        com.hospital.signage.domain.model.Role roleVien1 = com.hospital.signage.domain.model.Role.builder()
+                .id(99L).code("ROLE_HOSP1").hospitalId(1L).build();
+        when(roleDatabasePort.findById(99L)).thenReturn(Optional.of(roleVien1));
+
+        assertThatThrownBy(() -> userService.updateUserRoleAndPermissions(2L, 99L, java.util.List.of()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("toàn hệ thống");
     }
 }

@@ -3,6 +3,11 @@ name: Deploy to VPS
 # Chỉ chạy SAU KHI workflow "CI" hoàn tất (không tự trigger độc lập trên push) —
 # và chỉ khi CI đó chạy vì một cú push thật (không phải PR check), để không deploy
 # nhầm khi ai đó chỉ mới mở PR vào main.
+#
+# Cần 3 secret trong GitHub (Settings → Secrets and variables → Actions) — xem deploy/README.md:
+#   VPS_HOST     IP của server
+#   VPS_USER     deploy
+#   VPS_SSH_KEY  private key dành riêng cho GitHub Actions
 on:
   workflow_run:
     workflows: ["CI"]
@@ -20,11 +25,13 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          # TODO: đổi đường dẫn dưới đây cho khớp nơi thực sự clone repo trên VPS.
-          # vps-shared (Postgres + MinIO + Caddy) phải đã "docker compose up -d" từ trước,
-          # workflow này KHÔNG đụng tới vps-shared, chỉ rebuild/restart sign_management.
+          # Build hỏng thì DỪNG, không chạy tiếp "up -d" — bản đang chạy giữ nguyên.
+          # --ff-only: ai đó lỡ sửa file trực tiếp trên server thì báo lỗi thay vì âm thầm merge.
+          # image prune: mỗi lần build để lại image cũ vài trăm MB, không dọn thì vài tháng đầy ổ.
           script: |
+            set -e
             cd /opt/sign_management
-            git pull origin main
+            git pull --ff-only origin main
             docker compose -f docker-compose.yml -f docker-compose.prod.yml build backend frontend
             docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+            docker image prune -f

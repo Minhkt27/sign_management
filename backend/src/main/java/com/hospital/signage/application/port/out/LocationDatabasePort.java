@@ -13,7 +13,11 @@ public interface LocationDatabasePort {
     List<Location> findByParentId(Long parentId);
     List<Location> findByParentIdAndHospital(Long parentId, Long hospitalId);
     boolean existsByParentId(Long parentId);
-    boolean existsByLocationCode(String locationCode);
-    void bulkUpdatePathPrefix(String oldPath, String newPath);
+    long countByParentId(Long parentId);
+    boolean existsByLocationCode(String locationCode, Long hospitalId);
+    void bulkUpdatePathPrefix(String oldPath, String newPath, Long hospitalId);
     void deleteById(Long id);
+
+    /** Số bản ghi thuộc một bệnh viện — dùng để chặn xoá bệnh viện còn dữ liệu. */
+    long countByHospital(Long hospitalId);
 }

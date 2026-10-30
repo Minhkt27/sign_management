@@ -7,11 +7,16 @@ import java.util.List;
 
 public interface RoleUseCase {
     List<Role> getAllRoles();
+    List<Role> getAllRoles(Long hospitalId);
     Role getRoleById(Long id);
     Role createRole(CreateRoleCommand command);
     Role updateRole(UpdateRoleCommand command);
     void deleteRole(Long id);
 
-    record CreateRoleCommand(String code, String name, String description, UiMode uiMode, List<String> permissions) {}
+    record CreateRoleCommand(String code, String name, String description, UiMode uiMode, List<String> permissions, Long hospitalId) {
+        public CreateRoleCommand(String code, String name, String description, UiMode uiMode, List<String> permissions) {
+            this(code, name, description, uiMode, permissions, null);
+        }
+    }
     record UpdateRoleCommand(Long id, String code, String name, String description, UiMode uiMode, List<String> permissions) {}
 }
