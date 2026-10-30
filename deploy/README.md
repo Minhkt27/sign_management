@@ -364,5 +364,5 @@ Bước `cp ... env.backup .env` là bắt buộc: phải dùng **đúng mật k
 ## Những điều nên biết
 
 - **Bản sao lưu tự động hiện chỉ nằm trên chính VPS.** Server hỏng thì mất theo, trừ khi đã bật snapshot của nhà cung cấp (bước 2) hoặc đã chép về máy (bước 9). Việc tiếp theo nên làm: tự động đẩy bản sao lưu ra ngoài, ví dụ Cloudflare R2 — 10GB miễn phí, dư cho dữ liệu hiện tại.
-- **MinIO (kho ảnh) đã ngừng phát hành bản cộng đồng từ 9/2025** — không còn bản vá bảo mật mới. Hệ thống ghim bản cuối cùng, không mở cổng MinIO ra ngoài, và chỉ cho phép đọc ảnh qua nginx. Nên tính chuyển sang cách lưu ảnh khác trong vài tháng tới.
+- **Kho ảnh chạy bằng Silo, không phải MinIO chính hãng.** MinIO đã lưu trữ dự án cộng đồng và gỡ mọi nguồn tải. Silo là nhánh tiếp nối do Pigsty duy trì, vẫn có bản vá bảo mật, và giữ nguyên định dạng dữ liệu. Vì vậy trong log và tên container vẫn thấy chữ `minio`. Hệ thống ghim đúng một phiên bản (kèm digest), không mở cổng kho ảnh ra ngoài, và chỉ cho phép đọc ảnh qua nginx. Nên ghé [trang phát hành của Silo](https://github.com/pgsty/silo/releases) vài tháng một lần và nâng cấp có chủ đích khi có bản vá bảo mật.
 - **Cloudflare:** nếu sau này bật proxy của Cloudflare (đám mây màu cam) trước tên miền, phải cấu hình thêm để backend nhận đúng IP người dùng — không thì chức năng chặn đăng nhập sai nhiều lần sẽ coi mọi người là một.
