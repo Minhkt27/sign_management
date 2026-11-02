@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildSteps } from '../utils/pathHelpers';
+import { buildSteps, matchesDestQuery, destLabel, normalize } from '../utils/pathHelpers';
 import type { MapNode, MapFloor, MapFloorData, Location } from '@/shared/types';
 
 // --- Helpers ---
@@ -365,5 +365,39 @@ describe('Scenario 6 — thang máy lệch toạ độ giữa 2 tầng, sau than
 
   it('kết thúc tại Phòng 201', () => {
     expect(steps[steps.length - 1].sub).toBe('Phòng 201');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tìm điểm đến: lối ra/vào phải tìm được kể cả khi không được đặt tên trên bản đồ
+// ─────────────────────────────────────────────────────────────────────────────
+describe('matchesDestQuery / destLabel', () => {
+  const entrance = mkNode({ id: 1, type: 'ENTRANCE', floorId: 1, x: 0, y: 0 });
+  const namedGate = mkNode({ id: 2, type: 'ENTRANCE', floorId: 1, x: 0, y: 0, label: 'Cổng Giải Phóng' });
+  const room = mkNode({ id: 3, type: 'ROOM', floorId: 2, x: 0, y: 0, locationId: 20 });
+  const junction = mkNode({ id: 4, type: 'JUNCTION', floorId: 1, x: 0, y: 0, label: 'Lối vào sảnh' });
+  const q = (s: string) => normalize(s);
+
+  it('lối ra/vào không tên khớp các từ chung, gõ có dấu hay không dấu đều được', () => {
+    for (const s of ['Lối vào', 'lối ra', 'loi', 'cổng', 'Cửa ra vào']) {
+      expect(matchesDestQuery(entrance, q(s), LOCATIONS)).toBe(true);
+    }
+    expect(matchesDestQuery(entrance, q('Phòng 120'), LOCATIONS)).toBe(false);
+  });
+
+  it('lối ra/vào có tên riêng tìm được theo tên', () => {
+    expect(matchesDestQuery(namedGate, q('giai phong'), LOCATIONS)).toBe(true);
+  });
+
+  it('phòng vẫn tìm theo tên vị trí; điểm nối không bao giờ là điểm đến', () => {
+    expect(matchesDestQuery(room, q('phong 120'), LOCATIONS)).toBe(true);
+    expect(matchesDestQuery(room, q('loi vao'), LOCATIONS)).toBe(false);
+    expect(matchesDestQuery(junction, q('loi vao'), LOCATIONS)).toBe(false);
+  });
+
+  it('tên hiển thị: lối không tên gọi chung, có tên thì giữ tên', () => {
+    expect(destLabel(entrance, LOCATIONS)).toBe('Lối ra/vào');
+    expect(destLabel(namedGate, LOCATIONS)).toBe('Cổng Giải Phóng');
+    expect(destLabel(room, LOCATIONS)).toBe('Phòng 120');
   });
 });

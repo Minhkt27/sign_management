@@ -32,6 +32,26 @@ export const displayName = (node: MapNode, locations: Location[]): string | null
   return loc?.name ?? node.label ?? null;
 };
 
+// Các loại điểm người dùng được chọn làm điểm đến trong ô tìm kiếm.
+export const DEST_TYPES = new Set(['ROOM', 'DEPARTMENT', 'ELEVATOR', 'ENTRANCE']);
+
+const ENTRANCE_NAME = 'Lối ra/vào';
+// Lối ra/vào thường không được đặt tên riêng khi vẽ bản đồ, nên luôn cho tìm bằng các từ chung
+// này (đã bỏ dấu). Gõ một phần cũng khớp: "loi" khớp "loi ra vao".
+const ENTRANCE_TERMS = ['loi ra vao', 'loi ra/vao', 'loi vao', 'loi ra', 'cua ra vao', 'cua vao', 'cong', 'entrance', 'exit'];
+
+// Tên hiển thị của một điểm đến; lối ra/vào chưa đặt tên thì gọi chung là "Lối ra/vào".
+export const destLabel = (node: MapNode, locations: Location[]): string | null =>
+  displayName(node, locations) ?? (node?.type === 'ENTRANCE' ? ENTRANCE_NAME : null);
+
+// q phải đã qua normalize().
+export const matchesDestQuery = (node: MapNode, q: string, locations: Location[]): boolean => {
+  if (!node || !DEST_TYPES.has(node.type)) return false;
+  if (node.label && normalize(node.label).includes(q)) return true;
+  if (node.locationId && normalize(locations.find(l => l?.id === node.locationId)?.name ?? '').includes(q)) return true;
+  return node.type === 'ENTRANCE' && ENTRANCE_TERMS.some(term => term.includes(q));
+};
+
 export const floorName = (floorId: number, floors: MapFloor[], locations: Location[]): string => {
   const floor = floors.find(f => f?.id === floorId);
   if (!floor) return `Tầng #${floorId}`;

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Location, MapNode, MapFloorData } from '@/shared/types';
-import { displayName, normalize } from '../utils/pathHelpers';
+import { displayName, destLabel, matchesDestQuery, normalize } from '../utils/pathHelpers';
 
 const QUICK = [
   { emoji: '🚨', label: 'Cấp cứu',    keyword: 'cấp cứu',    bg: '#FEE2E2', urgent: true },
@@ -29,18 +29,10 @@ export function HomeTab({ fromNodeId, fromLabel, locations, allFloorData, onChan
   const destResults = useMemo(() => {
     if (!destSearch.trim()) return [];
     const q = normalize(destSearch);
-    const DEST_TYPES = new Set(['ROOM', 'DEPARTMENT', 'ELEVATOR']);
     const seen = new Set<number>();
     return allFloorData.flatMap(fd =>
       fd.nodes
-        .filter(n => DEST_TYPES.has(n.type))
-        .filter(n => {
-          const byLabel = n.label ? normalize(n.label).includes(q) : false;
-          const byLoc = n.locationId
-            ? normalize(locations.find(l => l.id === n.locationId)?.name ?? '').includes(q)
-            : false;
-          return byLabel || byLoc;
-        })
+        .filter(n => matchesDestQuery(n, q, locations))
         .map(n => ({ node: n, floorData: fd }))
     ).filter(({ node }) => { if (seen.has(node.id)) return false; seen.add(node.id); return true; })
       .slice(0, 15);
@@ -153,7 +145,7 @@ export function HomeTab({ fromNodeId, fromLabel, locations, allFloorData, onChan
           <div className="absolute z-50 left-0 right-0 bg-white rounded-2xl shadow-2xl overflow-hidden mt-1.5 max-h-48 overflow-y-auto border border-green-100">
             {destResults.map(({ node, floorData: fd }) => {
               const floorLoc = locations.find(l => l.id === fd.floor.locationId);
-              const name = displayName(node, locations) || node.label;
+              const name = destLabel(node, locations) || node.label;
               return (
                 <button
                   key={node.id}
