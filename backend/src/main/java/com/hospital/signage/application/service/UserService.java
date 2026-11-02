@@ -89,10 +89,7 @@ public class UserService implements UserUseCase {
     public User updateUserRoleAndPermissions(Long userId, Long roleId, List<String> customPermissions) {
         User user = userDatabasePort.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại"));
-        assertSameHospital(user);
-        if (Long.valueOf(1).equals(userId)) {
-            throw new IllegalStateException("Không thể thay đổi quyền tài khoản quản trị viên");
-        }
+        assertMayAdminister(user, "đổi vai trò");
         validatePermissions(customPermissions);
         validateRoleAssignmentAllowed(roleId, user.getHospitalId());
         user.setRoleId(roleId);
@@ -190,7 +187,7 @@ public class UserService implements UserUseCase {
     public User setUserActive(Long id, boolean active) {
         User user = userDatabasePort.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại"));
-        assertSameHospital(user);
+        assertMayAdminister(user, active ? "mở khoá" : "khoá");
         if (!active && isCurrentUser(id)) {
             throw new IllegalStateException("Không thể tự khóa tài khoản đang đăng nhập của chính mình.");
         }
@@ -208,10 +205,7 @@ public class UserService implements UserUseCase {
     public String resetPassword(Long userId) {
         User user = userDatabasePort.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại"));
-        assertSameHospital(user);
-        if (Long.valueOf(1).equals(userId)) {
-            throw new IllegalStateException("Không thể reset mật khẩu tài khoản quản trị.");
-        }
+        assertMayAdminister(user, "đặt lại mật khẩu");
         String temporaryPassword = generateTemporaryPassword();
         user.setPassword(passwordEncoder.encode(temporaryPassword));
         // Mật khẩu tạm đi qua tay quản trị viên (đọc qua điện thoại, nhắn tin, ghi giấy) nên
@@ -251,10 +245,7 @@ public class UserService implements UserUseCase {
     public void deleteUser(Long id) {
         User user = userDatabasePort.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại"));
-        assertSameHospital(user);
-        if (Long.valueOf(1).equals(id)) {
-            throw new IllegalStateException("Không thể xóa tài khoản quản trị viên");
-        }
+        assertMayAdminister(user, "xoá");
         if (ticketDatabasePort.existsOpenTicketForUser(id)) {
             throw new IllegalStateException("Không thể xóa người dùng đang có phiếu bảo trì chưa đóng liên quan.");
         }
@@ -279,6 +270,44 @@ public class UserService implements UserUseCase {
         user.setMustChangePassword(false);
         userDatabasePort.save(user);
         userCacheService.evict(user.getUsername());
+    }
+
+    /**
+     * Chặn cho các thao tác mạnh: đổi vai trò, khoá/mở khoá, đặt lại mật khẩu, xoá.
+     * <ul>
+     *   <li>Tài khoản Quản trị hệ thống: không ai làm được qua giao diện, kể cả Quản trị hệ thống.</li>
+     *   <li>Tài khoản có quyền quản lý nhân viên/vai trò (Admin viện, hoặc vai trò tự tạo có
+     *       quyền đó): chỉ Quản trị hệ thống làm được. Nếu không, một Admin viện có thể chiếm
+     *       tài khoản Admin khác cùng viện bằng cách đặt lại mật khẩu, hoặc hạ vai trò rồi đặt lại.</li>
+     * </ul>
+     * Xét theo QUYỀN thật (vai trò + quyền cấp riêng), không theo id: viện có thể tự tạo vai
+     * trò mới có quyền quản lý, và id trong DB mỗi máy có thể khác nhau.
+     */
+    private void assertMayAdminister(User target, String action) {
+        assertSameHospital(target);
+        Role role = target.getRoleId() == null ? null
+                : roleDatabasePort.findById(target.getRoleId()).orElse(null);
+        if (isSuperAdminRole(role)) {
+            throw new IllegalStateException("Không thể " + action + " tài khoản Quản trị hệ thống.");
+        }
+        if (!SecurityUtils.isSuperAdmin() && managesAccounts(role, target.getCustomPermissions())) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Chỉ Quản trị hệ thống mới được " + action + " tài khoản có quyền quản lý nhân viên.");
+        }
+    }
+
+    private static boolean isSuperAdminRole(Role role) {
+        return role != null && ("SUPER_ADMIN".equals(role.getCode())
+                || (role.getPermissions() != null && role.getPermissions().contains("HOSPITAL_MANAGE")));
+    }
+
+    private static boolean managesAccounts(Role role, List<String> customPermissions) {
+        java.util.stream.Stream<String> rolePermissions =
+                role != null && role.getPermissions() != null ? role.getPermissions().stream() : java.util.stream.Stream.empty();
+        java.util.stream.Stream<String> extra =
+                customPermissions != null ? customPermissions.stream() : java.util.stream.Stream.empty();
+        return java.util.stream.Stream.concat(rolePermissions, extra)
+                .anyMatch(p -> "USER_MANAGE".equals(p) || "ROLE_MANAGE".equals(p));
     }
 
     // callerHospitalId == null nghĩa là SUPER_ADMIN, không giới hạn viện nào.

@@ -102,12 +102,13 @@ export default function UserListPage() {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       queryClient.invalidateQueries({ queryKey: ['technicians'] });
     },
+    onError: (err: unknown) => toast.error(getApiError(err, 'Khoá/mở tài khoản thất bại.')),
   });
 
   const resetPasswordMutation = useMutation({
     mutationFn: (id: number) => userService.resetPassword(id),
     onSuccess: (temporaryPassword) => setTemporaryPassword(temporaryPassword),
-    onError: () => toast.error('Reset mật khẩu thất bại.'),
+    onError: (err: unknown) => toast.error(getApiError(err, 'Reset mật khẩu thất bại.')),
   });
 
   const deleteMutation = useMutation({
@@ -116,7 +117,7 @@ export default function UserListPage() {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       queryClient.invalidateQueries({ queryKey: ['technicians'] });
     },
-    onError: () => toast.error('Xóa tài khoản thất bại.'),
+    onError: (err: unknown) => toast.error(getApiError(err, 'Xóa tài khoản thất bại.')),
   });
 
   const handleToggleActive = (user: User) => {
