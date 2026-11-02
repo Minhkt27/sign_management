@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { assetService } from '@/services/assetService';
 import { mapService } from '@/services/mapService';
 import { HOSPITAL_ID_STORAGE_KEY } from '@/app/store/authStore';
+import { savedDest } from '../utils/destStorage';
 
 export default function PatientScanPage() {
   const { assetCode } = useParams<{ assetCode: string }>();
@@ -37,9 +38,9 @@ export default function PatientScanPage() {
       const label = node.label || asset?.name || asset?.location?.name || 'Vị trí của bạn';
       let url = `/map?from=${node.id}&fromLabel=${encodeURIComponent(label)}`;
 
-      const savedDest = localStorage.getItem('wayfinding_dest');
-      if (savedDest) {
-        url += `&dest=${savedDest}`;
+      const dest = savedDest.get();
+      if (dest) {
+        url += `&dest=${dest}`;
       }
 
       navigate(url, { replace: true });

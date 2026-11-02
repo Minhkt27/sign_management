@@ -296,6 +296,133 @@ class UserServiceTest {
         verify(userDatabasePort).save(any());
     }
 
+    // ── Bảo vệ tài khoản quản lý nhân viên ─────────────────────────────────
+    // Admin viện không được đụng vào Admin khác (đặt lại mật khẩu = chiếm tài khoản);
+    // chỉ Quản trị hệ thống làm được. Tài khoản Quản trị hệ thống thì không ai làm được.
+
+    private static final long ADMIN_ROLE_ID = 1L;
+    private static final long SUPER_ROLE_ID = 3L;
+
+    private User adminTarget() {
+        User u = new User();
+        u.setId(4L);
+        u.setUsername("adminA");
+        u.setPassword("hashed");
+        u.setRoleId(ADMIN_ROLE_ID);
+        u.setHospitalId(2L);
+        u.setIsActive(true);
+        when(userDatabasePort.findById(4L)).thenReturn(Optional.of(u));
+        when(roleDatabasePort.findById(ADMIN_ROLE_ID)).thenReturn(Optional.of(
+                com.hospital.signage.domain.model.Role.builder().id(ADMIN_ROLE_ID).code("ADMIN")
+                        .permissions(java.util.List.of("USER_MANAGE", "ROLE_MANAGE", "ASSET_VIEW")).build()));
+        return u;
+    }
+
+    private void callerIsHospitalAdmin() {
+        setCaller("USER_MANAGE", "ROLE_MANAGE");
+    }
+
+    private void callerIsSuperAdmin() {
+        setCaller("HOSPITAL_MANAGE", "USER_MANAGE", "ROLE_MANAGE");
+    }
+
+    @Test
+    void adminVien_datLaiMatKhauAdminKhac_biTuChoi() {
+        callerIsHospitalAdmin();
+        adminTarget();
+
+        assertThatThrownBy(() -> userService.resetPassword(4L))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+        verify(userDatabasePort, never()).save(any());
+    }
+
+    // Đường vòng: hạ Admin xuống Kỹ thuật viên rồi mới đặt lại mật khẩu.
+    @Test
+    void adminVien_haVaiTroAdminKhac_biTuChoi() {
+        callerIsHospitalAdmin();
+        adminTarget();
+
+        assertThatThrownBy(() -> userService.updateUserRoleAndPermissions(4L, 2L, java.util.List.of()))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+        verify(userDatabasePort, never()).save(any());
+    }
+
+    @Test
+    void adminVien_khoaHoacXoaAdminKhac_biTuChoi() {
+        callerIsHospitalAdmin();
+        adminTarget();
+
+        assertThatThrownBy(() -> userService.setUserActive(4L, false))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+        assertThatThrownBy(() -> userService.deleteUser(4L))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+        verify(userDatabasePort, never()).save(any());
+        verify(userDatabasePort, never()).deleteById(any());
+    }
+
+    // Quyền quản lý cấp riêng cho một Kỹ thuật viên cũng được bảo vệ như Admin.
+    @Test
+    void adminVien_datLaiMatKhauNguoiCoQuyenQuanLyCapRieng_biTuChoi() {
+        callerIsHospitalAdmin();
+        existingUser.setCustomPermissions(java.util.List.of("USER_MANAGE"));
+        when(userDatabasePort.findById(2L)).thenReturn(Optional.of(existingUser));
+
+        assertThatThrownBy(() -> userService.resetPassword(2L))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+    }
+
+    @Test
+    void adminVien_datLaiMatKhauKyThuatVien_thanhCong() {
+        callerIsHospitalAdmin();
+        when(userDatabasePort.findById(2L)).thenReturn(Optional.of(existingUser));
+        when(passwordEncoder.encode(any())).thenReturn("hashed_temp");
+        when(userDatabasePort.save(any())).thenReturn(existingUser);
+
+        assertThat(userService.resetPassword(2L)).isNotBlank();
+    }
+
+    @Test
+    void superAdmin_datLaiMatKhauAdminVien_thanhCong() {
+        callerIsSuperAdmin();
+        User admin = adminTarget();
+        when(passwordEncoder.encode(any())).thenReturn("hashed_temp");
+        when(userDatabasePort.save(any())).thenReturn(admin);
+
+        assertThat(userService.resetPassword(4L)).isNotBlank();
+        assertThat(admin.getMustChangePassword()).isTrue();
+        assertThat(admin.getRefreshToken()).isNull();
+    }
+
+    @Test
+    void superAdmin_xoaAdminVien_thanhCong() {
+        callerIsSuperAdmin();
+        adminTarget();
+        when(ticketDatabasePort.existsOpenTicketForUser(4L)).thenReturn(false);
+
+        userService.deleteUser(4L);
+
+        verify(userDatabasePort).deleteById(4L);
+    }
+
+    @Test
+    void khongAiDatLaiMatKhauHoacXoaTaiKhoanQuanTriHeThong() {
+        callerIsSuperAdmin();
+        User superUser = new User();
+        superUser.setId(1L);
+        superUser.setRoleId(SUPER_ROLE_ID);
+        when(userDatabasePort.findById(1L)).thenReturn(Optional.of(superUser));
+        when(roleDatabasePort.findById(SUPER_ROLE_ID)).thenReturn(Optional.of(
+                com.hospital.signage.domain.model.Role.builder().id(SUPER_ROLE_ID).code("SUPER_ADMIN")
+                        .permissions(java.util.List.of("HOSPITAL_MANAGE")).build()));
+
+        assertThatThrownBy(() -> userService.resetPassword(1L)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> userService.deleteUser(1L)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> userService.updateUserRoleAndPermissions(1L, 2L, java.util.List.of()))
+                .isInstanceOf(IllegalStateException.class);
+        verify(userDatabasePort, never()).save(any());
+        verify(userDatabasePort, never()).deleteById(any());
+    }
+
     @Test
     void ganVaiTroVien_choTaiKhoanSuperAdmin_biTuChoi() {
         setCaller("USER_MANAGE");

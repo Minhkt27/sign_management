@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { mapService } from '@/services/mapService';
 import { locationService } from '@/services/locationService';
+import { hospitalService } from '@/services/hospitalService';
 import { MapFloorData, MapNode, Hospital } from '@/shared/types';
 import { authStore, HOSPITAL_ID_STORAGE_KEY, resolveHospitalId } from '@/app/store/authStore';
 import { HomeTab } from '../components/HomeTab';
@@ -64,6 +65,14 @@ export default function WayfindingPage() {
     setIsHospitalPickerOpen(false);
   };
 
+  // Tên viện cho header. Lỗi hoặc chưa biết viện thì giữ chữ chung "Bệnh viện".
+  const { data: hospital } = useQuery({
+    queryKey: ['public-hospital', hospitalIdParam],
+    queryFn: () => hospitalService.getHospitalById(hospitalIdParam!),
+    enabled: hospitalIdParam != null,
+    staleTime: 5 * 60_000,
+  });
+
   const { data: floors = [] } = useQuery({
     queryKey: ['mapFloors', hospitalIdParam],
     queryFn: () => mapService.getAllFloors(hospitalIdParam),
@@ -119,9 +128,9 @@ export default function WayfindingPage() {
             style={{ background: 'rgba(255,255,255,.15)', border: '1.5px solid rgba(200,160,32,.5)' }}>
             🏥
           </div>
-          <div>
-            <h1 className="text-xs font-extrabold text-white uppercase tracking-wide leading-tight">
-              Bệnh viện
+          <div className="min-w-0">
+            <h1 className="text-xs font-extrabold text-white uppercase tracking-wide leading-tight line-clamp-2">
+              {hospital?.name ?? 'Bệnh viện'}
             </h1>
             <p className="text-xs" style={{ color: 'rgba(255,255,255,.65)' }}>Hệ thống dẫn đường thông minh</p>
           </div>

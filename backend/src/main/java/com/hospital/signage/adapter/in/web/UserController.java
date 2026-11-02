@@ -76,12 +76,9 @@ public class UserController {
     @PutMapping("/{id}/reset-password")
     @PreAuthorize("hasAuthority('USER_MANAGE')")
     public ResponseEntity<ResetPasswordResponse> resetPassword(@PathVariable Long id) {
-        try {
-            String temporaryPassword = userUseCase.resetPassword(id);
-            return ResponseEntity.ok(new ResetPasswordResponse(temporaryPassword));
-        } catch (IllegalStateException e) {
-            return ResponseEntity.badRequest().build();
-        }
+        // Lỗi nghiệp vụ (IllegalStateException) để GlobalExceptionHandler trả kèm lý do cho giao diện.
+        String temporaryPassword = userUseCase.resetPassword(id);
+        return ResponseEntity.ok(new ResetPasswordResponse(temporaryPassword));
     }
 
     @Operation(summary = "Cập nhật thông tin tài khoản")
@@ -96,12 +93,9 @@ public class UserController {
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('USER_MANAGE')")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
-        try {
-            userUseCase.deleteUser(id);
-            return ResponseEntity.noContent().build();
-        } catch (IllegalStateException e) {
-            return ResponseEntity.badRequest().build();
-        }
+        // Lỗi nghiệp vụ (vd. còn phiếu bảo trì chưa đóng) để GlobalExceptionHandler trả kèm lý do.
+        userUseCase.deleteUser(id);
+        return ResponseEntity.noContent().build();
     }
 
     @Operation(summary = "Đổi mật khẩu cá nhân")

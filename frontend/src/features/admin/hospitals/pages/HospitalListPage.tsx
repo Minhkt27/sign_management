@@ -37,21 +37,27 @@ export default function HospitalListPage() {
   const totalPages = pagedData?.totalPages ?? 0;
   const totalElements = pagedData?.totalElements ?? 0;
 
+  // Ô chọn viện ở AdminLayout dùng query key riêng ('all-hospitals'), nên phải làm mới cả hai.
+  const refreshHospitals = () => {
+    queryClient.invalidateQueries({ queryKey: ['hospitals'] });
+    queryClient.invalidateQueries({ queryKey: ['all-hospitals'] });
+  };
+
   const createMutation = useMutation({
     mutationFn: hospitalService.createHospital,
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['hospitals'] }); setIsDialogOpen(false); },
+    onSuccess: () => { refreshHospitals(); setIsDialogOpen(false); },
     onError: (e: unknown) => toast.error(getApiError(e, 'Có lỗi xảy ra khi tạo bệnh viện.')),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: HospitalFormValues }) => hospitalService.updateHospital(id, { ...data, shortCode: data.shortCode ?? undefined }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['hospitals'] }); setIsDialogOpen(false); },
+    onSuccess: () => { refreshHospitals(); setIsDialogOpen(false); },
     onError: (e: unknown) => toast.error(getApiError(e, 'Có lỗi xảy ra khi cập nhật bệnh viện.')),
   });
 
   const deleteMutation = useMutation({
     mutationFn: hospitalService.deleteHospital,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['hospitals'] }),
+    onSuccess: refreshHospitals,
     onError: (e: unknown) => toast.error(getApiError(e, 'Có lỗi xảy ra khi xóa bệnh viện.')),
   });
 
