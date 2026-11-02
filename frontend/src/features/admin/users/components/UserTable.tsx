@@ -7,6 +7,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { UserCheck, UserX, RotateCcw, ShieldAlert, Pencil, Trash2, MoreHorizontal } from 'lucide-react';
 import { User, Role } from '@/shared/types';
+import { authStore, isSuperAdmin } from '@/app/store/authStore';
+
+const ACCOUNT_MANAGE_PERMISSIONS = ['USER_MANAGE', 'ROLE_MANAGE'];
 
 interface Props {
   users: User[];
@@ -27,6 +30,24 @@ export function UserTable({ users, roles, isLoading, currentUserId, onToggleActi
   if (isLoading) {
     return <div className="p-8 text-center text-slate-400">Đang tải...</div>;
   }
+
+  // Khớp quy tắc phía server (UserService.assertMayAdminister): tài khoản Quản trị hệ thống
+  // không ai thao tác được; tài khoản có quyền quản lý nhân viên chỉ Quản trị hệ thống thao tác
+  // được. Server vẫn là nơi chặn thật, ở đây chỉ để không hiện nút bấm vào rồi mới báo lỗi.
+  const callerIsSuper = isSuperAdmin(authStore.getToken());
+  const roleOf = (user: User) => roles.find(r => r.id === user.roleId);
+  const isSuperTarget = (user: User) => {
+    const role = roleOf(user);
+    return !!role && (role.code === 'SUPER_ADMIN' || role.permissions?.includes('HOSPITAL_MANAGE'));
+  };
+  const managesAccounts = (user: User) => {
+    const role = roleOf(user);
+    if (!role) return true; // không rõ vai trò thì coi như cần bảo vệ
+    return [...(role.permissions ?? []), ...(user.customPermissions ?? [])]
+      .some(p => ACCOUNT_MANAGE_PERMISSIONS.includes(p));
+  };
+  const canAdminister = (user: User) =>
+    currentUserId !== user.id && !isSuperTarget(user) && (callerIsSuper || !managesAccounts(user));
 
   const getRoleName = (roleId: number) => {
     return roles.find(r => r.id === roleId)?.name || 'Không xác định';
@@ -81,8 +102,8 @@ export function UserTable({ users, roles, isLoading, currentUserId, onToggleActi
                     <Pencil size={14} className="mr-1" />Sửa
                   </Button>
 
-                  {/* Khóa/Mở — chỉ hiện với người khác */}
-                  {currentUserId !== user.id && (
+                  {/* Khóa/Mở và các thao tác phụ — chỉ hiện khi được phép thao tác tài khoản này */}
+                  {canAdminister(user) && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -98,8 +119,7 @@ export function UserTable({ users, roles, isLoading, currentUserId, onToggleActi
                     </Button>
                   )}
 
-                  {/* Dropdown các thao tác phụ — chỉ hiện với người khác */}
-                  {currentUserId !== user.id && (
+                  {canAdminister(user) && (
                     <DropdownMenu>
                       <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-colors">
                         <MoreHorizontal size={15} />
@@ -109,29 +129,23 @@ export function UserTable({ users, roles, isLoading, currentUserId, onToggleActi
                           <ShieldAlert size={14} className="mr-2 text-blue-600" />
                           <span>Phân quyền</span>
                         </DropdownMenuItem>
-                        {user.roleId !== 1 && (
-                          <DropdownMenuItem
-                            onClick={() => onResetPassword(user)}
-                            disabled={isResetPending}
-                            className="cursor-pointer"
-                          >
-                            <RotateCcw size={14} className="mr-2 text-amber-600" />
-                            <span>Reset mật khẩu</span>
-                          </DropdownMenuItem>
-                        )}
-                        {user.roleId !== 1 && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => onDeleteUser(user)}
-                              disabled={isDeletePending}
-                              className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
-                            >
-                              <Trash2 size={14} className="mr-2" />
-                              <span>Xóa tài khoản</span>
-                            </DropdownMenuItem>
-                          </>
-                        )}
+                        <DropdownMenuItem
+                          onClick={() => onResetPassword(user)}
+                          disabled={isResetPending}
+                          className="cursor-pointer"
+                        >
+                          <RotateCcw size={14} className="mr-2 text-amber-600" />
+                          <span>Reset mật khẩu</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => onDeleteUser(user)}
+                          disabled={isDeletePending}
+                          className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+                        >
+                          <Trash2 size={14} className="mr-2" />
+                          <span>Xóa tài khoản</span>
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}

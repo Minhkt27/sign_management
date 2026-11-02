@@ -295,7 +295,7 @@ export default function AssetDetailPage() {
             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Mã QR Biển Báo</h3>
             <div ref={qrRef} className="w-48 h-48 border-2 border-slate-200 rounded-xl p-3 bg-white flex flex-col items-center justify-center relative shadow-inner">
               <QRCode
-                value={`${qrBaseUrl}/scan/${asset.assetCode}`}
+                value={`${qrBaseUrl}/scan/${asset.assetCode}${asset.hospitalId != null ? `?h=${asset.hospitalId}` : ''}`}
                 size={160}
                 level="M"
               />

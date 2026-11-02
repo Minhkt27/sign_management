@@ -4,12 +4,13 @@ import { MapNode, MapFloor, MapFloorData, Location, WayfindingResult } from '@/s
 import { mapService } from '@/services/mapService';
 import { Search, Navigation, Accessibility, X, MapPin, Camera, Compass } from 'lucide-react';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
-import { displayName, floorName, buildSteps, normalize } from '../utils/pathHelpers';
+import { destLabel, matchesDestQuery, floorName, buildSteps, normalize } from '../utils/pathHelpers';
 import { turnDir } from '../utils/pathHelpers';
 import { SafeImage } from '@/components/SafeImage';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { ZoomIn, ZoomOut, Maximize } from 'lucide-react';
 import { useCompassHeading } from '@/hooks/useCompassHeading';
+import { savedDest } from '../utils/destStorage';
 
 const QRScannerModal = lazy(() =>
   import('./QRScannerModal').then(mod => ({ default: mod.QRScannerModal }))
@@ -30,7 +31,7 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
   const [destSearch, setDestSearch] = useState(() => {
     if (!destNodeId) return '';
     const node = allFloorData.flatMap(fd => fd?.nodes || []).find(n => n?.id === destNodeId);
-    return node ? (displayName(node, locations) ?? node.label ?? node.type) : '';
+    return node ? (destLabel(node, locations) ?? node.label ?? node.type) : '';
   });
   const [toNodeId, setToNodeId] = useState<number | null>(destNodeId ?? null);
   const [avoidStairs, setAvoidStairs] = useState(false);
@@ -61,8 +62,8 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
 
   useEffect(() => {
     if (isFirstMount.current) { isFirstMount.current = false; return; }
-    if (toNodeId !== null) localStorage.setItem('wayfinding_dest', toNodeId.toString());
-    else localStorage.removeItem('wayfinding_dest');
+    if (toNodeId !== null) savedDest.set(toNodeId);
+    else savedDest.clear();
   }, [toNodeId]);
 
   useEffect(() => {
@@ -72,7 +73,7 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
     const fd = allFloorData.find(f => f?.nodes?.some(n => n?.id === destNodeId));
     if (fd) {
       const node = fd.nodes.find(n => n?.id === destNodeId)!;
-      setDestSearch(displayName(node, locations) ?? node?.label ?? node?.type ?? '');
+      setDestSearch(destLabel(node, locations) ?? node?.label ?? node?.type ?? '');
       setActiveFloorId(fd.floor?.id);
     }
   }, [destNodeId, allFloorData, locations]);
@@ -82,16 +83,10 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
   const destResults = useMemo(() => {
     if (!destSearch.trim() || toNodeId !== null) return [];
     const q = normalize(destSearch);
-    const DEST_TYPES = new Set(['ROOM', 'DEPARTMENT', 'ELEVATOR']);
     const seen = new Set<number>();
     return allFloorData.flatMap(fd =>
       (fd?.nodes || [])
-        .filter(n => n && DEST_TYPES.has(n.type))
-        .filter(n => {
-          const byLabel = n.label ? normalize(n.label).includes(q) : false;
-          const byLoc = n.locationId ? normalize(locations.find(l => l?.id === n.locationId)?.name ?? '').includes(q) : false;
-          return byLabel || byLoc;
-        })
+        .filter(n => matchesDestQuery(n, q, locations))
         .map(n => ({ node: n, floorData: fd }))
     ).filter(({ node }) => { if (seen.has(node?.id)) return false; seen.add(node?.id); return true; }).slice(0, 15);
   }, [destSearch, toNodeId, allFloorData, locations]);
@@ -99,7 +94,7 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
   const handleSelectDest = (node: MapNode, fd: MapFloorData) => {
     if (!node || !fd) return;
     setToNodeId(node.id);
-    setDestSearch(displayName(node, locations) ?? node?.label ?? node?.type ?? '');
+    setDestSearch(destLabel(node, locations) ?? node?.label ?? node?.type ?? '');
     setActiveResult(null);
     setNoPath(false);
     setActiveFloorId(fd.floor?.id);
@@ -365,7 +360,7 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
                       {node.type === 'DEPARTMENT' ? '🏢' : node.type === 'ELEVATOR' ? '🛗' : '🚪'}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold truncate text-slate-800">{displayName(node, locations) ?? node?.label ?? node?.type}</p>
+                      <p className="text-sm font-bold truncate text-slate-800">{destLabel(node, locations) ?? node?.label ?? node?.type}</p>
                       <p className="text-xs text-green-700">{getFloorName(fd.floor.id)}</p>
                     </div>
                   </button>
