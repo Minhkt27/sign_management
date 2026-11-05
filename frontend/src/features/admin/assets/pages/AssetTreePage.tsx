@@ -9,6 +9,7 @@ import { getBackendUrl } from '@/shared/helpers/imageUrl';
 import { getApiError } from '@/shared/helpers/apiError';
 import { Location, Asset, SignType } from '@/shared/types';
 import { useAdminStore } from '@/app/store/adminStore';
+import { ImportExcelDialog } from '@/shared/components/ImportExcelDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ChevronRight, ChevronDown, FolderOpen, Tag, Plus, Pencil, Trash2, Search, X, ExternalLink, MapPin, Package, Ruler, Calendar, Building } from 'lucide-react';
@@ -446,6 +447,8 @@ export default function AssetTreePage() {
         <div>
           <p className="text-sm text-slate-500">Duyệt biển báo theo mô hình phân cấp Tòa nhà - Tầng - Phòng ban.</p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+        <ImportExcelDialog type="locations" label="vị trí" invalidateKeys={[['locations']]} />
         <Button 
           onClick={() => openCreateLocDialog(null)}
           className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2.5 font-semibold flex items-center space-x-2"
@@ -453,6 +456,7 @@ export default function AssetTreePage() {
           <Plus size={18} />
           <span>Thêm Tòa nhà</span>
         </Button>
+        </div>
       </div>
 
       {/* Search Bar */}
