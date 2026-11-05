@@ -24,7 +24,13 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import com.hospital.signage.domain.model.TicketAttempt;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "maintenance_tickets", indexes = {
@@ -90,6 +96,11 @@ public class MaintenanceTicketEntity {
     @Column(name = "rejection_count", nullable = false)
     @Builder.Default
     private int rejectionCount = 0;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "rejected_attempts", columnDefinition = "jsonb", nullable = false)
+    @Builder.Default
+    private List<TicketAttempt> rejectedAttempts = new ArrayList<>();
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

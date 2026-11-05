@@ -12,6 +12,7 @@ import com.hospital.signage.domain.exception.TicketRejectionLimitExceededExcepti
 import com.hospital.signage.domain.exception.UnauthorizedTicketUpdateException;
 import com.hospital.signage.domain.model.Asset;
 import com.hospital.signage.domain.model.MaintenanceTicket;
+import com.hospital.signage.domain.model.TicketAttempt;
 import com.hospital.signage.domain.model.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -285,11 +287,39 @@ public class TicketService implements TicketUseCase {
         }
     }
 
+    private void archiveRejectedAttempt(MaintenanceTicket ticket, String rejectionNote) {
+        List<TicketAttempt> history = ticket.getRejectedAttempts() != null
+                ? new ArrayList<>(ticket.getRejectedAttempts()) : new ArrayList<>();
+        history.add(TicketAttempt.builder()
+                .attempt(history.size() + 1)
+                .imageBefore(ticket.getImageBefore())
+                .imageAfter(ticket.getImageAfter())
+                .technicianName(ticket.getAssignee() != null ? ticket.getAssignee().getFullName() : null)
+                .submittedAt(ticket.getCompletedAt() != null ? ticket.getCompletedAt().toString() : null)
+                .rejectedAt(Instant.now().toString())
+                .rejectedBy(currentUserFullName())
+                .rejectionNote(rejectionNote)
+                .build());
+        ticket.setRejectedAttempts(history);
+    }
+
+    private static String currentUserFullName() {
+        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof User user) {
+            return user.getFullName() != null ? user.getFullName() : user.getUsername();
+        }
+        return null;
+    }
+
     private void handleCompletionAndRejection(MaintenanceTicket ticket, TicketStatus status, boolean isRejection, String rejectionNote) {
         if (status == TicketStatus.RESOLVED) {
             ticket.setCompletedAt(Instant.now());
         }
         if (isRejection) {
+            archiveRejectedAttempt(ticket, rejectionNote);
+            // Bỏ ảnh "sau" của lần bị từ chối (đã lưu vào lịch sử): lần gửi lại bắt buộc phải có
+            // ảnh mới — validateResolutionEvidence() không còn ảnh cũ để chấp nhận thay.
+            ticket.setImageAfter(null);
             ticket.setRejectionNote(rejectionNote);
             ticket.setRejectionCount(ticket.getRejectionCount() + 1);
             ticket.setCompletedAt(null);
