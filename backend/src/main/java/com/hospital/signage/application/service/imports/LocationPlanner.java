@@ -23,7 +23,8 @@ public final class LocationPlanner {
     public static final List<String> LEVEL_HEADERS = List.of("Tòa", "Tầng", "Khoa", "Phòng");
     private static final List<LocationType> LEVEL_TYPES =
             List.of(LocationType.BUILDING, LocationType.FLOOR, LocationType.DEPARTMENT, LocationType.ROOM);
-    private static final int MAX_NAME = 255;
+    // Khớp giới hạn của API tạo vị trí (LocationController.LocationRequest: @Size(max = 200)).
+    private static final int MAX_NAME = 200;
 
     /** Một vị trí: đã có trong DB, hoặc mới được lên kế hoạch tạo. */
     public static final class Node {
