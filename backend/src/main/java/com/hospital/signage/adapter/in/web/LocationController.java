@@ -79,9 +79,21 @@ public class LocationController {
     @Operation(summary = "Xóa vị trí")
     @PreAuthorize("hasAuthority('MAP_MANAGE')")
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteLocation(@PathVariable Long id) {
-        locationUseCase.deleteLocation(id, SecurityUtils.getCurrentHospitalId());
+    public ResponseEntity<Void> deleteLocation(@PathVariable Long id,
+                                               @RequestParam(defaultValue = "false") boolean withChildren) {
+        if (withChildren) {
+            locationUseCase.deleteLocationTree(id, SecurityUtils.getCurrentHospitalId());
+        } else {
+            locationUseCase.deleteLocation(id, SecurityUtils.getCurrentHospitalId());
+        }
         return ResponseEntity.ok().build();
+    }
+
+    @Operation(summary = "Xem trước: xoá vị trí sẽ kéo theo những gì")
+    @PreAuthorize("hasAuthority('MAP_MANAGE')")
+    @GetMapping("/{id}/delete-impact")
+    public ResponseEntity<LocationUseCase.DeleteImpact> getDeleteImpact(@PathVariable Long id) {
+        return ResponseEntity.ok(locationUseCase.getDeleteImpact(id, SecurityUtils.getCurrentHospitalId()));
     }
 
     public record LocationRequest(

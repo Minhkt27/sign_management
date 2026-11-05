@@ -185,6 +185,78 @@ public class LocationService implements LocationUseCase {
     }
 
     // callerHospitalId == null nghĩa là SUPER_ADMIN, không giới hạn viện nào.
+    @Override
+    public DeleteImpact getDeleteImpact(Long id, Long callerHospitalId) {
+        Location root = locationDatabasePort.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Location not found"));
+        assertSameHospital(root, callerHospitalId);
+        return impactOf(root, subtreeDeepestLast(root));
+    }
+
+    @Override
+    @Transactional
+    public void deleteLocationTree(Long id, Long callerHospitalId) {
+        Location root = locationDatabasePort.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Location not found"));
+        assertSameHospital(root, callerHospitalId);
+        List<Location> subtree = subtreeDeepestLast(root);
+        // Tính lại ngay trong giao dịch xoá, không tin con số người dùng đã xem: giữa lúc mở
+        // hộp xác nhận và lúc bấm, người khác có thể vừa gắn biển vào một phòng trong cây.
+        DeleteImpact impact = impactOf(root, subtree);
+        if (!impact.blockers().isEmpty()) {
+            throw new IllegalArgumentException("Không thể xóa \"" + root.getName() + "\" vì trong đó vẫn còn "
+                    + String.join(", ", impact.blockers()) + ". Vui lòng chuyển hoặc xóa các dữ liệu đó trước.");
+        }
+        // Xoá từ cấp sâu nhất lên: parent_id không có ON DELETE nên xoá cha trước sẽ vướng khoá ngoại.
+        for (int i = subtree.size() - 1; i >= 0; i--) {
+            locationDatabasePort.deleteById(subtree.get(i).getId());
+        }
+        log.warn("Location {} '{}' deleted together with {} descendant(s)", id, root.getName(), subtree.size() - 1);
+    }
+
+    /** Vị trí gốc + mọi vị trí con cháu, cha luôn đứng trước con. */
+    private List<Location> subtreeDeepestLast(Location root) {
+        Map<Long, List<Location>> byParent = new HashMap<>();
+        for (Location l : locationDatabasePort.findAllByHospital(root.getHospitalId())) {
+            if (l.getParentId() != null) byParent.computeIfAbsent(l.getParentId(), k -> new ArrayList<>()).add(l);
+        }
+        List<Location> ordered = new ArrayList<>();
+        Deque<Location> queue = new ArrayDeque<>(List.of(root));
+        Set<Long> visited = new HashSet<>();
+        while (!queue.isEmpty()) {
+            Location current = queue.poll();
+            if (!visited.add(current.getId())) continue; // phòng dữ liệu lỗi tạo vòng lặp cha-con
+            ordered.add(current);
+            queue.addAll(byParent.getOrDefault(current.getId(), List.of()));
+        }
+        return ordered;
+    }
+
+    private DeleteImpact impactOf(Location root, List<Location> subtree) {
+        Map<String, Integer> byType = new LinkedHashMap<>();
+        long assets = 0;
+        int floorPlans = 0;
+        for (Location l : subtree) {
+            if (l != root) byType.merge(typeLabel(l.getType()), 1, Integer::sum);
+            assets += assetDatabasePort.countByLocationId(l.getId());
+            if (mapDatabasePort.findFloorByLocationId(l.getId()).isPresent()) floorPlans++;
+        }
+        List<String> blockers = new ArrayList<>();
+        if (assets > 0) blockers.add(assets + " biển báo");
+        if (floorPlans > 0) blockers.add(floorPlans + " sơ đồ tầng");
+        return new DeleteImpact(root.getId(), root.getName(), subtree.size() - 1, byType, blockers);
+    }
+
+    private static String typeLabel(LocationType type) {
+        if (type == null) return "Vị trí";
+        return switch (type) {
+            case BUILDING -> "Tòa";
+            case FLOOR -> "Tầng";
+            case DEPARTMENT -> "Khoa";
+            case ROOM -> "Phòng";
+        };
+    }
+
     private void assertSameHospital(Location location, Long callerHospitalId) {
         if (callerHospitalId != null && !callerHospitalId.equals(location.getHospitalId())) {
             throw new com.hospital.signage.domain.exception.HospitalScopeException(

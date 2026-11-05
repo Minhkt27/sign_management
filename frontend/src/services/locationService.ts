@@ -1,5 +1,14 @@
 import { apiClient } from './apiClient';
 import { targetHospitalParams } from './targetHospital';
+
+/** Xoá một vị trí sẽ kéo theo những gì. blockers rỗng = xoá được. */
+export interface LocationDeleteImpact {
+  id: number;
+  name: string;
+  descendantCount: number;
+  descendantsByType: Record<string, number>;
+  blockers: string[];
+}
 import { Location, LocationTreeNode } from '../shared/types';
 
 export const locationService = {
@@ -32,7 +41,13 @@ export const locationService = {
     return response.data;
   },
 
-  deleteLocation: async (id: number): Promise<void> => {
-    await apiClient.delete(`/locations/${id}`);
+  /** withChildren: xoá cả vị trí con (server từ chối nếu trong cây còn biển báo / sơ đồ tầng). */
+  deleteLocation: async ({ id, withChildren = false }: { id: number; withChildren?: boolean }): Promise<void> => {
+    await apiClient.delete(`/locations/${id}`, { params: withChildren ? { withChildren: true } : {} });
+  },
+
+  getDeleteImpact: async (id: number): Promise<LocationDeleteImpact> => {
+    const response = await apiClient.get<LocationDeleteImpact>(`/locations/${id}/delete-impact`);
+    return response.data;
   },
 };
