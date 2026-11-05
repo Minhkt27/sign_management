@@ -256,6 +256,79 @@ class TicketServiceTest {
                 .isNull();
     }
 
+    // ── Lịch sử các lần sửa bị từ chối ─────────────────────────────────────
+    // Trước đây ảnh mới đè ảnh cũ, lý do từ chối chỉ còn lần cuối: mất bằng chứng nghiệm thu.
+
+    private void callerIsAdminNamed(String fullName) {
+        User admin = new User();
+        admin.setId(9L);
+        admin.setUsername("adminA");
+        admin.setFullName(fullName);
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                        admin, null, java.util.List.of(
+                                new org.springframework.security.core.authority.SimpleGrantedAuthority("TICKET_MANAGE"))));
+    }
+
+    @Test
+    void tuChoi_luuLaiAnhVaLyDoCuaLanSuaVaoLichSu() {
+        technician.setFullName("Nguyễn Văn Kỹ Thuật");
+        java.time.Instant submitted = java.time.Instant.parse("2026-11-03T02:00:00Z");
+        ticket.setTicketStatus(TicketStatus.RESOLVED);
+        ticket.setImageBefore("truoc-1.jpg");
+        ticket.setImageAfter("sau-1.jpg");
+        ticket.setCompletedAt(submitted);
+        callerIsAdminNamed("Trưởng phòng HC");
+
+        updateStatus(TicketStatus.IN_PROGRESS, null, "Ảnh sau chưa rõ", null);
+
+        assertThat(ticket.getRejectedAttempts()).hasSize(1);
+        var attempt = ticket.getRejectedAttempts().get(0);
+        assertThat(attempt.getAttempt()).isEqualTo(1);
+        assertThat(attempt.getImageBefore()).isEqualTo("truoc-1.jpg");
+        assertThat(attempt.getImageAfter()).isEqualTo("sau-1.jpg");
+        assertThat(attempt.getTechnicianName()).isEqualTo("Nguyễn Văn Kỹ Thuật");
+        assertThat(attempt.getSubmittedAt()).isEqualTo(submitted.toString());
+        assertThat(attempt.getRejectedAt()).isNotBlank();
+        assertThat(attempt.getRejectedBy()).isEqualTo("Trưởng phòng HC");
+        assertThat(attempt.getRejectionNote()).isEqualTo("Ảnh sau chưa rõ");
+        assertThat(ticket.getImageAfter())
+                .as("ảnh sau của lần bị từ chối đã vào lịch sử, lần gửi lại phải có ảnh mới")
+                .isNull();
+        assertThat(ticket.getImageBefore()).as("ảnh trước khi sửa vẫn giữ").isEqualTo("truoc-1.jpg");
+    }
+
+    @Test
+    void tuChoiHaiLan_lichSuDanhSoTheoThuTu() {
+        ticket.setTicketStatus(TicketStatus.RESOLVED);
+        ticket.setImageAfter("sau-1.jpg");
+        updateStatus(TicketStatus.IN_PROGRESS, null, "Lần 1 chưa đạt", null);
+
+        ticket.setTicketStatus(TicketStatus.RESOLVED);
+        ticket.setImageAfter("sau-2.jpg");
+        updateStatus(TicketStatus.IN_PROGRESS, null, "Lần 2 chưa đạt", null);
+
+        assertThat(ticket.getRejectedAttempts())
+                .extracting(a -> a.getAttempt() + ":" + a.getImageAfter() + ":" + a.getRejectionNote())
+                .containsExactly("1:sau-1.jpg:Lần 1 chưa đạt", "2:sau-2.jpg:Lần 2 chưa đạt");
+    }
+
+    @Test
+    void guiLaiSauTuChoi_khongCoAnhMoi_biTuChoi() {
+        ticket.setTicketStatus(TicketStatus.RESOLVED);
+        ticket.setImageAfter("sau-1.jpg");
+        updateStatus(TicketStatus.IN_PROGRESS, null, "Ảnh sau chưa rõ", null);
+
+        setCaller("FILE_UPLOAD");
+        assertThatThrownBy(() -> updateStatus(TicketStatus.RESOLVED, null, null, technician.getId()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("ảnh sau khi sửa");
+
+        updateStatus(TicketStatus.RESOLVED, "sau-2.jpg", null, technician.getId());
+        assertThat(ticket.getImageAfter()).isEqualTo("sau-2.jpg");
+        assertThat(ticket.getTicketStatus()).isEqualTo(TicketStatus.RESOLVED);
+    }
+
     @Test
     void quaGioiHanTuChoi_khongTuChoiThem() {
         ticket.setTicketStatus(TicketStatus.RESOLVED);

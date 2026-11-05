@@ -10,6 +10,7 @@ import { ArrowLeft, Clock, User as UserIcon, CheckCircle2, Image as ImageIcon, R
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
 import { PRIORITY_LABELS, renderTicketStatusBadge } from '@/shared/helpers/ticketBadges';
 import { getApiError } from '@/shared/helpers/apiError';
+import { TicketAttemptHistory } from '../components/TicketAttemptHistory';
 
 export default function TicketDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -182,6 +183,8 @@ export default function TicketDetailPage() {
               </div>
             </div>
           </div>
+
+          <TicketAttemptHistory attempts={ticket.rejectedAttempts ?? []} onZoom={setLightboxSrc} />
         </div>
 
         {/* Right column: Assignee & Work Flow */}

@@ -137,6 +137,17 @@ export interface MapFloorData {
   edges: MapEdge[];
 }
 
+export interface TicketAttempt {
+  attempt: number;
+  imageBefore?: string | null;
+  imageAfter?: string | null;
+  technicianName?: string | null;
+  submittedAt?: string | null;
+  rejectedAt?: string | null;
+  rejectedBy?: string | null;
+  rejectionNote?: string | null;
+}
+
 export interface MaintenanceTicket {
   id: number;
   asset: Asset; // In Java, does MaintenanceTicket contain Asset object or Asset ID? Let's check.
@@ -150,6 +161,8 @@ export interface MaintenanceTicket {
   completedAt?: string;
   rejectionNote?: string;
   rejectionCount?: number;
+  /** Các lần sửa đã bị Admin từ chối, cũ nhất trước. Lần hiện tại là imageBefore/imageAfter. */
+  rejectedAttempts?: TicketAttempt[];
   imageBefore?: string;
   imageAfter?: string;
   source?: 'MANUAL' | 'QR_SCAN';
