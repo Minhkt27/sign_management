@@ -2,6 +2,7 @@ package com.hospital.signage.application.port.in;
 
 import com.hospital.signage.domain.model.Location;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public interface LocationUseCase {
@@ -11,6 +12,20 @@ public interface LocationUseCase {
     List<Location> getAllLocations(Long hospitalId);
     List<Location> getChildrenLocations(Long parentId, Long hospitalId);
     void deleteLocation(Long id, Long callerHospitalId);
+
+    /** Xoá sẽ kéo theo những gì — dùng để hiện hộp xác nhận trước khi xoá cả cây. */
+    DeleteImpact getDeleteImpact(Long id, Long callerHospitalId);
+
+    /** Xoá vị trí cùng toàn bộ vị trí con. Bị từ chối nếu trong cây còn biển báo hoặc sơ đồ tầng. */
+    void deleteLocationTree(Long id, Long callerHospitalId);
+
+    /**
+     * @param descendantsByType số vị trí con theo loại, ví dụ "Phòng" → 12
+     * @param blockers          những thứ còn chặn việc xoá; rỗng = xoá được
+     */
+    record DeleteImpact(Long id, String name, int descendantCount, Map<String, Integer> descendantsByType,
+                        List<String> blockers) {
+    }
     List<LocationTreeNode> getLocationTree(Long hospitalId);
 
     class LocationTreeNode {

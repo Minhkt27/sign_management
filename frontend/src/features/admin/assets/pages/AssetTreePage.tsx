@@ -274,9 +274,27 @@ export default function AssetTreePage() {
     });
   };
 
-  const handleDeleteLocation = (loc: Location) => {
-    if (window.confirm(`Bạn có chắc chắn muốn xóa vị trí "${loc.name}"?`)) {
-      deleteLocMutation.mutate(loc.id);
+  const handleDeleteLocation = async (loc: Location) => {
+    const hasChildren = locations.some(l => l.parentId === loc.id);
+    if (!hasChildren) {
+      if (window.confirm(`Bạn có chắc chắn muốn xóa vị trí "${loc.name}"?`)) {
+        deleteLocMutation.mutate({ id: loc.id });
+      }
+      return;
+    }
+    // Có vị trí con: hỏi server xem xoá sẽ kéo theo những gì, rồi mới hỏi người dùng.
+    try {
+      const impact = await locationService.getDeleteImpact(loc.id);
+      if (impact.blockers.length > 0) {
+        toast.error(`Không thể xóa "${loc.name}" vì trong đó vẫn còn ${impact.blockers.join(', ')}. Hãy chuyển hoặc xóa các dữ liệu đó trước.`);
+        return;
+      }
+      const breakdown = Object.entries(impact.descendantsByType).map(([type, n]) => `${n} ${type.toLowerCase()}`).join(', ');
+      if (window.confirm(`Xóa "${loc.name}" cùng ${impact.descendantCount} vị trí con bên trong (${breakdown})?\n\nKhông thể hoàn tác.`)) {
+        deleteLocMutation.mutate({ id: loc.id, withChildren: true });
+      }
+    } catch (error) {
+      toast.error(getApiError(error, 'Không kiểm tra được vị trí cần xóa.'));
     }
   };
 

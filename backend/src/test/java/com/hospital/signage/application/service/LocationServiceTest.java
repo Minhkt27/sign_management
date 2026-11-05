@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
@@ -88,6 +89,83 @@ class LocationServiceTest {
         assertThatThrownBy(() -> locationService.deleteLocation(LOCATION_ID, 99L))
                 .isInstanceOf(com.hospital.signage.domain.exception.HospitalScopeException.class);
 
+        verify(locationDatabasePort, never()).deleteById(any());
+    }
+
+    // ── Xoá cả cây (khoa cùng các phòng) ───────────────────────────────────
+
+    private static Location node(long id, Long parentId, com.hospital.signage.domain.enums.LocationType type, String name) {
+        return Location.builder().id(id).parentId(parentId).type(type).name(name).hospitalId(HOSPITAL_ID).build();
+    }
+
+    /** Khoa 30 → Phòng 31, 32; Phòng 32 → (vị trí con lạ) 33. Ngoài cây: Khoa 40. */
+    private Location seedTree() {
+        var D = com.hospital.signage.domain.enums.LocationType.DEPARTMENT;
+        var R = com.hospital.signage.domain.enums.LocationType.ROOM;
+        Location khoa = node(30, 2L, D, "Khoa Nội");
+        java.util.List<Location> all = java.util.List.of(khoa, node(31, 30L, R, "P101"), node(32, 30L, R, "P102"),
+                node(33, 32L, R, "Góc P102"), node(40, 2L, D, "Khoa Ngoại"));
+        when(locationDatabasePort.findById(30L)).thenReturn(Optional.of(khoa));
+        lenient().when(locationDatabasePort.findAllByHospital(HOSPITAL_ID)).thenReturn(all);
+        lenient().when(mapDatabasePort.findFloorByLocationId(any())).thenReturn(Optional.empty());
+        return khoa;
+    }
+
+    @Test
+    void xoaCaCay_xoaTuCapSauNhatLen_khongDungViTriNgoaiCay() {
+        seedTree();
+
+        locationService.deleteLocationTree(30L, HOSPITAL_ID);
+
+        var order = org.mockito.Mockito.inOrder(locationDatabasePort);
+        order.verify(locationDatabasePort).deleteById(33L);
+        order.verify(locationDatabasePort).deleteById(30L);
+        verify(locationDatabasePort).deleteById(31L);
+        verify(locationDatabasePort).deleteById(32L);
+        verify(locationDatabasePort, never()).deleteById(40L);
+    }
+
+    @Test
+    void xemTruocXoa_demDungViTriCon() {
+        seedTree();
+
+        var impact = locationService.getDeleteImpact(30L, HOSPITAL_ID);
+
+        assertThat(impact.descendantCount()).isEqualTo(3);
+        assertThat(impact.descendantsByType()).containsEntry("Phòng", 3);
+        assertThat(impact.blockers()).isEmpty();
+        verify(locationDatabasePort, never()).deleteById(any());
+    }
+
+    @Test
+    void xoaCaCay_conBienBaoTrongPhong_biChan_khongXoaGi() {
+        seedTree();
+        lenient().when(assetDatabasePort.countByLocationId(any())).thenReturn(0L);
+        when(assetDatabasePort.countByLocationId(33L)).thenReturn(2L);
+
+        assertThatThrownBy(() -> locationService.deleteLocationTree(30L, HOSPITAL_ID))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("2 biển báo");
+        verify(locationDatabasePort, never()).deleteById(any());
+    }
+
+    @Test
+    void xoaCaCay_conSoDoTang_biChan() {
+        seedTree();
+        when(mapDatabasePort.findFloorByLocationId(31L)).thenReturn(Optional.of(new MapFloor()));
+
+        assertThat(locationService.getDeleteImpact(30L, HOSPITAL_ID).blockers()).containsExactly("1 sơ đồ tầng");
+        assertThatThrownBy(() -> locationService.deleteLocationTree(30L, HOSPITAL_ID))
+                .isInstanceOf(IllegalArgumentException.class);
+        verify(locationDatabasePort, never()).deleteById(any());
+    }
+
+    @Test
+    void xoaCaCay_vienKhac_biChan() {
+        seedTree();
+
+        assertThatThrownBy(() -> locationService.deleteLocationTree(30L, 99L))
+                .isInstanceOf(com.hospital.signage.domain.exception.HospitalScopeException.class);
         verify(locationDatabasePort, never()).deleteById(any());
     }
 }
