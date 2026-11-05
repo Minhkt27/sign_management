@@ -39,9 +39,6 @@ export function MapCanvas({
   const containerRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState<{ id: number; x: number; y: number } | null>(null);
   const [hoveredEdgeId, setHoveredEdgeId] = useState<number | null>(null);
-  // Trình duyệt bắn thêm sự kiện click sau khi thả chuột, kể cả khi vừa kéo node. Không chặn
-  // thì kéo node đang chọn = bấm vào nó = bỏ chọn: bảng thuộc tính đóng lại ngay sau khi kéo.
-  const suppressClickRef = useRef(false);
 
   const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (tool !== 'addNode') return;
@@ -64,8 +61,12 @@ export function MapCanvas({
 
     const onMouseMove = (me: MouseEvent) => {
       // Rung tay vài pixel khi bấm không tính là kéo.
-      if (!moved && Math.hypot(me.clientX - startX, me.clientY - startY) < DRAG_THRESHOLD_PX) return;
-      moved = true;
+      if (!moved) {
+        if (Math.hypot(me.clientX - startX, me.clientY - startY) < DRAG_THRESHOLD_PX) return;
+        moved = true;
+        // Kéo một node cũng là chọn nó, để bảng thuộc tính hiện đúng node đang kéo.
+        onNodeClick(node.id);
+      }
       const rect = containerRef.current!.getBoundingClientRect();
       const dx = (me.clientX - startX) / rect.width;
       const dy = (me.clientY - startY) / rect.height;
@@ -79,15 +80,12 @@ export function MapCanvas({
       document.removeEventListener('mouseup', onMouseUp);
       setDragging(null);
       // Chỉ lưu khi node thật sự được kéo — trước đây mỗi cú bấm chọn cũng gửi lệnh lưu.
-      if (moved) {
-        suppressClickRef.current = true;
-        onNodeDragEnd(node.id, currentX, currentY);
-      }
+      if (moved) onNodeDragEnd(node.id, currentX, currentY);
     };
 
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
-  }, [tool, onNodeDragEnd]);
+  }, [tool, onNodeDragEnd, onNodeClick]);
 
   const getNodeCoords = (node: MapNode) => {
     if (dragging?.id === node.id) return { x: dragging.x, y: dragging.y };
@@ -168,11 +166,7 @@ export function MapCanvas({
               ${tool === 'select' ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}
             `}
             style={{ left: `${x * 100}%`, top: `${y * 100}%`, width: 10, height: 10 }}
-            onClick={e => {
-              e.stopPropagation();
-              if (suppressClickRef.current) { suppressClickRef.current = false; return; }
-              onNodeClick(node.id);
-            }}
+            onClick={e => { e.stopPropagation(); onNodeClick(node.id); }}
             onMouseDown={e => handleNodeMouseDown(node, e)}
             title={node.label ?? node.type}
           />
