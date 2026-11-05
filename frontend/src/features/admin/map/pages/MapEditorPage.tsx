@@ -14,6 +14,13 @@ import { getBackendUrl } from '@/shared/helpers/imageUrl';
 import { NODE_TYPE_OPTIONS, CAMPUS_NODE_TYPE_OPTIONS } from '../constants';
 import { toast } from 'sonner';
 
+const EMPTY_PANEL_HINT: Record<EditorTool, string> = {
+  select: 'Bấm vào một node để xem và sửa thuộc tính. Kéo node để đổi vị trí.',
+  addNode: 'Bấm lên bản đồ để thêm node mới.',
+  addEdge: 'Bấm lần lượt vào 2 node để nối chúng.',
+  delete: 'Bấm vào node hoặc đường nối để xoá.',
+};
+
 const TOOL_BUTTONS: { tool: EditorTool; icon: React.ReactNode; label: string }[] = [
   { tool: 'select',  icon: <MousePointer size={18} />, label: 'Chọn / Kéo' },
   { tool: 'addNode', icon: <Plus size={18} />,         label: 'Thêm node' },
@@ -246,12 +253,16 @@ export default function MapEditorPage() {
           />
         </div>
 
-        {/* Panel — animate width, canvas thu hẹp mượt không giật */}
-        <div
-          style={{ width: selectedNode && tool === 'select' ? 256 : 0 }}
-          className="flex-shrink-0 overflow-hidden transition-[width] duration-200 ease-in-out border-l border-slate-200 flex flex-col"
-        >
-          {selectedNode && (
+        {/* Panel giữ CỐ ĐỊNH độ rộng. Trước đây panel co về 0 khi bỏ chọn node, làm vùng bản đồ
+            nới ra / thu lại và ảnh sơ đồ phóng to - thu nhỏ theo mỗi lần chọn, kéo node. */}
+        <div className="w-64 flex-shrink-0 overflow-y-auto border-l border-slate-200 flex flex-col">
+          {!(selectedNode && tool === 'select') && (
+            <div className="p-5 text-sm text-slate-500 space-y-2">
+              <p className="font-semibold text-slate-700">Thuộc tính node</p>
+              <p>{EMPTY_PANEL_HINT[tool]}</p>
+            </div>
+          )}
+          {selectedNode && tool === 'select' && (
             <>
               <NodePanel
                 node={selectedNode}
