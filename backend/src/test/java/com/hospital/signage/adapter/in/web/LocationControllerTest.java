@@ -103,6 +103,37 @@ public class LocationControllerTest {
     }
 
     @Test
+    @WithMockUser(username = "superadmin", authorities = {"MAP_MANAGE", "HOSPITAL_MANAGE"})
+    public void superAdmin_taoViTri_vaoDungVienDangChon() throws Exception {
+        var req = new LocationController.LocationRequest(null, "Tòa B", null, null, null);
+        org.mockito.ArgumentCaptor<Location> captor = org.mockito.ArgumentCaptor.forClass(Location.class);
+        when(locationUseCase.createLocation(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        mockMvc.perform(post("/api/locations").param("hospitalId", "2")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk());
+
+        org.assertj.core.api.Assertions.assertThat(captor.getValue().getHospitalId()).isEqualTo(2L);
+    }
+
+    @Test
+    @WithMockUser(username = "superadmin", authorities = {"MAP_MANAGE", "HOSPITAL_MANAGE"})
+    public void superAdmin_taoViTri_chuaChonVien_biTuChoi() throws Exception {
+        var req = new LocationController.LocationRequest(null, "Tòa B", null, null, null);
+
+        mockMvc.perform(post("/api/locations")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("chọn bệnh viện")));
+
+        org.mockito.Mockito.verify(locationUseCase, org.mockito.Mockito.never()).createLocation(any());
+    }
+
+    @Test
     public void testUpdateLocation() throws Exception {
         var req = new LocationController.LocationRequest("B1-P01", "Updated Department", null, null, null);
 

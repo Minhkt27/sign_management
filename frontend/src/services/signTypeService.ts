@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import { targetHospitalParams } from './targetHospital';
 import { SignType } from '../shared/types';
 import { PagedResponse } from './assetService';
 
@@ -23,7 +24,7 @@ export const signTypeService = {
   },
 
   createSignType: async (signType: Omit<Partial<SignType>, 'code'> & { code?: string | null }): Promise<SignType> => {
-    const response = await apiClient.post<SignType>('/sign-types', signType);
+    const response = await apiClient.post<SignType>('/sign-types', signType, { params: targetHospitalParams() });
     return response.data;
   },
 

@@ -65,6 +65,26 @@ public final class SecurityUtils {
     }
 
     /**
+     * Viện đích khi TẠO dữ liệu mới (vị trí, biển báo, loại biển, nhập Excel...).
+     * <ul>
+     *   <li>User thường: luôn là viện của chính họ — bỏ qua giá trị client gửi.</li>
+     *   <li>SUPER_ADMIN: không thuộc viện nào nên BẮT BUỘC chỉ rõ viện (viện đang chọn ở
+     *       giao diện). Trước đây thiếu thì rơi về viện mặc định: tạo tòa nhà khi đang chọn
+     *       viện B lại ra ở viện 1, còn tạo vị trí con thì báo "thuộc bệnh viện khác".</li>
+     * </ul>
+     */
+    public static Long requireTargetHospitalId(Long requestedHospitalId) {
+        if (isSuperAdmin()) {
+            if (requestedHospitalId == null) {
+                throw new IllegalArgumentException("Hãy chọn bệnh viện ở ô chọn viện trước khi tạo dữ liệu.");
+            }
+            return requestedHospitalId;
+        }
+        Long current = getCurrentHospitalId();
+        return current != null ? current : DEFAULT_HOSPITAL_ID;
+    }
+
+    /**
      * Dùng cho endpoint permitAll dùng chung bởi cả public (QR/wayfinding) lẫn
      * admin đã đăng nhập:
      * - Đã đăng nhập: luôn lấy hospitalId từ server-side context (không tin query

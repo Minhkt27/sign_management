@@ -72,6 +72,8 @@ describe('assetService', () => {
     expect(apiClient.post).toHaveBeenCalledWith(
       '/assets',
       expect.objectContaining({ location: { id: 5 } }),
+      // Viện đích cho SUPER_ADMIN (rỗng với tài khoản thường) — xem targetHospital.ts.
+      expect.objectContaining({ params: expect.any(Object) }),
     );
   });
 

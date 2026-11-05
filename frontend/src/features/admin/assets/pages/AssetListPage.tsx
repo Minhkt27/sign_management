@@ -14,6 +14,7 @@ import { CreateAssetDialog } from '../components/CreateAssetDialog';
 import { Pagination } from '@/shared/components/Pagination';
 import { getApiError } from '@/shared/helpers/apiError';
 import { exportService } from '@/services/exportService';
+import { ImportExcelDialog } from '@/shared/components/ImportExcelDialog';
 import { Button } from '@/components/ui/button';
 import { FileDown } from 'lucide-react';
 
@@ -105,6 +106,8 @@ export default function AssetListPage() {
             <FileDown size={15} />
             {exporting ? 'Đang xuất...' : 'Xuất Excel'}
           </Button>
+          <ImportExcelDialog type="assets" label="biển báo"
+            invalidateKeys={[['assets'], ['locations'], ['locationAssets']]} />
           <CreateAssetDialog locations={locations} signTypes={signTypes} />
         </AssetFilters>
 
