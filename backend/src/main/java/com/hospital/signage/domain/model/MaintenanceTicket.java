@@ -10,6 +10,8 @@ import com.hospital.signage.domain.enums.TicketSource;
 import com.hospital.signage.domain.enums.TicketStatus;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @Builder
@@ -30,6 +32,9 @@ public class MaintenanceTicket {
     private TicketSource source;
     private String rejectionNote;
     private int rejectionCount;
+    // Các lần sửa bị từ chối, cũ nhất trước. Lần hiện tại/cuối cùng vẫn là imageBefore/imageAfter.
+    @Builder.Default
+    private List<TicketAttempt> rejectedAttempts = new ArrayList<>();
     private Instant createdAt;
     private Instant updatedAt;
     private Instant completedAt;
