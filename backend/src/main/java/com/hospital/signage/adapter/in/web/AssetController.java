@@ -82,10 +82,10 @@ public class AssetController {
     @Operation(summary = "Tạo biển báo mới")
     @PreAuthorize("hasAuthority('ASSET_MANAGE')")
     @PostMapping
-    public ResponseEntity<Asset> createAsset(@Valid @RequestBody AssetRequest request) {
+    public ResponseEntity<Asset> createAsset(@Valid @RequestBody AssetRequest request,
+                                             @RequestParam(required = false) Long hospitalId) {
         Asset asset = request.toDomain();
-        Long hospitalId = SecurityUtils.getCurrentHospitalId();
-        asset.setHospitalId(hospitalId != null ? hospitalId : SecurityUtils.DEFAULT_HOSPITAL_ID);
+        asset.setHospitalId(SecurityUtils.requireTargetHospitalId(hospitalId));
         return ResponseEntity.ok(assetUseCase.createAsset(asset));
     }
 
