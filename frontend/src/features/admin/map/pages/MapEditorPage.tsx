@@ -15,7 +15,7 @@ import { NODE_TYPE_OPTIONS, CAMPUS_NODE_TYPE_OPTIONS } from '../constants';
 import { toast } from 'sonner';
 
 const EMPTY_PANEL_HINT: Record<EditorTool, string> = {
-  select: 'Bấm vào một node để xem và sửa thuộc tính. Kéo node để đổi vị trí.',
+  select: 'Bấm vào một node để xem và sửa thuộc tính. Kéo node để đổi vị trí. Bấm × để đóng bảng.',
   addNode: 'Bấm lên bản đồ để thêm node mới.',
   addEdge: 'Bấm lần lượt vào 2 node để nối chúng.',
   delete: 'Bấm vào node hoặc đường nối để xoá.',
@@ -103,7 +103,8 @@ export default function MapEditorPage() {
   const updateNodeMutation = useMutation({
     mutationFn: ({ id, ...data }: { id: number } & Partial<MapNode>) => mapService.updateNode(id, data),
     onSuccess: () => { invalidate(); toast.success('Đã lưu node'); },
-    onError: (e: unknown) => toast.error(getApiError(e, 'Không thể cập nhật node')),
+    // Lưu hỏng thì tải lại để node về đúng vị trí trên server (vị trí đã được đặt trước khi lưu).
+    onError: (e: unknown) => { invalidate(); toast.error(getApiError(e, 'Không thể cập nhật node')); },
   });
 
   const deleteNodeMutation = useMutation({
@@ -131,7 +132,10 @@ export default function MapEditorPage() {
 
   const handleNodeClick = (nodeId: number) => {
     if (tool === 'select') {
-      setSelectedNodeId(prev => prev === nodeId ? null : nodeId);
+      // Bấm node chỉ CHỌN, không bao giờ bỏ chọn — bỏ chọn bằng nút × trên bảng thuộc tính.
+      // Trước đây bấm lại node đang chọn là bỏ chọn, mà sau mỗi lần kéo trình duyệt lại bắn
+      // thêm một cú click (lúc có lúc không, tuỳ chỗ thả chuột) nên kéo node hay đóng mất bảng.
+      setSelectedNodeId(nodeId);
     } else if (tool === 'addEdge') {
       if (edgeStartId === null) {
         setEdgeStartId(nodeId);
@@ -147,6 +151,12 @@ export default function MapEditorPage() {
   const handleNodeDragEnd = (nodeId: number, x: number, y: number) => {
     const node = floorData?.nodes.find(n => n.id === nodeId);
     if (!node) return;
+    // Đặt node ở vị trí mới ngay, không chờ server: nếu chờ, node nhảy về chỗ cũ trong lúc
+    // lưu, và kéo tiếp đúng lúc đó sẽ tính từ toạ độ cũ nên node bị giật.
+    queryClient.setQueryData<typeof floorData>(['mapFloor', floorId], prev => prev && {
+      ...prev,
+      nodes: prev.nodes.map(n => (n.id === nodeId ? { ...n, x, y } : n)),
+    });
     updateNodeMutation.mutate({ id: nodeId, x, y, type: node.type, label: node.label, locationId: node.locationId, assetId: node.assetId, linkedCampusNodeId: node.linkedCampusNodeId });
   };
 
