@@ -54,13 +54,14 @@ public class SignTypeController {
     @Operation(summary = "Tạo loại biển mới")
     @PreAuthorize("hasAuthority('ASSET_MANAGE')")
     @PostMapping
-    public ResponseEntity<SignType> createSignType(@Valid @RequestBody SignTypeRequest req) {
-        Long hospitalId = SecurityUtils.getCurrentHospitalId();
+    public ResponseEntity<SignType> createSignType(@Valid @RequestBody SignTypeRequest req,
+                                                   @RequestParam(required = false) Long hospitalId) {
+        Long targetHospitalId = SecurityUtils.requireTargetHospitalId(hospitalId);
         SignType signType = SignType.builder()
                 .code(req.code())
                 .name(req.name())
                 .description(req.description())
-                .hospitalId(hospitalId != null ? hospitalId : SecurityUtils.DEFAULT_HOSPITAL_ID)
+                .hospitalId(targetHospitalId)
                 .build();
         return ResponseEntity.ok(signTypeUseCase.createSignType(signType));
     }

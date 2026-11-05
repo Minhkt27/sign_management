@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import { targetHospitalParams } from './targetHospital';
 import { Asset } from '../shared/types';
 
 export interface PagedResponse<T> {
@@ -61,7 +62,7 @@ export const assetService = {
       ...asset,
       location: { id: asset.locationId },
     };
-    const response = await apiClient.post<Asset>('/assets', payload);
+    const response = await apiClient.post<Asset>('/assets', payload, { params: targetHospitalParams() });
     return response.data;
   },
 

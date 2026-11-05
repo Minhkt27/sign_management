@@ -48,12 +48,13 @@ public class LocationController {
     @Operation(summary = "Tạo vị trí mới")
     @PreAuthorize("hasAuthority('MAP_MANAGE')")
     @PostMapping
-    public ResponseEntity<Location> createLocation(@Valid @RequestBody LocationRequest req) {
-        Long hospitalId = SecurityUtils.getCurrentHospitalId();
+    public ResponseEntity<Location> createLocation(@Valid @RequestBody LocationRequest req,
+                                                   @RequestParam(required = false) Long hospitalId) {
+        Long targetHospitalId = SecurityUtils.requireTargetHospitalId(hospitalId);
         Location location = Location.builder()
                 .locationCode(req.locationCode())
                 .name(req.name())
-                .hospitalId(hospitalId != null ? hospitalId : SecurityUtils.DEFAULT_HOSPITAL_ID)
+                .hospitalId(targetHospitalId)
                 .parentId(req.parentId())
                 .description(req.description())
                 .type(req.type())

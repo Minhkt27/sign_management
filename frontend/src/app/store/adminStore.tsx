@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
+import { ADMIN_SELECTED_HOSPITAL_KEY } from '@/services/targetHospital';
 
 interface AdminContextProps {
   selectedHospitalId: number | null;
@@ -9,7 +10,7 @@ const AdminContext = createContext<AdminContextProps | undefined>(undefined);
 
 export const AdminProvider = ({ children }: { children: ReactNode }) => {
   const [selectedHospitalId, setSelectedHospitalId] = useState<number | null>(() => {
-    const saved = localStorage.getItem('admin_selected_hospital');
+    const saved = localStorage.getItem(ADMIN_SELECTED_HOSPITAL_KEY);
     // "ALL" là giá trị cũ trước khi bỏ tùy chọn "Tất cả bệnh viện" — coi như chưa chọn gì.
     if (saved && !isNaN(Number(saved))) return Number(saved);
     return null;
@@ -18,9 +19,9 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
   const setAndSaveHospitalId = (id: number | null) => {
     setSelectedHospitalId(id);
     if (id === null) {
-      localStorage.removeItem('admin_selected_hospital');
+      localStorage.removeItem(ADMIN_SELECTED_HOSPITAL_KEY);
     } else {
-      localStorage.setItem('admin_selected_hospital', id.toString());
+      localStorage.setItem(ADMIN_SELECTED_HOSPITAL_KEY, id.toString());
     }
   };
 

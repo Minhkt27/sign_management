@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import { targetHospitalParams } from './targetHospital';
 import { Location, LocationTreeNode } from '../shared/types';
 
 export const locationService = {
@@ -22,7 +23,7 @@ export const locationService = {
   },
 
   createLocation: async (location: Partial<Location>): Promise<Location> => {
-    const response = await apiClient.post<Location>('/locations', location);
+    const response = await apiClient.post<Location>('/locations', location, { params: targetHospitalParams() });
     return response.data;
   },
 
