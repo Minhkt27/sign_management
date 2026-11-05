@@ -5,6 +5,8 @@ export type EditorTool = 'select' | 'addNode' | 'addEdge' | 'delete';
 
 interface Props {
   imageUrl: string;
+  /** Rộng / cao của ảnh gốc. Có thì khung giữ đúng tỷ lệ ảnh — ảnh không bị méo khi khung chứa bị giới hạn chiều cao. */
+  imageAspect?: number;
   nodes: MapNode[];
   edges: MapEdge[];
   tool: EditorTool;
@@ -32,7 +34,7 @@ const NODE_COLORS: Record<NodeType, string> = {
 const DRAG_THRESHOLD_PX = 3;
 
 export function MapCanvas({
-  imageUrl, nodes, edges, tool,
+  imageUrl, imageAspect, nodes, edges, tool,
   selectedNodeId, edgeStartId, pathNodeIds,
   onCanvasClick, onNodeClick, onNodeDragEnd, onEdgeClick,
 }: Props) {
@@ -97,7 +99,8 @@ export function MapCanvas({
   return (
     <div
       ref={containerRef}
-      className={`relative w-full h-full overflow-hidden rounded-xl bg-slate-100 select-none ${tool === 'addNode' ? 'cursor-crosshair' : tool === 'delete' ? 'cursor-not-allowed' : 'cursor-default'
+      style={imageAspect ? { aspectRatio: imageAspect } : undefined}
+      className={`relative w-full ${imageAspect ? '' : 'h-full'} overflow-hidden rounded-xl bg-slate-100 select-none ${tool === 'addNode' ? 'cursor-crosshair' : tool === 'delete' ? 'cursor-not-allowed' : 'cursor-default'
         }`}
       onClick={handleContainerClick}
     >

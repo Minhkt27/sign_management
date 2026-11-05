@@ -179,7 +179,9 @@ export default function MapEditorPage() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    // Vừa khít màn hình (trừ header + lề của AdminLayout) để chỉ vùng bản đồ cuộn, còn thanh
+    // công cụ và bảng thuộc tính đứng yên. Trước đây cả trang cuộn nên bảng trôi theo bản đồ.
+    <div className="flex flex-col h-[calc(100dvh-6.5rem)] md:h-[calc(100dvh-9rem)] min-h-[420px] overflow-hidden">
       {/* Toolbar */}
       <div className="sticky top-0 z-10 flex items-center gap-3 px-4 py-3 bg-white border-b border-slate-200 flex-shrink-0">
         <button
@@ -251,6 +253,8 @@ export default function MapEditorPage() {
         <div className="flex-1 p-4 min-h-0 overflow-auto flex items-start justify-center">
           <MapCanvas
             imageUrl={getBackendUrl(floorData.floor.imageUrl)}
+            imageAspect={floorData.floor.imgWidth > 0 && floorData.floor.imgHeight > 0
+              ? floorData.floor.imgWidth / floorData.floor.imgHeight : undefined}
             nodes={floorData.nodes}
             edges={floorData.edges}
             tool={tool}
