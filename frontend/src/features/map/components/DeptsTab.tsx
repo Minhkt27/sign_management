@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Location, MapNode, MapFloorData } from '@/shared/types';
-import { Search, ChevronDown, ChevronRight } from 'lucide-react';
+import { Search, ChevronDown, ChevronRight, Building2 } from 'lucide-react';
 import { normalize } from '../utils/pathHelpers';
 
 interface Props {
@@ -73,7 +73,6 @@ export function DeptsTab({ locations, allFloorData, onSelectDest }: Props) {
         if (!searching && items.length === 0) return null;
         if (searching && items.length === 0) return null;
         const open = searching || expanded.has(building.id);
-        const initial = building.name.replace(/tòa\s*/i, '').charAt(0).toUpperCase();
         return (
           <div key={building.id} className="rounded-2xl overflow-hidden"
             style={{ border: '1.5px solid #C8DEC8' }}>
@@ -84,7 +83,8 @@ export function DeptsTab({ locations, allFloorData, onSelectDest }: Props) {
             >
               <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
                 style={{ background: '#1A5C2A' }}>
-                <span className="text-white text-sm font-extrabold">{initial}</span>
+                {/* Biểu tượng thay chữ cái viết tắt — chữ cái đầu dễ gây hiểu nhầm ("Tòa 9 Tầng" ra "9"). */}
+                <Building2 size={16} className="text-white" />
               </div>
               <div className="flex-1 text-left">
                 <p className="text-sm font-extrabold" style={{ color: '#1A2E1E' }}>{building.name}</p>
