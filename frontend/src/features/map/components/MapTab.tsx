@@ -521,7 +521,7 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
           </button>
           {floorsByBuilding.map(({ building }) => {
             const isActive = activeBuilding?.id === building.id;
-            const initial = building.name.replace(/tòa\s*/i, '').charAt(0).toUpperCase();
+            // Không còn ô ký hiệu viết tắt: chữ cái đầu của tên dễ gây hiểu nhầm ("Tòa 9 Tầng" ra "9").
             return (
               <button key={building.id}
                 onClick={() => {
@@ -531,10 +531,6 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
                 className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg text-xs font-bold transition-colors border-b-2 ${isActive
                   ? 'border-green-800 bg-green-50 text-green-800'
                   : 'border-transparent text-slate-500 hover:text-green-700'}`}>
-                <span className="w-4 h-4 rounded flex items-center justify-center text-[10px] font-extrabold flex-shrink-0"
-                  style={{ background: isActive ? '#1A5C2A' : '#E2E8F0', color: isActive ? '#fff' : '#64748b' }}>
-                  {initial}
-                </span>
                 {building.name}
               </button>
             );
