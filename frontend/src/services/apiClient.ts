@@ -1,5 +1,5 @@
 import axios, { InternalAxiosRequestConfig } from 'axios';
-import { authStore, resolveHospitalId } from '../app/store/authStore';
+import { authStore, resolveHospitalId, isPublicRoute } from '../app/store/authStore';
 
 interface RetryableRequest extends InternalAxiosRequestConfig {
   _retry?: boolean;
@@ -18,7 +18,9 @@ export const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     const token = authStore.getToken();
-    if (token && config.headers) {
+    // Trang công khai gọi server như khách: khi có token, server tin viện của tài khoản và bỏ qua
+    // viện trong QR. Dữ liệu ở các trang này vốn ai cũng xem được, không cần đăng nhập.
+    if (token && config.headers && !isPublicRoute()) {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
@@ -54,9 +56,8 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       const refreshToken = authStore.getRefreshToken();
 
-      const isPublicRoute = /^\/(map|scan)(\/|$)/.test(window.location.pathname);
       if (!refreshToken) {
-        if (!isPublicRoute) {
+        if (!isPublicRoute()) {
           authStore.logout();
           window.location.href = '/login';
         }
@@ -90,8 +91,7 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (refreshError) {
         processPendingQueue(refreshError, null);
-        const isPublicRoute = /^\/(map|scan)(\/|$)/.test(window.location.pathname);
-        if (!isPublicRoute) {
+        if (!isPublicRoute()) {
           authStore.logout();
           window.location.href = '/login';
         }
