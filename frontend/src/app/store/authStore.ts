@@ -43,10 +43,22 @@ export const isSuperAdmin = (token: string | null): boolean => {
 
 export const HOSPITAL_ID_STORAGE_KEY = 'hospitalId';
 
-// Đã đăng nhập: lấy hospitalId từ JWT (null = SUPER_ADMIN, không gửi param).
-// Chưa đăng nhập (luồng public/QR): lấy từ sessionStorage (do QR scan hoặc GPS-detect set).
+/** Trang công khai cho người bệnh: chỉ đường (/map) và trang đích của mã QR (/scan). */
+export const isPublicRoute = (): boolean => /^\/(map|scan)(\/|$)/.test(window.location.pathname);
+
+// Trang công khai: viện lấy từ QR / GPS / chọn tay (sessionStorage) TRƯỚC, rồi mới tới viện của
+// tài khoản đang đăng nhập (nếu có). Trước đây tài khoản luôn thắng nên nhân viên đang đăng
+// nhập quét QR của viện khác thì báo "không xác định được vị trí", còn SUPER_ADMIN thì thấy
+// dữ liệu của mọi viện trộn lẫn.
+// Trang quản trị: lấy hospitalId từ JWT (null = SUPER_ADMIN, không gửi param).
 export const resolveHospitalId = (): string | null => {
   const token = authStore.getToken();
+  if (isPublicRoute()) {
+    const fromQr = sessionStorage.getItem(HOSPITAL_ID_STORAGE_KEY);
+    if (fromQr) return fromQr;
+    const fromToken = getHospitalIdFromToken(token);
+    return fromToken != null ? String(fromToken) : null;
+  }
   if (token) {
     const fromToken = getHospitalIdFromToken(token);
     return fromToken != null ? String(fromToken) : null;

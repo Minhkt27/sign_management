@@ -5,7 +5,7 @@ import { mapService } from '@/services/mapService';
 import { locationService } from '@/services/locationService';
 import { hospitalService } from '@/services/hospitalService';
 import { MapFloorData, MapNode, Hospital } from '@/shared/types';
-import { authStore, HOSPITAL_ID_STORAGE_KEY, resolveHospitalId } from '@/app/store/authStore';
+import { HOSPITAL_ID_STORAGE_KEY, resolveHospitalId } from '@/app/store/authStore';
 import { HomeTab } from '../components/HomeTab';
 import { MapTab } from '../components/MapTab';
 import { DeptsTab } from '../components/DeptsTab';
@@ -43,7 +43,8 @@ export default function WayfindingPage() {
   // "Mở app lạnh": chưa đăng nhập và chưa có hospitalId nào được set (chưa quét QR).
   // GPS chỉ là fallback phụ — nếu GPS không xác định được, bắt buộc chọn tay qua HospitalPickerModal.
   useEffect(() => {
-    const isColdStart = !authStore.getToken() && !sessionStorage.getItem(HOSPITAL_ID_STORAGE_KEY);
+    // Chưa biết viện nào: chưa quét QR, và chưa đăng nhập hoặc tài khoản không thuộc viện nào.
+    const isColdStart = resolveHospitalId() == null;
     if (!isColdStart) return;
 
     detectHospital().then(hospital => {
