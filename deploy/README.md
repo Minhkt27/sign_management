@@ -366,3 +366,18 @@ Bước `cp ... env.backup .env` là bắt buộc: phải dùng **đúng mật k
 - **Bản sao lưu tự động hiện chỉ nằm trên chính VPS.** Server hỏng thì mất theo, trừ khi đã bật snapshot của nhà cung cấp (bước 2) hoặc đã chép về máy (bước 9). Việc tiếp theo nên làm: tự động đẩy bản sao lưu ra ngoài, ví dụ Cloudflare R2 — 10GB miễn phí, dư cho dữ liệu hiện tại.
 - **Kho ảnh chạy bằng Silo, không phải MinIO chính hãng.** MinIO đã lưu trữ dự án cộng đồng và gỡ mọi nguồn tải. Silo là nhánh tiếp nối do Pigsty duy trì, vẫn có bản vá bảo mật, và giữ nguyên định dạng dữ liệu. Vì vậy trong log và tên container vẫn thấy chữ `minio`. Hệ thống ghim đúng một phiên bản (kèm digest), không mở cổng kho ảnh ra ngoài, và chỉ cho phép đọc ảnh qua nginx. Nên ghé [trang phát hành của Silo](https://github.com/pgsty/silo/releases) vài tháng một lần và nâng cấp có chủ đích khi có bản vá bảo mật.
 - **Cloudflare:** nếu sau này bật proxy của Cloudflare (đám mây màu cam) trước tên miền, phải cấu hình thêm để backend nhận đúng IP người dùng — không thì chức năng chặn đăng nhập sai nhiều lần sẽ coi mọi người là một.
+
+## Xem lượt truy cập
+
+Caddy ghi mỗi lượt truy cập vào `/data/logs/signage.log` (trang biển báo) và
+`/data/logs/signaops.log` (SignaOps) bên trong container `signage_caddy`, tự xoay vòng 20MB × 10 file.
+Thời gian dưới đây đã đổi sang giờ Việt Nam. Thay `signage.log` bằng `signaops.log` để xem SignaOps.
+
+| Việc | Lệnh |
+|---|---|
+| Xem trực tiếp (Ctrl+C để thoát) | `docker exec signage_caddy tail -f /data/logs/signage.log \| jq -r '[(.ts+25200\|floor\|todate), .request.remote_ip, .request.method, .request.uri, .status] \| @tsv'` |
+| Top 20 IP | `docker exec signage_caddy cat /data/logs/signage.log \| jq -r .request.remote_ip \| sort \| uniq -c \| sort -rn \| head -20` |
+| Số lượt theo ngày | `docker exec signage_caddy cat /data/logs/signage.log \| jq -r '(.ts+25200\|floor\|todate)[0:10]' \| sort \| uniq -c` |
+| Số IP khác nhau mỗi ngày | `docker exec signage_caddy cat /data/logs/signage.log \| jq -r '"\((.ts+25200\|floor\|todate)[0:10]) \(.request.remote_ip)"' \| sort -u \| cut -d' ' -f1 \| uniq -c` |
+
+Các lệnh `cat` chỉ đọc file hiện tại; file cũ đã xoay vòng nằm cạnh nó (`docker exec signage_caddy ls /data/logs`).

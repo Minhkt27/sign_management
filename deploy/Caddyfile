@@ -5,12 +5,25 @@
 #   - cổng 80 và 443 mở (Let's Encrypt gọi vào cổng 80 để xác minh bạn sở hữu tên miền)
 # Thiếu một trong hai thì trang web không lên HTTPS được — xem mục "Khi có sự cố" trong README.
 
+# Nhật ký truy cập (thời gian, IP, trang, mã kết quả) — mỗi tên miền 1 file trong volume caddy_data,
+# tự xoay vòng 20MB × 10 file. Xem bằng lệnh trong deploy/README.md mục "Xem lượt truy cập".
+(access_log) {
+	log {
+		output file /data/logs/{args[0]}.log {
+			roll_size 20MiB
+			roll_keep 10
+		}
+		format json
+	}
+}
+
 {$SITE_DOMAIN} {
 	# Bắt trình duyệt luôn dùng HTTPS cho tên miền này trong một năm. Không kèm
 	# includeSubDomains: các tên miền con khác của bệnh viện có thể chưa có HTTPS.
 	header Strict-Transport-Security "max-age=31536000"
 
 	reverse_proxy frontend:80
+	import access_log signage
 }
 
 # SignaOps (repo riêng, chạy ở /opt/signaops) — container "signaops" nối vào cùng mạng Docker
@@ -18,4 +31,5 @@
 signaops.srtsolution.com {
 	header Strict-Transport-Security "max-age=31536000"
 	reverse_proxy signaops:3000
+	import access_log signaops
 }
