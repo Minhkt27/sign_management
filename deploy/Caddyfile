@@ -12,3 +12,10 @@
 
 	reverse_proxy frontend:80
 }
+
+# SignaOps (repo riêng, chạy ở /opt/signaops) — container "signaops" nối vào cùng mạng Docker
+# sign_management_default. Container đó tắt thì trang này báo 502, trang biển báo không ảnh hưởng.
+signaops.srtsolution.com {
+	header Strict-Transport-Security "max-age=31536000"
+	reverse_proxy signaops:3000
+}
