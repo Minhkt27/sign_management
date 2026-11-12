@@ -12,6 +12,11 @@ import { ZoomIn, ZoomOut, Maximize } from 'lucide-react';
 import { useCompassHeading } from '@/hooks/useCompassHeading';
 import { savedDest } from '../utils/destStorage';
 
+// Tạm ẩn la bàn. Mũi tên được vẽ như thể mép trên ảnh sơ đồ luôn là hướng Bắc, nhưng hệ
+// thống chưa lưu sơ đồ tầng quay về hướng nào — sơ đồ không vẽ Bắc lên trên thì mũi tên chỉ
+// lệch, người bệnh đi sai hướng. Bật lại khi có cài đặt "hướng Bắc" cho từng sơ đồ tầng.
+const COMPASS_ENABLED = false;
+
 const QRScannerModal = lazy(() =>
   import('./QRScannerModal').then(mod => ({ default: mod.QRScannerModal }))
 );
@@ -207,7 +212,7 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
                 <button onClick={() => zoomIn()} className="w-9 h-9 bg-white text-slate-700 hover:text-green-700 rounded-xl flex items-center justify-center shadow-sm"><ZoomIn size={18} /></button>
                 <button onClick={() => zoomOut()} className="w-9 h-9 bg-white text-slate-700 hover:text-green-700 rounded-xl flex items-center justify-center shadow-sm"><ZoomOut size={18} /></button>
                 <button onClick={() => resetTransform()} className="w-9 h-9 bg-white text-slate-700 hover:text-green-700 rounded-xl flex items-center justify-center shadow-sm"><Maximize size={18} /></button>
-                <button
+                {COMPASS_ENABLED && <button
                   onClick={compass.requestAndStart}
                   title={compass.active ? 'Tắt la bàn' : 'Bật la bàn'}
                   className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-sm transition-colors ${
@@ -219,7 +224,7 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
                   }`}
                 >
                   <Compass size={18} />
-                </button>
+                </button>}
               </div>
 
               {/* Mũi tên xoay theo hướng điện thoại đang nhìn */}
