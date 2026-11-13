@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { QrCode, Download, Loader2, RefreshCw, LayoutGrid } from 'lucide-react';
+import { QrCode, Download, Loader2, RefreshCw, LayoutGrid, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -12,7 +12,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { assetService } from '@/services/assetService';
-import { generateQrGridSvg, downloadSvgFile } from '../helpers/exportQrSvg';
+import { locationService } from '@/services/locationService';
+import { generateQrGridSvg, downloadSvgFile, groupAssetsByFloor } from '../helpers/exportQrSvg';
 
 interface Props {
   hospitalId?: number;
@@ -26,17 +27,32 @@ export function ExportQrSvgDialog({ hospitalId }: Props) {
     return localStorage.getItem('qrBaseUrl') || window.location.origin;
   });
 
+  const [groupByFloor, setGroupByFloor] = useState(true);
   const [columns, setColumns] = useState(4);
   const [includeAssetCode, setIncludeAssetCode] = useState(true);
   const [includeLocation, setIncludeLocation] = useState(true);
 
   // Lazy query: only fetch full list when user opens the modal
-  const { data: allAssets = [], isLoading, isError } = useQuery({
+  const { data: allAssets = [], isLoading: isAssetsLoading, isError: isAssetsError } = useQuery({
     queryKey: ['export-qr-assets', hospitalId],
     queryFn: () => assetService.getAllAssets(hospitalId),
     enabled: open,
     staleTime: 30_000,
   });
+
+  const { data: locations = [], isLoading: isLocationsLoading } = useQuery({
+    queryKey: ['export-qr-locations', hospitalId],
+    queryFn: () => locationService.getAllLocations(hospitalId),
+    enabled: open,
+    staleTime: 30_000,
+  });
+
+  const isLoading = isAssetsLoading || isLocationsLoading;
+
+  const floorGroups = useMemo(() => {
+    if (!groupByFloor || allAssets.length === 0) return [];
+    return groupAssetsByFloor(allAssets, locations);
+  }, [groupByFloor, allAssets, locations]);
 
   const handleBaseUrlChange = (value: string) => {
     setBaseUrl(value);
@@ -58,11 +74,13 @@ export function ExportQrSvgDialog({ hospitalId }: Props) {
     setIsExporting(true);
     try {
       // Yield to let UI update loading state
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
       const svgString = generateQrGridSvg({
         assets: allAssets,
+        locations,
         baseUrl: baseUrl || window.location.origin,
+        groupByFloor,
         columns,
         includeAssetCode,
         includeLocation,
@@ -125,14 +143,51 @@ export function ExportQrSvgDialog({ hospitalId }: Props) {
             <span className="text-slate-600 font-medium">Số lượng biển sẽ xuất:</span>
             {isLoading ? (
               <span className="flex items-center gap-1 text-slate-400">
-                <Loader2 size={13} className="animate-spin" /> Đang tải dữ liệu...
+                <Loader2 size={13} className="animate-spin" /> Đang nạp danh sách...
               </span>
-            ) : isError ? (
+            ) : isAssetsError ? (
               <span className="text-rose-600 font-medium">Không thể nạp danh sách</span>
             ) : (
               <span className="font-bold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-200">
                 {allAssets.length} biển báo
               </span>
+            )}
+          </div>
+
+          {/* Group by Floor Toggle */}
+          <div className="space-y-2 p-3 bg-slate-50/60 rounded-xl border border-slate-200/80">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={groupByFloor}
+                onChange={(e) => setGroupByFloor(e.target.checked)}
+                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+              />
+              <span className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+                <Layers size={14} className="text-indigo-600" />
+                Nhóm mã QR theo từng tầng
+              </span>
+            </label>
+
+            {groupByFloor && (
+              <div className="text-[11px] text-slate-500 pl-6 space-y-1.5">
+                <p className="leading-tight">
+                  Từng tầng sẽ có tiêu đề riêng kèm số lượng, thuận tiện cho việc in ấn và dán theo khu vực.
+                </p>
+                {floorGroups.length > 0 && (
+                  <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto pt-1">
+                    {floorGroups.map((g) => (
+                      <span
+                        key={g.floorName}
+                        className="inline-flex items-center gap-1 bg-white border border-slate-200 px-1.5 py-0.5 rounded text-[10px] text-slate-700 shadow-2xs"
+                      >
+                        <span className="font-medium">{g.floorName}</span>
+                        <span className="text-indigo-600 font-bold">({g.assets.length})</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
@@ -200,7 +255,9 @@ export function ExportQrSvgDialog({ hospitalId }: Props) {
                   onChange={(e) => setIncludeAssetCode(e.target.checked)}
                   className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4"
                 />
-                <span>Hiển thị Mã biển báo (<code className="text-slate-500 font-mono">assetCode</code>)</span>
+                <span>
+                  Hiển thị Mã biển báo (<code className="text-slate-500 font-mono">assetCode</code>)
+                </span>
               </label>
 
               <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -210,7 +267,7 @@ export function ExportQrSvgDialog({ hospitalId }: Props) {
                   onChange={(e) => setIncludeLocation(e.target.checked)}
                   className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4"
                 />
-                <span>Hiển thị Vị trí / Khu vực của biển</span>
+                <span>Hiển thị Vị trí / Khu vực cụ thể</span>
               </label>
             </div>
           </div>
