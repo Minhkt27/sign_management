@@ -11,6 +11,7 @@ import { AssetStatsCards } from '../components/AssetStatsCards';
 import { AssetFilters } from '../components/AssetFilters';
 import { AssetTable } from '../components/AssetTable';
 import { CreateAssetDialog } from '../components/CreateAssetDialog';
+import { ExportQrSvgDialog } from '../components/ExportQrSvgDialog';
 import { Pagination } from '@/shared/components/Pagination';
 import { getApiError } from '@/shared/helpers/apiError';
 import { exportService } from '@/services/exportService';
@@ -106,6 +107,7 @@ export default function AssetListPage() {
             <FileDown size={15} />
             {exporting ? 'Đang xuất...' : 'Xuất Excel'}
           </Button>
+          <ExportQrSvgDialog hospitalId={hospitalIdParam} />
           <ImportExcelDialog type="assets" label="biển báo"
             invalidateKeys={[['assets'], ['locations'], ['locationAssets']]} />
           <CreateAssetDialog locations={locations} signTypes={signTypes} />
