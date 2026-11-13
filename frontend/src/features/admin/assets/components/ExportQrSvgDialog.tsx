@@ -49,10 +49,18 @@ export function ExportQrSvgDialog({ hospitalId }: Props) {
 
   const isLoading = isAssetsLoading || isLocationsLoading;
 
+  const effectiveHospitalId = hospitalId != null ? Number(hospitalId) : null;
+
+  // Lọc theo hospitalId phía client để đảm bảo tuyệt đối khi tài khoản SUPER_ADMIN xuất
+  const scopedAssets = useMemo(() => {
+    if (effectiveHospitalId == null) return allAssets;
+    return allAssets.filter((a) => a.hospitalId == null || a.hospitalId === effectiveHospitalId);
+  }, [allAssets, effectiveHospitalId]);
+
   const floorGroups = useMemo(() => {
-    if (!groupByFloor || allAssets.length === 0) return [];
-    return groupAssetsByFloor(allAssets, locations);
-  }, [groupByFloor, allAssets, locations]);
+    if (!groupByFloor || scopedAssets.length === 0) return [];
+    return groupAssetsByFloor(scopedAssets, locations);
+  }, [groupByFloor, scopedAssets, locations]);
 
   const handleBaseUrlChange = (value: string) => {
     setBaseUrl(value);
@@ -66,8 +74,8 @@ export function ExportQrSvgDialog({ hospitalId }: Props) {
   };
 
   const handleExportSvg = async () => {
-    if (!allAssets || allAssets.length === 0) {
-      toast.error('Không có biển báo nào để xuất.');
+    if (!scopedAssets || scopedAssets.length === 0) {
+      toast.error('Không có biển báo nào để xuất cho bệnh viện này.');
       return;
     }
 
@@ -77,7 +85,7 @@ export function ExportQrSvgDialog({ hospitalId }: Props) {
       await new Promise((resolve) => setTimeout(resolve, 50));
 
       const svgString = generateQrGridSvg({
-        assets: allAssets,
+        assets: scopedAssets,
         locations,
         baseUrl: baseUrl || window.location.origin,
         groupByFloor,
@@ -95,7 +103,7 @@ export function ExportQrSvgDialog({ hospitalId }: Props) {
       const filename = `danh-sach-qr-bien-bao-${today}.svg`;
 
       downloadSvgFile(svgString, filename);
-      toast.success(`Đã xuất thành công ${allAssets.length} mã QR ra file SVG!`);
+      toast.success(`Đã xuất thành công ${scopedAssets.length} mã QR ra file SVG!`);
       setOpen(false);
     } catch (err) {
       console.error('Lỗi khi xuất SVG:', err);
@@ -149,7 +157,7 @@ export function ExportQrSvgDialog({ hospitalId }: Props) {
               <span className="text-rose-600 font-medium">Không thể nạp danh sách</span>
             ) : (
               <span className="font-bold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-200">
-                {allAssets.length} biển báo
+                {scopedAssets.length} biển báo
               </span>
             )}
           </div>
@@ -288,7 +296,7 @@ export function ExportQrSvgDialog({ hospitalId }: Props) {
             type="button"
             size="sm"
             onClick={handleExportSvg}
-            disabled={isLoading || isExporting || allAssets.length === 0}
+            disabled={isLoading || isExporting || scopedAssets.length === 0}
             className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1.5 shadow-sm"
           >
             {isExporting ? (
