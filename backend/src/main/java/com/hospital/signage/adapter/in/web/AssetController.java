@@ -49,8 +49,8 @@ public class AssetController {
 
     @Operation(summary = "Toàn bộ biển báo (tối đa 1000, dùng cho cây/bản đồ)")
     @GetMapping("/all")
-    public ResponseEntity<List<Asset>> getAllAssetsList() {
-        return ResponseEntity.ok(assetUseCase.getAllAssets(SecurityUtils.getCurrentHospitalId()));
+    public ResponseEntity<List<Asset>> getAllAssetsList(@RequestParam(required = false) Long hospitalId) {
+        return ResponseEntity.ok(assetUseCase.getAllAssets(SecurityUtils.resolveAdminHospitalId(hospitalId)));
     }
 
     @Operation(summary = "Chi tiết biển báo theo ID")
