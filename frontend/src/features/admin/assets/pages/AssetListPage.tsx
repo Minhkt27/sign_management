@@ -24,15 +24,25 @@ const PAGE_SIZE = 10;
 export default function AssetListPage() {
   const queryClient = useQueryClient();
 
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
-  const [materialFilter, setMaterialFilter] = useState('ALL');
+  // Trang, ô tìm kiếm và bộ lọc đều nằm trên địa chỉ: vào xem chi tiết một biển rồi bấm
+  // "Quay lại" thì về đúng trang 3 kèm bộ lọc đang chọn, thay vì trang 1 trống trơn.
   const [searchParams, setSearchParams] = useSearchParams();
   const page = Number(searchParams.get('page') ?? '0');
-  const setPage = (p: number) => setSearchParams(
-    prev => { const n = new URLSearchParams(prev); if (p === 0) n.delete('page'); else n.set('page', String(p)); return n; },
+  const search = searchParams.get('q') ?? '';
+  const statusFilter = searchParams.get('status') ?? 'ALL';
+  const materialFilter = searchParams.get('material') ?? 'ALL';
+  const updateParams = (changes: Record<string, string | number>) => setSearchParams(
+    prev => {
+      const n = new URLSearchParams(prev);
+      for (const [key, value] of Object.entries(changes)) {
+        // Giá trị mặc định thì bỏ khỏi địa chỉ cho gọn.
+        if (value === 0 || value === '' || value === 'ALL') n.delete(key); else n.set(key, String(value));
+      }
+      return n;
+    },
     { replace: true },
   );
+  const setPage = (p: number) => updateParams({ page: p });
 
   const { selectedHospitalId } = useAdminStore();
   const hospitalIdParam = selectedHospitalId ?? undefined;
@@ -96,11 +106,11 @@ export default function AssetListPage() {
       <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
         <AssetFilters
           search={search}
-          onSearchChange={(v) => { setSearch(v); setPage(0); }}
+          onSearchChange={(v) => updateParams({ q: v, page: 0 })}
           statusFilter={statusFilter}
-          onStatusFilterChange={(v) => { setStatusFilter(v); setPage(0); }}
+          onStatusFilterChange={(v) => updateParams({ status: v, page: 0 })}
           materialFilter={materialFilter}
-          onMaterialFilterChange={(v) => { setMaterialFilter(v); setPage(0); }}
+          onMaterialFilterChange={(v) => updateParams({ material: v, page: 0 })}
         >
           <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting}
             className="flex items-center gap-1.5 text-green-700 border-green-300 hover:bg-green-50">

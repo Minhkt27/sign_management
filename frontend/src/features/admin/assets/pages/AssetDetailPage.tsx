@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { QRCode } from 'react-qr-code';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { assetService } from '@/services/assetService';
 import { locationService } from '@/services/locationService';
@@ -32,6 +32,12 @@ import {
 export default function AssetDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  // Danh sách gửi kèm địa chỉ của nó (trang 3, bộ lọc...) để quay về đúng chỗ. Chỉ nhận địa
+  // chỉ thuộc danh sách biển báo; vào thẳng bằng link hay tải lại trang thì về trang đầu.
+  const routerLocation = useLocation();
+  const stateBackTo = (routerLocation.state as { backTo?: unknown } | null)?.backTo;
+  const backTo = typeof stateBackTo === 'string' && /^\/admin\/assets(\?|$)/.test(stateBackTo)
+    ? stateBackTo : '/admin/assets';
   const queryClient = useQueryClient();
   const { selectedHospitalId } = useAdminStore();
   const hospitalIdParam = selectedHospitalId ?? undefined;
@@ -253,7 +259,7 @@ export default function AssetDetailPage() {
     return (
       <div className="text-center p-12">
         <p className="text-slate-500 font-medium">Không tìm thấy biển báo vật lý hoặc đã bị xóa.</p>
-        <Button onClick={() => navigate('/admin/assets')} className="mt-4 bg-blue-600 text-white rounded-lg">Quay lại danh sách</Button>
+        <Button onClick={() => navigate(backTo)} className="mt-4 bg-blue-600 text-white rounded-lg">Quay lại danh sách</Button>
       </div>
     );
   }
@@ -280,7 +286,7 @@ export default function AssetDetailPage() {
     <div className="space-y-8 max-w-4xl mx-auto text-left">
       {/* Back Button */}
       <button 
-        onClick={() => navigate('/admin/assets')}
+        onClick={() => navigate(backTo)}
         className="flex items-center space-x-2 text-slate-500 hover:text-slate-800 transition-colors font-semibold text-sm"
       >
         <ArrowLeft size={18} />
