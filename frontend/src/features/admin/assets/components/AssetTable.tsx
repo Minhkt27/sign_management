@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Eye, Trash2 } from 'lucide-react';
@@ -15,6 +15,8 @@ interface Props {
 
 export function AssetTable({ assets, isLoading, page, pageSize, onDelete }: Props) {
   const navigate = useNavigate();
+  // Trang chi tiết dùng địa chỉ này cho nút "Quay lại" (giữ số trang, ô tìm kiếm, bộ lọc).
+  const location = useLocation();
 
   return (
     <div className="border border-slate-200 rounded-xl overflow-x-auto">
@@ -45,7 +47,7 @@ export function AssetTable({ assets, isLoading, page, pageSize, onDelete }: Prop
                 <TableCell className="text-left">
                   <div className="flex items-center space-x-2">
                     <Button
-                      onClick={() => navigate(`/admin/assets/${asset.id}`)}
+                      onClick={() => navigate(`/admin/assets/${asset.id}`, { state: { backTo: location.pathname + location.search } })}
                       variant="ghost"
                       size="sm"
                       className="hover:bg-blue-50 text-blue-600 p-2 rounded-lg"
