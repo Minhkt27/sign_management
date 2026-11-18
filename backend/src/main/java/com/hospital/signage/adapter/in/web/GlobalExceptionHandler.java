@@ -142,6 +142,15 @@ public class GlobalExceptionHandler {
                 "Thiếu trường bắt buộc '" + ex.getRequestPartName() + "' trong request.");
     }
 
+    // Đường dẫn không tồn tại (thường là bot dò /.env, /wp-login.php...). Trước đây rơi xuống
+    // handleGeneric: trả 500 và ghi ERROR kèm stack trace, làm lỗi thật chìm giữa báo động giả.
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<Map<String, String>> handleNoResource(
+            org.springframework.web.servlet.resource.NoResourceFoundException ex) {
+        log.debug("Không tìm thấy: {}", ex.getResourcePath());
+        return error(HttpStatus.NOT_FOUND, "Not Found", "Không tìm thấy đường dẫn này.");
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleGeneric(Exception ex) {
         log.error("Unhandled exception", ex);
