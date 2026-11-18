@@ -168,4 +168,34 @@ class LocationServiceTest {
                 .isInstanceOf(com.hospital.signage.domain.exception.HospitalScopeException.class);
         verify(locationDatabasePort, never()).deleteById(any());
     }
+
+    // Lỗi thật 18/11: "Tầng 4" vừa sửa nằm cuối bảng nên hiện lên ĐẦU danh sách.
+    @Test
+    void danhSachViTri_xepTheoTenHieuSo() {
+        when(locationDatabasePort.findAllByHospital(HOSPITAL_ID)).thenReturn(java.util.List.of(
+                loc(4L, 1L, "Tầng 4"), loc(1L, null, "Tòa B"), loc(2L, 1L, "Tầng 10"),
+                loc(3L, 1L, "Tầng 2"), loc(5L, null, "Tòa A")));
+
+        assertThat(locationService.getAllLocations(HOSPITAL_ID))
+                .extracting(Location::getName)
+                .containsExactly("Tầng 2", "Tầng 4", "Tầng 10", "Tòa A", "Tòa B");
+    }
+
+    @Test
+    void cayViTri_xepGocVaConTheoTen() {
+        when(locationDatabasePort.findAllByHospital(HOSPITAL_ID)).thenReturn(java.util.List.of(
+                loc(1L, null, "Tòa 9 Tầng"), loc(9L, null, "Tòa 10 Tầng"),
+                loc(4L, 1L, "Tầng 4"), loc(2L, 1L, "Tầng 1"), loc(3L, 1L, "Tầng 3")));
+
+        var tree = locationService.getLocationTree(HOSPITAL_ID);
+
+        assertThat(tree).extracting(n -> n.getName()).containsExactly("Tòa 9 Tầng", "Tòa 10 Tầng");
+        assertThat(tree.get(0).getChildren()).extracting(n -> n.getName())
+                .containsExactly("Tầng 1", "Tầng 3", "Tầng 4");
+    }
+
+    private static Location loc(Long id, Long parentId, String name) {
+        return Location.builder().id(id).parentId(parentId).name(name)
+                .locationCode("C" + id).hospitalId(HOSPITAL_ID).build();
+    }
 }

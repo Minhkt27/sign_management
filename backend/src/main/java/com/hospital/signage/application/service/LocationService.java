@@ -66,14 +66,27 @@ public class LocationService implements LocationUseCase {
                 .filter(loc -> callerHospitalId == null || callerHospitalId.equals(loc.getHospitalId()));
     }
 
+    // Database trả theo thứ tự lưu vật lý (bản ghi vừa sửa có thể nhảy xuống cuối) nên giao
+    // diện từng hiện "Tầng 4, Tầng 1, Tầng 2, Tầng 3". Sắp xếp ở đây thì cây vị trí lẫn mọi ô
+    // chọn tòa/tầng/khoa đều đúng thứ tự mà không phải sửa từng chỗ phía giao diện.
+    static final Comparator<Location> BY_NAME = Comparator
+            .comparing(Location::getName, NaturalNameOrder.INSTANCE)
+            .thenComparing(Location::getId, Comparator.nullsLast(Comparator.naturalOrder()));
+
     @Override
     public List<Location> getAllLocations(Long hospitalId) {
-        return locationDatabasePort.findAllByHospital(hospitalId);
+        return sortedByName(locationDatabasePort.findAllByHospital(hospitalId));
     }
 
     @Override
     public List<Location> getChildrenLocations(Long parentId, Long hospitalId) {
-        return locationDatabasePort.findByParentIdAndHospital(parentId, hospitalId);
+        return sortedByName(locationDatabasePort.findByParentIdAndHospital(parentId, hospitalId));
+    }
+
+    private static List<Location> sortedByName(List<Location> locations) {
+        List<Location> sorted = new ArrayList<>(locations);
+        sorted.sort(BY_NAME);
+        return sorted;
     }
 
     @Override
@@ -151,6 +164,7 @@ public class LocationService implements LocationUseCase {
 
         List<Location> roots = allLocations.stream()
                 .filter(l -> l.getParentId() == null)
+                .sorted(BY_NAME)
                 .collect(Collectors.toList());
 
         List<LocationTreeNode> tree = new ArrayList<>();
@@ -162,12 +176,11 @@ public class LocationService implements LocationUseCase {
     }
 
     private LocationTreeNode buildTreeNode(Location node, Map<Long, List<Location>> parentGroup) {
-        List<Location> children = parentGroup.getOrDefault(node.getId(), Collections.emptyList());
+        List<Location> children = sortedByName(parentGroup.getOrDefault(node.getId(), Collections.emptyList()));
         List<LocationTreeNode> childNodes = new ArrayList<>();
         for (Location child : children) {
             childNodes.add(buildTreeNode(child, parentGroup));
         }
-        childNodes.sort(Comparator.comparing(n -> n.getLocationCode()));
         return new LocationTreeNode(node, childNodes);
     }
 
