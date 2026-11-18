@@ -241,22 +241,32 @@ sudo ls -l backups/*/
 
 Kết quả đúng: một thư mục tên dạng `20260923-143005`, bên trong có 4 file `database.dump`, `env.backup`, `globals.sql`, `minio-data.tar.gz`, và không file nào có kích thước 0.
 
-**Chép bản sao lưu về máy bạn** — vì bản trên server sẽ mất theo nếu server hỏng. Nên làm mỗi tuần cho tới khi có sao lưu tự động ra ngoài.
-
-**server** (thay tên thư mục bằng bản mới nhất):
-
-```bash
-sudo tar -czf ~/sao-luu.tar.gz -C /opt/sign_management/backups 20260923-143005
-sudo chown deploy ~/sao-luu.tar.gz
-```
-
-**PowerShell:**
+**Chép bản sao lưu về máy bạn, 15 ngày một lần.** Bản trên server mất theo nếu server hỏng, và server chỉ giữ 14 ngày. Cần 7-Zip trên máy. Mở **PowerShell** trong thư mục repo:
 
 ```powershell
-scp deploy@<IP>:sao-luu.tar.gz "$env:USERPROFILE\Documents\"
+powershell -ExecutionPolicy Bypass -File deploy\backup\pull-offsite.ps1
+# hoặc lưu thẳng vào USB:  ... pull-offsite.ps1 -OutDir "E:\SaoLuu"
 ```
 
-Chép xong thì xoá bản tạm trên server — **server:** `rm ~/sao-luu.tar.gz`
+Script lấy bản mới nhất trên server, nén thành `signaway-<ngày-giờ>.zip` có mật khẩu (AES-256), thử mở lại bằng chính mật khẩu đó, rồi xoá mọi bản tạm (cả trên server lẫn trên máy). Mặc định file lưu ở `%USERPROFILE%\SignaWay-saoluu\`.
+
+- File zip chứa **mật khẩu thật** của hệ thống (`env.backup`). Đặt mật khẩu zip mạnh (≥ 12 ký tự), cất vào trình quản lý mật khẩu, **không** ghi chung chỗ với file zip.
+- Quên mật khẩu zip là bản sao lưu đó vô dụng.
+- Giữ vài bản gần nhất ở ít nhất 2 nơi (ví dụ máy + USB).
+
+**Diễn tập khôi phục** — làm ngay với file zip vừa tải, sau đó vài tháng một lần. Diễn tập chạy hoàn toàn trên máy bạn bằng Docker và không đụng tới server thật. Mở Docker Desktop, rồi chạy trong **Git Bash** ở thư mục repo:
+
+```bash
+bash deploy/backup/restore-drill.sh ~/SignaWay-saoluu/signaway-<ngày-giờ>.zip
+```
+
+Script dựng một hệ thống riêng tên `signage-drill` chỉ từ file zip, giống như dựng server mới. Nó dùng `.env` cũ trong bản sao lưu và làm đúng các bước của `restore.sh`. Sau đó nó kiểm tra 3 điều:
+
+- số dòng các bảng chính;
+- backend khởi động được và API trả dữ liệu;
+- **từng ảnh** mà database đang trỏ tới đều mở được.
+
+Kết quả đúng là dòng `KẾT QUẢ: ĐẠT`. Xong việc, script tự xoá sạch container, volume và file giải nén. Muốn giữ lại để tự bấm xem thì thêm `--keep`, dọn sau bằng `--cleanup`.
 
 ---
 
@@ -344,14 +354,16 @@ Nếu khôi phục hỏng giữa chừng, script in ra khung **KHÔI PHỤC TH�
 **Lên một server mới** (server cũ hỏng hẳn):
 
 1. Làm bước 1–6 trên server mới. Trỏ tên miền về IP mới (bước 3).
-2. Chép bản sao lưu từ máy bạn lên — **PowerShell:**
+2. Giải nén file zip trên máy bạn (7-Zip hỏi mật khẩu) để ra file `<ngày-giờ>.tar`, rồi chép lên server — **PowerShell:**
    ```powershell
-   scp "$env:USERPROFILE\Documents\sao-luu.tar.gz" deploy@<IP-MOI>:
+   & "C:\Program Files\7-Zip\7z.exe" x "$env:USERPROFILE\SignaWay-saoluu\signaway-<ngày-giờ>.zip" -o"$env:TEMP\saoluu"
+   scp "$env:TEMP\saoluu\<ngày-giờ>.tar" deploy@<IP-MOI>:sao-luu.tar
+   Remove-Item -Recurse "$env:TEMP\saoluu"     # bản giải nén chứa mật khẩu thật
    ```
 3. **server:**
    ```bash
    cd /opt/sign_management
-   mkdir -p backups && tar -xzf ~/sao-luu.tar.gz -C backups
+   sudo mkdir -p backups && sudo tar -xf ~/sao-luu.tar -C backups && rm ~/sao-luu.tar
    cp backups/*/env.backup .env && chmod 600 .env
    docker compose up -d --build
    sudo bash deploy/backup/restore.sh backups/<tên-thư-mục-vừa-giải-nén>
@@ -363,6 +375,6 @@ Bước `cp ... env.backup .env` là bắt buộc: phải dùng **đúng mật k
 
 ## Những điều nên biết
 
-- **Bản sao lưu tự động hiện chỉ nằm trên chính VPS.** Server hỏng thì mất theo, trừ khi đã bật snapshot của nhà cung cấp (bước 2) hoặc đã chép về máy (bước 9). Việc tiếp theo nên làm: tự động đẩy bản sao lưu ra ngoài, ví dụ Cloudflare R2 — 10GB miễn phí, dư cho dữ liệu hiện tại.
+- **Bản sao lưu tự động chỉ nằm trên chính VPS.** Bản ngoài VPS là file zip bạn tự tải về 15 ngày một lần (bước 9). Nếu server hỏng, có thể mất tối đa ~15 ngày dữ liệu. Muốn mất ít hơn thì tải dày hơn, hoặc tự động đẩy ra kho ngoài (ví dụ Cloudflare R2, 10GB miễn phí).
 - **Kho ảnh chạy bằng Silo, không phải MinIO chính hãng.** MinIO đã lưu trữ dự án cộng đồng và gỡ mọi nguồn tải. Silo là nhánh tiếp nối do Pigsty duy trì, vẫn có bản vá bảo mật, và giữ nguyên định dạng dữ liệu. Vì vậy trong log và tên container vẫn thấy chữ `minio`. Hệ thống ghim đúng một phiên bản (kèm digest), không mở cổng kho ảnh ra ngoài, và chỉ cho phép đọc ảnh qua nginx. Nên ghé [trang phát hành của Silo](https://github.com/pgsty/silo/releases) vài tháng một lần và nâng cấp có chủ đích khi có bản vá bảo mật.
 - **Cloudflare:** nếu sau này bật proxy của Cloudflare (đám mây màu cam) trước tên miền, phải cấu hình thêm để backend nhận đúng IP người dùng — không thì chức năng chặn đăng nhập sai nhiều lần sẽ coi mọi người là một.
