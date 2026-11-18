@@ -132,6 +132,26 @@ class AuthServiceTest {
                 .hasMessage("Invalid or expired refresh token");
     }
 
+    // Lỗi thật trên server 15/11: refresh token quá 7 ngày ném ExpiredJwtException ra ngoài → 500.
+    @Test
+    void refreshToken_hetHan_tra401ChuKhongPhai500() {
+        when(jwtTokenProvider.isAccessToken("expired-refresh"))
+                .thenThrow(new io.jsonwebtoken.ExpiredJwtException(null, null, "JWT expired"));
+
+        assertThatThrownBy(() -> authService.refreshToken("expired-refresh"))
+                .isInstanceOf(InvalidCredentialsException.class)
+                .hasMessage("Invalid or expired refresh token");
+    }
+
+    @Test
+    void refreshToken_hongDinhDang_tra401() {
+        when(jwtTokenProvider.extractUsername("garbage"))
+                .thenThrow(new io.jsonwebtoken.MalformedJwtException("bad"));
+
+        assertThatThrownBy(() -> authService.refreshToken("garbage"))
+                .isInstanceOf(InvalidCredentialsException.class);
+    }
+
     @Test
     void refreshToken_withAccessToken_isRejected() {
         when(jwtTokenProvider.isAccessToken("an-access-token")).thenReturn(true);

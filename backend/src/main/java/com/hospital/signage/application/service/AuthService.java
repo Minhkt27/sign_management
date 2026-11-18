@@ -63,11 +63,17 @@ public class AuthService implements AuthUseCase {
     public RefreshResult refreshToken(String refreshToken) {
         // Chiều ngược lại của kiểm tra trong JwtAuthenticationFilter: access token không được
         // dùng để xin token mới. Token cũ chưa có claim "typ" vẫn qua được (giai đoạn chuyển tiếp).
-        if (jwtTokenProvider.isAccessToken(refreshToken)) {
+        // Đọc token có thể ném lỗi của thư viện JWT (hết hạn, sai chữ ký, hỏng định dạng). Trước
+        // đây không bắt nên refresh token quá 7 ngày ra lỗi 500 thay vì 401 "hết phiên".
+        String username;
+        try {
+            if (jwtTokenProvider.isAccessToken(refreshToken)) {
+                throw new InvalidCredentialsException("Invalid or expired refresh token");
+            }
+            username = jwtTokenProvider.extractUsername(refreshToken);
+        } catch (io.jsonwebtoken.JwtException | IllegalArgumentException e) {
             throw new InvalidCredentialsException("Invalid or expired refresh token");
         }
-
-        String username = jwtTokenProvider.extractUsername(refreshToken);
         User user = userDatabasePort.findByUsername(username)
                 .orElseThrow(() -> new InvalidCredentialsException("Invalid or expired refresh token"));
 
