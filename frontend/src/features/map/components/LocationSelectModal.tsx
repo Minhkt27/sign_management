@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Html5Qrcode } from 'html5-qrcode';
+// Chỉ lấy KIỂU ở đây; thư viện thật (thư viện lớn nhất của cả trang) được tải khi người dùng
+// bấm quét. Nạp sẵn thì mọi bệnh nhân mở bản đồ đều phải tải nó dù hầu như không ai dùng.
+import type { Html5Qrcode } from 'html5-qrcode';
 import { assetService } from '@/services/assetService';
 import { MapNode, MapFloorData, Location } from '@/shared/types';
 import { Search, CheckCircle2, XCircle } from 'lucide-react';
@@ -81,9 +83,21 @@ export function LocationSelectModal({ open, onClose, allFloorData, locations, on
     setMessage('');
     processingRef.current = false;
     setScanning(true);
-    await new Promise(r => setTimeout(r, 100)); // wait for DOM
+    // Tải thư viện song song với lúc chờ DOM hiện khung camera.
+    let Scanner: typeof Html5Qrcode;
+    try {
+      [{ Html5Qrcode: Scanner }] = await Promise.all([
+        import('html5-qrcode'),
+        new Promise(r => setTimeout(r, 100)), // wait for DOM
+      ]);
+    } catch {
+      setScanning(false);
+      setStatus('err');
+      setMessage('Không tải được trình quét (mạng yếu?). Hãy thử lại hoặc chọn tay bên dưới.');
+      return;
+    }
 
-    const qr = new Html5Qrcode('qr-viewport-modal');
+    const qr = new Scanner('qr-viewport-modal');
     scannerRef.current = qr;
     try {
       startPromiseRef.current = qr.start(
