@@ -74,7 +74,7 @@ backend/src/main/java/com/hospital/signage/
     └── security/    # JwtTokenProvider, JwtAuthenticationFilter
 ```
 
-**Stack:** Java 21 · Spring Boot 3.2 · Spring Security · Spring Data JPA · MapStruct · Lombok · PostgreSQL 15
+**Stack:** Java 21 · Spring Boot 4.1 · Spring Security · Spring Data JPA · MapStruct · Lombok · PostgreSQL 15
 
 ### Frontend — Feature-First + Role-Based
 

@@ -131,7 +131,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
     public ResponseEntity<Map<String, String>> handleMaxUploadSize(
             org.springframework.web.multipart.MaxUploadSizeExceededException ex) {
-        return error(HttpStatus.PAYLOAD_TOO_LARGE, "Payload Too Large",
+        return error(HttpStatus.CONTENT_TOO_LARGE, "Payload Too Large",
                 "Kích thước tệp tải lên vượt quá giới hạn cho phép (Tối đa 10MB).");
     }
 

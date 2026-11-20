@@ -32,7 +32,7 @@ Tài liệu này mô tả đầy đủ và chính xác các yêu cầu chức n�
                            │ REST API (JSON)
 ┌──────────────────────────▼───────────────────────────────────────┐
 │                      BACKEND LAYER                                │
-│            Spring Boot 3.2 + Java 21 (Hexagonal)                 │
+│            Spring Boot 4.1 + Java 21 (Hexagonal)                 │
 │  ┌────────────┐ ┌───────────────┐ ┌──────────────────────────┐   │
 │  │Controllers │ │Services/UseCa │ │Adapters (JPA, MinIO)     │   │
 │  └────────────┘ └───────────────┘ └──────────────────────────┘   │
@@ -420,7 +420,7 @@ Ngoài vai trò, mỗi user có thể được gán thêm `customPermissions` �
 ### Ràng Buộc Kỹ Thuật
 
 - Phải chạy trên Docker Compose; không phụ thuộc cloud-specific service
-- Backend Java 21 (LTS), Spring Boot 3.2+
+- Backend Java 21 (LTS), Spring Boot 4.1+
 - PostgreSQL 15 với extension `pg_trgm` và `unaccent`
 - JWT secret phải ≥ 32 ký tự
 
