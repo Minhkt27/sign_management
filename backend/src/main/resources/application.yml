@@ -18,6 +18,11 @@ spring:
       idle-timeout: 600000
       max-lifetime: 1800000
 
+  # Spring Boot 4 dùng Jackson 3, mặc định khác Jackson 2 (sắp xếp trường theo ABC, báo lỗi khi
+  # gửi null vào trường kiểu số/boolean...). Giữ nguyên hành vi cũ để frontend/app không phải đổi.
+  jackson:
+    use-jackson2-defaults: true
+
   flyway:
     default-schema: ${FLYWAY_DEFAULT_SCHEMA:public}
     baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:false}
