@@ -28,10 +28,12 @@ jobs:
           # Build hỏng thì DỪNG, không chạy tiếp "up -d" — bản đang chạy giữ nguyên.
           # --ff-only: ai đó lỡ sửa file trực tiếp trên server thì báo lỗi thay vì âm thầm merge.
           # image prune: mỗi lần build để lại image cũ vài trăm MB, không dọn thì vài tháng đầy ổ.
+          # --pull: luôn tải lại image gốc (Java, Node, nginx) — không có nó, server dùng mãi bản
+          # đã lưu từ lần build đầu và không bao giờ nhận bản vá bảo mật của image gốc.
           script: |
             set -e
             cd /opt/sign_management
             git pull --ff-only origin main
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml build backend frontend
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml build --pull backend frontend
             docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
             docker image prune -f
