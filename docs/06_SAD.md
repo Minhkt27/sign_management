@@ -22,7 +22,7 @@ graph TB
         end
         
         subgraph BE_Container["Backend Container (port 8080)"]
-            SpringBoot["Spring Boot 3.2\nJava 21"]
+            SpringBoot["Spring Boot 4.1\nJava 21"]
             Security["Spring Security\nJWT Auth"]
             Hexagonal["Hexagonal Architecture\nPorts & Adapters"]
         end

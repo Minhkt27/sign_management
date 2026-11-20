@@ -2,13 +2,12 @@ package com.hospital.signage.infrastructure.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
-import java.security.Key;
+import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -19,7 +18,7 @@ public class JwtTokenProvider {
 
     private final long jwtExpirationInMs;
     private final long refreshExpirationInMs;
-    private final Key key;
+    private final SecretKey key;
 
     public JwtTokenProvider(
             @Value("${jwt.secret}") String jwtSecret,
@@ -74,11 +73,13 @@ public class JwtTokenProvider {
 
     private String createToken(Map<String, Object> claims, String subject, long expirationMs) {
         return Jwts.builder()
-                .setClaims(claims)
-                .setSubject(subject)
-                .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + expirationMs))
-                .signWith(key, SignatureAlgorithm.HS256)
+                .claims(claims)
+                .subject(subject)
+                .issuedAt(new Date(System.currentTimeMillis()))
+                .expiration(new Date(System.currentTimeMillis() + expirationMs))
+                // Ghi rõ HS256: để thư viện tự chọn theo độ dài khoá thì secret dài sẽ thành
+                // HS512, đổi định dạng token so với các bản trước.
+                .signWith(key, Jwts.SIG.HS256)
                 .compact();
     }
 
@@ -105,11 +106,11 @@ public class JwtTokenProvider {
     }
 
     private Claims extractAllClaims(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(key)
+        return Jwts.parser()
+                .verifyWith(key)
                 .build()
-                .parseClaimsJws(token)
-                .getBody();
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     public boolean validateToken(String token, UserDetails userDetails) {

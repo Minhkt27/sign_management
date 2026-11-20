@@ -2,13 +2,17 @@ package com.hospital.signage.infrastructure.config;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.util.concurrent.TimeUnit;
 
+// @EnableCaching đặt ở đây (cùng CacheManager), không ở lớp main: test @WebMvcTest không nạp
+// cấu hình này nên cũng không đòi CacheManager.
 @Configuration
+@EnableCaching
 public class CacheConfig {
 
     @Bean

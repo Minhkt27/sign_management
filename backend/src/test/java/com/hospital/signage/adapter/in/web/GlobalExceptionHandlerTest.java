@@ -12,7 +12,7 @@ class GlobalExceptionHandlerTest {
     @Test
     void duongDanKhongTonTai_tra404ChuKhongPhai500() {
         var response = new GlobalExceptionHandler()
-                .handleNoResource(new NoResourceFoundException(HttpMethod.GET, ".env"));
+                .handleNoResource(new NoResourceFoundException(HttpMethod.GET, "/.env", ".env"));
 
         assertThat(response.getStatusCode().value()).isEqualTo(404);
         assertThat(response.getBody()).containsEntry("error", "Not Found");
