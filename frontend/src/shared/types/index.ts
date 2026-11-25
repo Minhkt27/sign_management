@@ -91,6 +91,8 @@ export interface MapFloor {
   imageUrl: string;
   imgWidth: number;
   imgHeight: number;
+  /** Tiêu đề hiển thị trên trang chỉ đường; null = dùng tên tầng. */
+  title?: string | null;
   campus: boolean;
   hospitalId?: number;
   createdAt?: string;
