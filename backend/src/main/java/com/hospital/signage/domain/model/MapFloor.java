@@ -18,6 +18,8 @@ public class MapFloor {
     private String imageUrl;
     private int imgWidth;
     private int imgHeight;
+    // Tiêu đề hiển thị trên trang chỉ đường; null = dùng tên tầng.
+    private String title;
     private boolean campus;
     private Instant createdAt;
     private Instant updatedAt;

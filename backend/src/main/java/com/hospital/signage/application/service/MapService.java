@@ -58,6 +58,17 @@ public class MapService implements MapUseCase {
         return mapDatabasePort.saveFloor(existing);
     }
 
+    // Xoá hết chữ (hoặc chỉ còn dấu cách) nghĩa là bỏ tiêu đề, quay về hiện tên tầng.
+    @Override
+    @Transactional
+    public MapFloor updateFloorTitle(Long id, String title, Long callerHospitalId) {
+        MapFloor existing = mapDatabasePort.findFloorById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Sơ đồ không tồn tại: " + id));
+        assertFloorInHospital(existing, callerHospitalId);
+        existing.setTitle(title == null || title.isBlank() ? null : title.strip());
+        return mapDatabasePort.saveFloor(existing);
+    }
+
     @Override
     public Optional<MapFloor> getFloorById(Long id) {
         return mapDatabasePort.findFloorById(id);

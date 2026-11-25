@@ -14,6 +14,8 @@ export const mapService = {
     apiClient.post<MapFloor>('/map/floors', data).then(r => r.data),
   updateFloor: (id: number, data: { imageUrl: string; imgWidth: number; imgHeight: number }) =>
     apiClient.put<MapFloor>(`/map/floors/${id}`, data).then(r => r.data),
+  updateFloorTitle: (id: number, title: string) =>
+    apiClient.put<MapFloor>(`/map/floors/${id}/title`, { title }).then(r => r.data),
   deleteFloor: (id: number) => apiClient.delete(`/map/floors/${id}`),
 
   // Campus map

@@ -11,6 +11,80 @@ import { getApiError } from '@/shared/helpers/apiError';
 import { getBackendUrl } from '@/shared/helpers/imageUrl';
 import { useAdminStore } from '@/app/store/adminStore';
 
+const TITLE_MAX = 100;
+
+function FloorCard({ floor, floorName, onEdit, onDelete }: {
+  floor: MapFloor;
+  floorName: string;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const saved = floor.title ?? '';
+  const [title, setTitle] = useState(saved);
+  const dirty = title.trim() !== saved;
+
+  const saveMutation = useMutation({
+    mutationFn: () => mapService.updateFloorTitle(floor.id, title),
+    onSuccess: (updated) => {
+      setTitle(updated.title ?? '');
+      queryClient.invalidateQueries({ queryKey: ['mapFloors'] });
+      toast.success(updated.title ? 'Đã lưu tiêu đề' : 'Đã bỏ tiêu đề, trang chỉ đường sẽ hiện tên tầng');
+    },
+    onError: (e: unknown) => toast.error(getApiError(e, 'Không thể lưu tiêu đề')),
+  });
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden hover:shadow-md transition-shadow">
+      <div className="aspect-video bg-slate-100 overflow-hidden">
+        <img src={getBackendUrl(floor.imageUrl)} alt="Mặt bằng" className="w-full h-full object-cover" />
+      </div>
+      <div className="p-4">
+        <p className="font-semibold text-slate-800">{floorName}</p>
+        <p className="text-xs text-slate-400 mt-0.5">{floor.imgWidth} × {floor.imgHeight}px</p>
+
+        <label className="block text-xs font-medium text-slate-500 mt-3 mb-1" htmlFor={`floor-title-${floor.id}`}>
+          Tiêu đề trên trang chỉ đường
+        </label>
+        <form
+          className="flex gap-2"
+          onSubmit={e => { e.preventDefault(); if (dirty) saveMutation.mutate(); }}
+        >
+          <input
+            id={`floor-title-${floor.id}`}
+            value={title}
+            maxLength={TITLE_MAX}
+            onChange={e => setTitle(e.target.value)}
+            placeholder={`Để trống: hiện "${floorName}"`}
+            className="flex-1 min-w-0 border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {dirty && (
+            <button type="submit" disabled={saveMutation.isPending}
+              className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-medium px-3 rounded-lg">
+              {saveMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : 'Lưu'}
+            </button>
+          )}
+        </form>
+
+        <div className="flex gap-2 mt-3">
+          <button
+            onClick={onEdit}
+            className="flex-1 flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium py-2 rounded-lg"
+          >
+            <Pencil size={14} /> Chỉnh sửa
+          </button>
+          <button
+            onClick={onDelete}
+            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function MapListPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -327,29 +401,9 @@ export default function MapListPage() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {bFloors.map(floor => (
-                    <div key={floor.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden hover:shadow-md transition-shadow">
-                      <div className="aspect-video bg-slate-100 overflow-hidden">
-                        <img src={getBackendUrl(floor.imageUrl)} alt="Mặt bằng" className="w-full h-full object-cover" />
-                      </div>
-                      <div className="p-4">
-                        <p className="font-semibold text-slate-800">{getLocationName(floor.locationId!)}</p>
-                        <p className="text-xs text-slate-400 mt-0.5">{floor.imgWidth} × {floor.imgHeight}px</p>
-                        <div className="flex gap-2 mt-3">
-                          <button
-                            onClick={() => navigate(`/admin/assets/tree/map/${floor.id}/edit`)}
-                            className="flex-1 flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium py-2 rounded-lg"
-                          >
-                            <Pencil size={14} /> Chỉnh sửa
-                          </button>
-                          <button
-                            onClick={() => handleDelete(floor)}
-                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                    <FloorCard key={floor.id} floor={floor} floorName={getLocationName(floor.locationId!)}
+                      onEdit={() => navigate(`/admin/assets/tree/map/${floor.id}/edit`)}
+                      onDelete={() => handleDelete(floor)} />
                   ))}
                 </div>
               </div>
@@ -365,29 +419,9 @@ export default function MapListPage() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {groupedFloors.unassigned.map(floor => (
-                  <div key={floor.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden hover:shadow-md transition-shadow">
-                    <div className="aspect-video bg-slate-100 overflow-hidden">
-                      <img src={getBackendUrl(floor.imageUrl)} alt="Mặt bằng" className="w-full h-full object-cover" />
-                    </div>
-                    <div className="p-4">
-                      <p className="font-semibold text-slate-800">{getLocationName(floor.locationId!)}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">{floor.imgWidth} × {floor.imgHeight}px</p>
-                      <div className="flex gap-2 mt-3">
-                        <button
-                          onClick={() => navigate(`/admin/assets/tree/map/${floor.id}/edit`)}
-                          className="flex-1 flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium py-2 rounded-lg"
-                        >
-                          <Pencil size={14} /> Chỉnh sửa
-                        </button>
-                        <button
-                          onClick={() => handleDelete(floor)}
-                          className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                  <FloorCard key={floor.id} floor={floor} floorName={getLocationName(floor.locationId!)}
+                    onEdit={() => navigate(`/admin/assets/tree/map/${floor.id}/edit`)}
+                    onDelete={() => handleDelete(floor)} />
                 ))}
               </div>
             </div>

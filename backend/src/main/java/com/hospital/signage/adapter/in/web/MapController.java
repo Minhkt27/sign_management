@@ -86,6 +86,13 @@ public class MapController {
         return ResponseEntity.ok(mapUseCase.updateFloor(id, floor, SecurityUtils.getCurrentHospitalId()));
     }
 
+    @Operation(summary = "Đổi tiêu đề hiển thị của sơ đồ tầng (để trống = dùng tên tầng)")
+    @PreAuthorize("hasAuthority('MAP_MANAGE')")
+    @PutMapping("/floors/{id}/title")
+    public ResponseEntity<MapFloor> updateFloorTitle(@PathVariable Long id, @Valid @RequestBody FloorTitleRequest req) {
+        return ResponseEntity.ok(mapUseCase.updateFloorTitle(id, req.title(), SecurityUtils.getCurrentHospitalId()));
+    }
+
     @Operation(summary = "Xóa sơ đồ tầng")
     @PreAuthorize("hasAuthority('MAP_MANAGE')")
     @DeleteMapping("/floors/{id}")
@@ -263,6 +270,8 @@ public class MapController {
             @NotNull @Positive Integer imgWidth,
             @NotNull @Positive Integer imgHeight
     ) {}
+
+    public record FloorTitleRequest(@Size(max = 100) String title) {}
 
     public record CampusFloorRequest(
             @NotNull @Size(max = 500) String imageUrl,

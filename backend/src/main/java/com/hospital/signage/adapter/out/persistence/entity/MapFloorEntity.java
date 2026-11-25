@@ -31,6 +31,9 @@ public class MapFloorEntity {
     @Column(name = "img_height", nullable = false)
     private int imgHeight;
 
+    @Column(name = "title", length = 100)
+    private String title;
+
     @Column(name = "is_campus", nullable = false)
     private boolean campus;
 
