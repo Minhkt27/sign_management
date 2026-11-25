@@ -13,6 +13,7 @@ public interface MapUseCase {
     // Floor
     MapFloor createFloor(MapFloor floor);
     MapFloor updateFloor(Long id, MapFloor floor, Long callerHospitalId);
+    MapFloor updateFloorTitle(Long id, String title, Long callerHospitalId);
     Optional<MapFloor> getFloorById(Long id);
     Optional<MapFloor> getFloorByLocationId(Long locationId, Long callerHospitalId);
     List<MapFloor> getAllFloors(Long hospitalId);

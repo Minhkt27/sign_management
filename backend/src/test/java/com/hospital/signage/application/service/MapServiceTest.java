@@ -114,6 +114,41 @@ class MapServiceTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    @Test
+    void doiTieuDeSoDoCuaVienKhac_biTuChoi() {
+        assertThatThrownBy(() -> mapService.updateFloorTitle(10L, "Khoa Sản", VIEN_B))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    // ── Tiêu đề hiển thị của sơ đồ tầng ────────────────────────────────────
+
+    @Test
+    void doiTieuDe_catDauCachThua() {
+        when(mapDatabasePort.saveFloor(floorVienA)).thenReturn(floorVienA);
+
+        MapFloor saved = mapService.updateFloorTitle(10L, "  Khoa CĐHA & TDCN  ", VIEN_A);
+
+        assertThat(saved.getTitle()).isEqualTo("Khoa CĐHA & TDCN");
+    }
+
+    @Test
+    void xoaTrangTieuDe_quayVeDungTenTang() {
+        floorVienA.setTitle("Khoa cũ");
+        when(mapDatabasePort.saveFloor(floorVienA)).thenReturn(floorVienA);
+
+        assertThat(mapService.updateFloorTitle(10L, "   ", VIEN_A).getTitle()).isNull();
+    }
+
+    @Test
+    void doiTieuDe_khongDungToiAnhSoDo() {
+        when(mapDatabasePort.saveFloor(floorVienA)).thenReturn(floorVienA);
+
+        MapFloor saved = mapService.updateFloorTitle(10L, "Khoa Sản", VIEN_A);
+
+        assertThat(saved.getImageUrl()).isEqualTo("a.png");
+        assertThat(saved.getImgWidth()).isEqualTo(800);
+    }
+
     // ── Vòng đời cache đồ thị ──────────────────────────────────────────────
 
     // deleteFloor từng là hàm DUY NHẤT quên xoá cache: tầng bị xoá kéo theo node/edge trong

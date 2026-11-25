@@ -568,7 +568,11 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
         <div className="flex items-center gap-1.5 px-4 py-2 border-b border-green-50">
           <MapPin size={12} className="text-green-800 flex-shrink-0" />
           <span className="text-xs font-extrabold text-slate-700">
-            {activeFloorId === 'campus' ? 'Sơ đồ tổng quát bệnh viện' : activeFloorId ? getFloorName(activeFloorId) : 'Sơ đồ'}
+            {/* Nút chọn tầng ngay phía trên đã ghi tên tầng, nên dòng này ưu tiên tiêu đề riêng
+                quản trị đặt cho sơ đồ (vd. tên khoa); chưa đặt thì mới lặp lại tên tầng. */}
+            {activeFloorId === 'campus' ? 'Sơ đồ tổng quát bệnh viện'
+              : activeFloorId ? (floors.find(f => f.id === activeFloorId)?.title || getFloorName(activeFloorId))
+              : 'Sơ đồ'}
           </span>
         </div>
 
