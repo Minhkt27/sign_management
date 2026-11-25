@@ -302,11 +302,10 @@ export default function MapEditorPage() {
                     const floorLoc = locations.find(l => l.id === fd.floor.locationId);
                     const floorLabel = floorLoc?.name ?? `Tầng #${fd.floor.id}`;
                     return transitNodes.map(n => {
-                      const alreadyConnected =
-                        floorData.edges.some(e =>
-                          (e.nodeFromId === selectedNodeId && e.nodeToId === n.id) ||
-                          (e.nodeToId === selectedNodeId && e.nodeFromId === n.id)
-                        );
+                      const crossEdge = floorData.edges.find(e =>
+                        (e.nodeFromId === selectedNodeId && e.nodeToId === n.id) ||
+                        (e.nodeToId === selectedNodeId && e.nodeFromId === n.id)
+                      );
                       return (
                         <div key={n.id} className="flex items-center justify-between gap-2">
                           <div className="min-w-0">
@@ -315,8 +314,21 @@ export default function MapEditorPage() {
                             </p>
                             <p className="text-xs text-slate-400">{floorLabel}</p>
                           </div>
-                          {alreadyConnected ? (
-                            <span className="text-xs text-emerald-600 font-medium flex-shrink-0">✓ Đã nối</span>
+                          {crossEdge ? (
+                            // Đường nối khác tầng không vẽ trên bản đồ (đầu kia ở tầng khác) nên
+                            // không bấm vào để xoá được như đường nối thường — huỷ ngay tại đây.
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <span className="text-xs text-emerald-600 font-medium">✓ Đã nối</span>
+                              <button
+                                onClick={() => deleteEdgeMutation.mutate(crossEdge.id, {
+                                  onSuccess: () => toast.success('Đã huỷ nối'),
+                                })}
+                                disabled={deleteEdgeMutation.isPending}
+                                className="text-xs text-red-600 hover:bg-red-50 border border-red-200 px-2 py-1 rounded disabled:opacity-50"
+                              >
+                                Huỷ nối
+                              </button>
+                            </div>
                           ) : (
                             <button
                               onClick={() => createEdgeMutation.mutate({ from: selectedNodeId!, to: n.id })}
