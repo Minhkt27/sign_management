@@ -47,7 +47,9 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
   const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   const isFirstMount = useRef(true);
-  const didAutoSearch = useRef(false);
+  // Điểm đến (từ URL) đã được tự tìm đường. Trước đây chỉ tự tìm 1 lần duy nhất, nên chọn
+  // điểm đến khác ở tab Khoa/Phòng thì ô điểm đến đổi nhưng bản đồ vẫn vẽ đường cũ.
+  const autoSearchedDest = useRef<number | null>(null);
   const compass = useCompassHeading();
 
   // Derived from result
@@ -134,13 +136,19 @@ export function MapTab({ fromNodeId, fromLabel, destNodeId, floors, locations, a
 
   // Nếu vào tab với cả From lẫn To đã biết sẵn (vd. quét QR khi đã có điểm đến nhớ từ
   // lần trước), tự tìm đường luôn thay vì bắt người dùng bấm "Tìm đường" thêm 1 lần.
+  // Mỗi điểm đến mới chỉ tự tìm 1 lần: đổi vị trí hiện tại (quét QR) đã tự tìm lại ở chỗ khác,
+  // không tìm lần nữa ở đây — nếu không sẽ tìm tới điểm đến cũ trong URL thay vì điểm vừa gõ.
   useEffect(() => {
-    if (didAutoSearch.current) return;
-    if (fromNodeId != null && destNodeId != null) {
-      didAutoSearch.current = true;
+    if (destNodeId == null || autoSearchedDest.current === destNodeId) return;
+    if (fromNodeId == null) {
+      // Chưa biết đang đứng đâu thì chưa tìm được, nhưng không để đường cũ nằm lại trên bản đồ.
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      handleFindPath(fromNodeId, destNodeId);
+      setActiveResult(null);
+      setNoPath(false);
+      return;
     }
+    autoSearchedDest.current = destNodeId;
+    handleFindPath(fromNodeId, destNodeId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fromNodeId, destNodeId]);
 
